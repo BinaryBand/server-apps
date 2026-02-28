@@ -1,4 +1,11 @@
 # rclone --include-from patterns (source root is /data inside gather container)
 volumes/jellyfin_config/**
 volumes/jellyfin_data/data/**
+# Explicit SQLite coverage (live DB + companions + exported snapshots)
+volumes/jellyfin_data/data/**/*.db
+volumes/jellyfin_data/data/**/*.sqlite
+volumes/jellyfin_data/data/**/*.sqlite3
+volumes/jellyfin_data/data/**/*.db-wal
+volumes/jellyfin_data/data/**/*.db-shm
+volumes/jellyfin_data/data/db-snapshots/**
 volumes/jellyfin_data/plugins/**

@@ -1,13 +1,58 @@
 from pathlib import Path
 import subprocess
 
+from src.backups.db_snapshot import snapshot_sqlite
+
 
 RCLONE_IMAGE = "rclone/rclone:latest"
+SQLITE_EXTENSIONS = {".db", ".sqlite", ".sqlite3"}
 
 
 def run(cmd):
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)
+
+
+def _is_sqlite_candidate(file_path: Path) -> bool:
+    if "db-snapshots" in file_path.parts:
+        return False
+    if file_path.name.lower().endswith(".snapshot.db"):
+        return False
+    return file_path.suffix.lower() in SQLITE_EXTENSIONS
+
+
+def _create_db_snapshots(backups_dir: Path) -> None:
+    data_root = backups_dir / "volumes" / "jellyfin_data" / "data"
+    if not data_root.exists():
+        print(f"Skipping db snapshot pass; data root not found: {data_root}")
+        return
+
+    db_files = sorted(
+        file_path
+        for file_path in data_root.rglob("*")
+        if file_path.is_file() and _is_sqlite_candidate(file_path)
+    )
+    if not db_files:
+        print(f"No SQLite files found for snapshot pass in: {data_root}")
+        return
+
+    snapshot_root = data_root / "db-snapshots"
+    print(f"Creating SQLite snapshots for {len(db_files)} file(s)...")
+    failures = []
+    for db_file in db_files:
+        relative_parent = db_file.parent.relative_to(data_root)
+        snapshot_path = snapshot_root / relative_parent / f"{db_file.name}.snapshot.db"
+        try:
+            snapshot_sqlite(db_file, snapshot_path)
+            print(f"Snapshot created: {snapshot_path}")
+        except Exception as err:
+            failures.append((db_file, err))
+            print(f"Snapshot failed for {db_file}: {err}")
+
+    if failures:
+        print(
+            f"SQLite snapshot pass completed with {len(failures)} failure(s); continuing with gathered files."
+        )
 
 
 def gather_with_include_file(
@@ -54,6 +99,7 @@ def gather_with_include_file(
     ]
 
     run(cmd)
+    _create_db_snapshots(backups_dir)
 
 
 def main():
