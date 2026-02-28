@@ -62,6 +62,100 @@ def remove_volumes(volumes):
     return removed, failed
 
 
+def _containers_using_volumes(volumes):
+    """Return a mapping volume_name -> set(container_id) for containers that mount the given volumes."""
+    mapping = {v: set() for v in volumes}
+
+    try:
+        proc = subprocess.run(
+            ["docker", "ps", "-a", "-q"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return mapping
+
+    container_ids = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    for cid in container_ids:
+        try:
+            insp = subprocess.run(
+                ["docker", "inspect", "-f", "{{json .Mounts}}", cid],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError:
+            continue
+
+        mounts_json = insp.stdout.strip()
+        # mounts_json should be a JSON array; do a simple containment check for volume names
+        for v in volumes:
+            if f'"Name":"{v}"' in mounts_json or f"'Name': '{v}'" in mounts_json:
+                mapping[v].add(cid)
+
+    return mapping
+
+
+def remove_volumes_with_containers(volumes, yes=False):
+    removed = []
+    failed = []
+
+    # First attempt naive removal
+    for v in volumes:
+        try:
+            subprocess.run(["docker", "volume", "rm", v], check=True)
+            removed.append(v)
+        except subprocess.CalledProcessError:
+            failed.append(v)
+
+    if not failed:
+        return removed, []
+
+    # Find containers using the remaining volumes
+    mapping = _containers_using_volumes(failed)
+
+    # For each volume with containers, attempt to remove those containers
+    for v in list(failed):
+        containers = sorted(mapping.get(v, []))
+        if not containers:
+            # no containers found; try force remove once
+            try:
+                subprocess.run(["docker", "volume", "rm", "-f", v], check=True)
+                removed.append(v)
+                failed.remove(v)
+            except subprocess.CalledProcessError:
+                pass
+            continue
+
+        print(f"Volume {v} is in use by containers: {', '.join(containers)}")
+        if not yes:
+            ok = (
+                input(f"Remove these containers to free {v}? [y/N]: ").strip().lower()
+                == "y"
+            )
+            if not ok:
+                print(f"Skipping removal of volume {v}")
+                continue
+
+        # remove containers
+        try:
+            subprocess.run(["docker", "rm", "-f"] + containers, check=True)
+        except subprocess.CalledProcessError as exc:
+            print(f"Failed to remove containers for {v}: {exc}")
+            continue
+
+        # retry volume removal
+        try:
+            subprocess.run(["docker", "volume", "rm", v], check=True)
+            removed.append(v)
+            failed.remove(v)
+        except subprocess.CalledProcessError:
+            print(f"Failed to remove volume {v} after removing containers")
+
+    return removed, failed
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Remove all Docker volumes or run conservative compose down"
@@ -131,7 +225,7 @@ def main():
             print("Aborted by user.")
             return
 
-    removed, failed = remove_volumes(vols)
+    removed, failed = remove_volumes_with_containers(vols, yes=args.yes)
     print(f"Removed: {len(removed)}; Failed: {len(failed)}")
     if failed:
         print("Failed to remove:")

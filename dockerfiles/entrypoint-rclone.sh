@@ -13,15 +13,6 @@ fi
 (umount -l /media/pcloud/Media 2>/dev/null || true)
 mkdir -p /media/pcloud/Media
 
-# render rclone.conf from template if present and target missing
-TEMPLATE=/config/rclone/rclone.template.conf
-
-if [ -f "$TEMPLATE" ] && [ ! -f "$TARGET" ]; then
-  echo "Rendering rclone config from template"
-  envsubst < "$TEMPLATE" > "$TARGET"
-  chmod 600 "$TARGET"
-fi
-
 exec rclone mount "${RCLONE_REMOTE:-pcloud}:Media" /media/pcloud/Media \
   --allow-other --vfs-cache-mode writes --vfs-cache-max-size 5G --vfs-cache-max-age 12h \
   --read-only \

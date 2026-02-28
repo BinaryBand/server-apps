@@ -1,6 +1,5 @@
 services:
   init:
-    container_name: init
     build:
       context: ./dockerfiles
       dockerfile: Dockerfile.jellyfin
@@ -17,7 +16,6 @@ services:
 
   jellyfin:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION:-latest}
-    container_name: "${JELLYFIN_NAME:-jellyfin}"
     security_opt:
       - no-new-privileges:true
     user: "${PUID:-1000}:${PGID:-1000}"
@@ -51,7 +49,6 @@ services:
     restart: unless-stopped
 
   rclone:
-    container_name: rclone
     build:
       context: ./dockerfiles
       dockerfile: Dockerfile.rclone
@@ -82,14 +79,15 @@ services:
     build:
       context: ./dockerfiles
       dockerfile: Dockerfile.restic
-    container_name: restic
     restart: "no"
     environment:
       - RESTIC_REPOSITORY=${RESTIC_REPOSITORY:-/repo}
       - RESTIC_PASSWORD=${RESTIC_PASSWORD:-just_a_rather_very_important_password}
     volumes:
-      - restic_repo:/repo
+      - ./.local/restic:/repo
       - ./.local/backups:/backups
+    profiles:
+      - on-demand
 
 volumes:
   cloud_jellyfin_config:
@@ -98,5 +96,3 @@ volumes:
     name: "${PROJECT_NAME:-cloud}_jellyfin_cache"
   cloud_jellyfin_data:
     name: "${PROJECT_NAME:-cloud}_jellyfin_data"
-  restic_repo:
-    name: "${PROJECT_NAME:-cloud}_restic_repo"

@@ -1,0 +1,4 @@
+# rclone --include-from patterns (source root is /data inside gather container)
+volumes/jellyfin_config/**
+volumes/jellyfin_data/data/**
+volumes/jellyfin_data/plugins/**
