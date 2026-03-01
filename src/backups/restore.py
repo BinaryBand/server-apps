@@ -5,6 +5,7 @@ import subprocess
 from dotenv import load_dotenv
 
 RCLONE_IMAGE = "rclone/rclone:latest"
+RESTIC_PCLOUD_REMOTE = os.environ.get("RESTIC_PCLOUD_REMOTE", "pcloud:Backups/Restic")
 
 
 def _run(cmd: list[str]) -> None:
@@ -42,6 +43,44 @@ def _sync_dir_to_volume(source_dir: Path, volume_name: str) -> None:
     )
 
 
+def pull_restic_repo_from_pcloud() -> None:
+    """Sync restic repository from pCloud before restore."""
+    if os.environ.get("RESTIC_PCLOUD_SYNC", "1") in {"0", "false", "False", "no", "NO"}:
+        print("Skipping restic pCloud sync (RESTIC_PCLOUD_SYNC disabled).")
+        return
+
+    repo_root = Path(__file__).resolve().parents[2]
+    local_repo = repo_root / ".local" / "restic"
+    rclone_config_dir = repo_root / ".local" / "rclone"
+    rclone_config_file = rclone_config_dir / "rclone.conf"
+
+    if not rclone_config_file.exists():
+        print(
+            f"Skipping restic pCloud sync; rclone config not found: {rclone_config_file}"
+        )
+        return
+
+    local_repo.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{str(local_repo.resolve())}:/repo",
+        "-v",
+        f"{str(rclone_config_dir.resolve())}:/config/rclone:ro",
+        "-e",
+        "RCLONE_CONFIG=/config/rclone/rclone.conf",
+        RCLONE_IMAGE,
+        "sync",
+        RESTIC_PCLOUD_REMOTE,
+        "/repo",
+    ]
+    print("Running:", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+
 def _apply_restored_volumes(
     repo_root: Path, project: str, host_restore_dir: Path
 ) -> None:
@@ -62,6 +101,7 @@ def _apply_restored_volumes(
         ("jellyfin_data", f"{project}_jellyfin_data"),
         ("baikal_config", f"{project}_baikal_config"),
         ("baikal_data", f"{project}_baikal_data"),
+        ("minio_data", f"{project}_minio_data"),
     ]
 
     for source_name, volume_name in mappings:
@@ -100,6 +140,9 @@ def restore_snapshot(
     ):
         print(f"Clearing existing restore directory: {host_restore_dir}")
         shutil.rmtree(host_restore_dir)
+
+    # ensure local restic repository is refreshed from remote before restore
+    pull_restic_repo_from_pcloud()
 
     # perform restic restore
     run_restic_command(["restore", snapshot, "--target", target])

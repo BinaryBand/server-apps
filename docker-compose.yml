@@ -71,6 +71,30 @@ services:
       - "8096:8096"
     restart: unless-stopped
 
+  minio:
+    image: minio/minio:latest
+    build:
+      context: ./dockerfiles
+      dockerfile: Dockerfile.minio
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-${S3_ACCESS_KEY}}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-${S3_SECRET_KEY}}
+    volumes:
+      - cloud_minio_data:/data
+      - type: bind
+        source: ./.local/logs
+        target: /logs
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
   rclone:
     build:
       context: ./dockerfiles
@@ -123,3 +147,5 @@ volumes:
     name: "${PROJECT_NAME:-cloud}_jellyfin_cache"
   cloud_jellyfin_data:
     name: "${PROJECT_NAME:-cloud}_jellyfin_data"
+  cloud_minio_data:
+    name: "${PROJECT_NAME:-cloud}_minio_data"

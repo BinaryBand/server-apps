@@ -12,3 +12,7 @@ volumes/jellyfin_data/plugins/**
 # Baikal: include config and data (CalDAV/CardDAV)
 volumes/baikal_config/**
 volumes/baikal_data/**
+# MinIO config/identity + bucket metadata only (exclude volatile tmp/multipart)
+volumes/minio_data/.minio.sys/config/**
+volumes/minio_data/.minio.sys/buckets/*/.metadata.bin/**
+volumes/minio_data/.minio.sys/pool.bin
