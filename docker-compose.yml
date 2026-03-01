@@ -14,6 +14,27 @@ services:
       - cloud_jellyfin_cache:/var/cache/jellyfin
       - cloud_jellyfin_data:/var/lib/jellyfin
 
+  baikal:
+    image: ckulka/baikal:0.10.1
+    container_name: baikal
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+    ports:
+      - "5234:80"
+    volumes:
+      - cloud_baikal_config:/var/www/baikal/config
+      - cloud_baikal_data:/var/www/baikal/Specific
+      - type: bind
+        source: ./.local/logs
+        target: /logs
+
   jellyfin:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION:-latest}
     security_opt:
@@ -37,13 +58,15 @@ services:
       - cloud_jellyfin_cache:/var/cache/jellyfin
       - cloud_jellyfin_config:/etc/jellyfin
       - cloud_jellyfin_data:/var/lib/jellyfin
-      - ./.logs/jellyfin:/logs
       - type: bind
         source: ./.local/media
         target: /media
         read_only: true
         bind:
           propagation: rshared
+      - type: bind
+        source: ./.local/logs
+        target: /logs
     ports:
       - "8096:8096"
     restart: unless-stopped
@@ -68,10 +91,10 @@ services:
         target: /media
         bind:
           propagation: rshared
-      - type: bind
-        source: ./.logs/rclone_media
-        target: /logs
       - ./.local/rclone:/config/rclone:ro
+      - type: bind
+        source: ./.local/logs
+        target: /logs
     devices:
       - /dev/fuse:/dev/fuse
 
@@ -90,6 +113,10 @@ services:
       - on-demand
 
 volumes:
+  cloud_baikal_config:
+    name: "${PROJECT_NAME:-cloud}_baikal_config"
+  cloud_baikal_data:
+    name: "${PROJECT_NAME:-cloud}_baikal_data"
   cloud_jellyfin_config:
     name: "${PROJECT_NAME:-cloud}_jellyfin_config"
   cloud_jellyfin_cache:

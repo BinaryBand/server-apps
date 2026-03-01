@@ -71,6 +71,8 @@ def gather_with_include_file(
 
     jellyfin_config_vol = f"{project}_jellyfin_config"
     jellyfin_data_vol = f"{project}_jellyfin_data"
+    baikal_config_vol = f"{project}_baikal_config"
+    baikal_data_vol = f"{project}_baikal_data"
 
     cmd = [
         "docker",
@@ -80,6 +82,10 @@ def gather_with_include_file(
         f"{jellyfin_config_vol}:/data/volumes/jellyfin_config:ro",
         "-v",
         f"{jellyfin_data_vol}:/data/volumes/jellyfin_data:ro",
+        "-v",
+        f"{baikal_config_vol}:/data/volumes/baikal_config:ro",
+        "-v",
+        f"{baikal_data_vol}:/data/volumes/baikal_data:ro",
         "-v",
         f"{str(backups_dir)}:/backups",
         "-v",

@@ -9,3 +9,6 @@ volumes/jellyfin_data/data/**/*.db-wal
 volumes/jellyfin_data/data/**/*.db-shm
 volumes/jellyfin_data/data/db-snapshots/**
 volumes/jellyfin_data/plugins/**
+# Baikal: include config and data (CalDAV/CardDAV)
+volumes/baikal_config/**
+volumes/baikal_data/**

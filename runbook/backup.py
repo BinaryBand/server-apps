@@ -9,6 +9,10 @@ from dotenv import load_dotenv
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
+DEFAULT_RESTIC_EXCLUDES = [
+    "/backups/restore/**",
+]
+
 
 def main():
     from src.backups.gather import gather_with_include_file
@@ -75,7 +79,12 @@ def main():
         rclone_config_host=Path(args.rclone_config_host),
     )
 
-    run_backup(paths=[args.restic_target], restic_args=args.restic_arg)
+    restic_args = list(args.restic_arg)
+    if args.restic_target == "/backups":
+        for pattern in DEFAULT_RESTIC_EXCLUDES:
+            restic_args.extend(["--exclude", pattern])
+
+    run_backup(paths=[args.restic_target], restic_args=restic_args)
 
 
 if __name__ == "__main__":
