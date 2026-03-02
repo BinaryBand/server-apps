@@ -1,6 +1,0 @@
-FROM rclone/rclone:latest
-
-COPY entrypoint-rclone.sh /usr/local/bin/entrypoint-rclone.sh
-RUN chmod +x /usr/local/bin/entrypoint-rclone.sh
-
-ENTRYPOINT ["/usr/local/bin/entrypoint-rclone.sh"]

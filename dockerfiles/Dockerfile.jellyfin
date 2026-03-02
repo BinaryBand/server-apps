@@ -1,6 +1,0 @@
-FROM alpine:3.20
-
-COPY entrypoint-jellyfin.sh /usr/local/bin/entrypoint-jellyfin.sh
-RUN chmod +x /usr/local/bin/entrypoint-jellyfin.sh
-
-ENTRYPOINT ["/usr/local/bin/entrypoint-jellyfin.sh"]

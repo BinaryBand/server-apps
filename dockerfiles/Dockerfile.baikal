@@ -1,6 +1,0 @@
-FROM alpine:3.20
-
-COPY entrypoint-baikal.sh /usr/local/bin/entrypoint-baikal.sh
-RUN chmod +x /usr/local/bin/entrypoint-baikal.sh
-
-ENTRYPOINT ["/usr/local/bin/entrypoint-baikal.sh"]

@@ -4,7 +4,7 @@ import subprocess
 
 
 PROFILE = "on-demand"
-RCLONE_IMAGE = "rclone/rclone:latest"
+RCLONE_IMAGE = os.environ.get("RCLONE_IMAGE") or f"rclone/rclone:{os.environ.get('RCLONE_VERSION','latest')}"
 RESTIC_PCLOUD_REMOTE = os.environ.get("RESTIC_PCLOUD_REMOTE", "pcloud:Backups/Restic")
 
 
@@ -20,7 +20,7 @@ def push_restic_repo_to_pcloud() -> None:
     rclone_config_file = rclone_config_dir / "rclone.conf"
 
     if not rclone_config_file.exists():
-        print(f"Skipping restic pCloud sync; rclone config not found: {rclone_config_file}")
+        print(f"rclone config not found: {rclone_config_file}")
         return
 
     local_repo.mkdir(parents=True, exist_ok=True)
@@ -45,16 +45,27 @@ def push_restic_repo_to_pcloud() -> None:
 
 
 def run_restic_command(cmd_args):
-    docker_compose = os.environ.get("DOCKER_COMPOSE_CMD", "docker-compose")
-    cmd = [
-        docker_compose,
-        "--profile",
-        PROFILE,
-        "run",
-        "--rm",
-        "--no-deps",
-        "restic",
-    ] + cmd_args
+    # Allow overriding the compose command via env; default to modern `docker compose`.
+    docker_compose_env = os.environ.get("DOCKER_COMPOSE_CMD", "docker compose")
+    # Split into argv (e.g., "docker compose" -> ["docker","compose"]).
+    docker_compose_cmd = docker_compose_env.split()
+
+    # Use the same compose files as the project init flow for consistency.
+    compose_files = ["-f", "compose/base.yml", "-f", "compose/dev.yml"]
+
+    cmd = (
+        docker_compose_cmd
+        + compose_files
+        + [
+            "--profile",
+            PROFILE,
+            "run",
+            "--rm",
+            "--no-deps",
+            "restic",
+        ]
+        + cmd_args
+    )
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)
 

@@ -4,7 +4,7 @@ import subprocess
 from src.backups.db_snapshot import snapshot_sqlite
 
 
-RCLONE_IMAGE = "rclone/rclone:latest"
+RCLONE_IMAGE = os.environ.get("RCLONE_IMAGE") or f"rclone/rclone:{os.environ.get('RCLONE_VERSION','latest')}"
 SQLITE_EXTENSIONS = {".db", ".sqlite", ".sqlite3"}
 
 
@@ -92,7 +92,7 @@ def gather_with_include_file(
         "-v",
         f"{str(backups_dir)}:/backups",
         "-v",
-        f"{str(include_file)}:/filters/filter.txt:ro",
+        f"{str(include_file)}:/filters/backup-include.txt:ro",
     ]
 
     if rclone_config_host.exists():
@@ -104,7 +104,7 @@ def gather_with_include_file(
         "/data",
         "/backups",
         "--include-from",
-        "/filters/filter.txt",
+        "/filters/backup-include.txt",
     ]
 
     run(cmd)

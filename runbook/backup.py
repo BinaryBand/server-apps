@@ -22,7 +22,7 @@ def main():
 
     repo_root = Path(__file__).resolve().parents[1]
     default_backups_dir = repo_root / ".local" / "backups"
-    default_include_file = repo_root / "configs" / "filters" / "filter.txt"
+    default_include_file = repo_root / "configs" / "filters" / "backup-include.txt"
     default_rclone_config_host = repo_root / ".local" / "rclone"
 
     parser = argparse.ArgumentParser(
@@ -69,7 +69,7 @@ def main():
     ):
         raise SystemExit(
             "--backups-dir must be ./.local/backups when --restic-target is /backups "
-            "(docker-compose mounts ./.local/backups to /backups in the restic container)."
+            "(docker compose mounts ./.local/backups to /backups in the restic container)."
         )
 
     gather_with_include_file(

@@ -4,7 +4,7 @@ import shutil
 import subprocess
 from dotenv import load_dotenv
 
-RCLONE_IMAGE = "rclone/rclone:latest"
+RCLONE_IMAGE = os.environ.get("RCLONE_IMAGE") or f"rclone/rclone:{os.environ.get('RCLONE_VERSION','latest')}"
 RESTIC_PCLOUD_REMOTE = os.environ.get("RESTIC_PCLOUD_REMOTE", "pcloud:Backups/Restic")
 
 
