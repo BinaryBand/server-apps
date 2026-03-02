@@ -1,24 +1,19 @@
-import argparse
-import os
 from pathlib import Path
+import argparse
+import dotenv
 import sys
 
-from dotenv import load_dotenv
 
-
-_ROOT = Path(__file__).resolve().parent.parent
+_ROOT = Path(dotenv.find_dotenv()).parent
 sys.path.insert(0, str(_ROOT))
 
-DEFAULT_RESTIC_EXCLUDES = [
-    "/backups/restore/**",
-]
+DEFAULT_RESTIC_EXCLUDES = ["/backups/restore/**"]
 
 
 def main():
     from src.backups.gather import gather_with_include_file
     from src.backups.restic_runner import run_backup
-
-    load_dotenv()
+    from src.utils.secrets import read_secret
 
     repo_root = Path(__file__).resolve().parents[1]
     default_backups_dir = repo_root / ".local" / "backups"
@@ -30,7 +25,7 @@ def main():
     )
     parser.add_argument(
         "--project",
-        default=os.getenv("PROJECT_NAME", "cloud"),
+        default=read_secret("PROJECT_NAME", "cloud"),
         help="Compose project name used for volume names",
     )
     parser.add_argument(

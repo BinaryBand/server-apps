@@ -1,11 +1,16 @@
 from pathlib import Path
-import os
 import shutil
 import subprocess
-from dotenv import load_dotenv
 
-RCLONE_IMAGE = os.environ.get("RCLONE_IMAGE") or f"rclone/rclone:{os.environ.get('RCLONE_VERSION','latest')}"
-RESTIC_PCLOUD_REMOTE = os.environ.get("RESTIC_PCLOUD_REMOTE", "pcloud:Backups/Restic")
+from src.utils.secrets import load_env, read_secret
+
+RCLONE_IMAGE: str = str(
+    read_secret("RCLONE_IMAGE")
+    or f"rclone/rclone:{read_secret('RCLONE_VERSION','latest')}"
+)
+RESTIC_PCLOUD_REMOTE: str = str(
+    read_secret("RESTIC_PCLOUD_REMOTE", "pcloud:Backups/Restic")
+)
 
 
 def _run(cmd: list[str]) -> None:
@@ -45,7 +50,7 @@ def _sync_dir_to_volume(source_dir: Path, volume_name: str) -> None:
 
 def pull_restic_repo_from_pcloud() -> None:
     """Sync restic repository from pCloud before restore."""
-    if os.environ.get("RESTIC_PCLOUD_SYNC", "1") in {"0", "false", "False", "no", "NO"}:
+    if read_secret("RESTIC_PCLOUD_SYNC", "1") in {"0", "false", "False", "no", "NO"}:
         print("Skipping restic pCloud sync (RESTIC_PCLOUD_SYNC disabled).")
         return
 
@@ -126,11 +131,11 @@ def restore_snapshot(
     - `project`: compose project name used as volume name prefix; if None, uses cwd name
     - `no_apply_volumes`: if True, do not copy restored files into docker volumes
     """
-    load_dotenv()
+    load_env()
     from src.backups.restic_runner import run_restic_command
 
     repo_root = Path(__file__).resolve().parents[2]
-    project = project or os.getenv("PROJECT_NAME") or repo_root.name
+    project = project or read_secret("PROJECT_NAME") or repo_root.name
 
     host_restore_dir = _resolve_host_restore_dir(repo_root, target)
     if (

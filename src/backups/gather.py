@@ -2,9 +2,13 @@ from pathlib import Path
 import subprocess
 
 from src.backups.db_snapshot import snapshot_sqlite
+from src.utils.secrets import read_secret
 
 
-RCLONE_IMAGE = os.environ.get("RCLONE_IMAGE") or f"rclone/rclone:{os.environ.get('RCLONE_VERSION','latest')}"
+RCLONE_IMAGE: str = (
+    read_secret("RCLONE_IMAGE")
+    or f"rclone/rclone:{read_secret('RCLONE_VERSION', 'latest')}"
+)
 SQLITE_EXTENSIONS = {".db", ".sqlite", ".sqlite3"}
 
 

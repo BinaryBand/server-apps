@@ -1,16 +1,23 @@
-import os
 from pathlib import Path
 import subprocess
+from typing import List
+
+from src.utils.secrets import read_secret
 
 
 PROFILE = "on-demand"
-RCLONE_IMAGE = os.environ.get("RCLONE_IMAGE") or f"rclone/rclone:{os.environ.get('RCLONE_VERSION','latest')}"
-RESTIC_PCLOUD_REMOTE = os.environ.get("RESTIC_PCLOUD_REMOTE", "pcloud:Backups/Restic")
+RCLONE_IMAGE: str = str(
+    read_secret("RCLONE_IMAGE")
+    or f"rclone/rclone:{read_secret('RCLONE_VERSION', 'latest')}"
+)
+RESTIC_PCLOUD_REMOTE: str = str(
+    read_secret("RESTIC_PCLOUD_REMOTE", "pcloud:Backups/Restic")
+)
 
 
 def push_restic_repo_to_pcloud() -> None:
     """Sync local restic repository to pCloud after backup."""
-    if os.environ.get("RESTIC_PCLOUD_SYNC", "1") in {"0", "false", "False", "no", "NO"}:
+    if read_secret("RESTIC_PCLOUD_SYNC", "1") in {"0", "false", "False", "no", "NO"}:
         print("Skipping restic pCloud sync (RESTIC_PCLOUD_SYNC disabled).")
         return
 
@@ -44,16 +51,16 @@ def push_restic_repo_to_pcloud() -> None:
     subprocess.run(cmd, check=True)
 
 
-def run_restic_command(cmd_args):
+def run_restic_command(cmd_args: List[str]) -> None:
     # Allow overriding the compose command via env; default to modern `docker compose`.
-    docker_compose_env = os.environ.get("DOCKER_COMPOSE_CMD", "docker compose")
+    docker_compose_env: str = str(read_secret("DOCKER_COMPOSE_CMD") or "docker compose")
     # Split into argv (e.g., "docker compose" -> ["docker","compose"]).
-    docker_compose_cmd = docker_compose_env.split()
+    docker_compose_cmd: List[str] = docker_compose_env.split()
 
     # Use the same compose files as the project init flow for consistency.
-    compose_files = ["-f", "compose/base.yml", "-f", "compose/dev.yml"]
+    compose_files: List[str] = ["-f", "compose/base.yml", "-f", "compose/dev.yml"]
 
-    cmd = (
+    cmd: List[str] = (
         docker_compose_cmd
         + compose_files
         + [

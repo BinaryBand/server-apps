@@ -71,8 +71,8 @@ services:
       init:
         condition: service_completed_successfully
     environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-${S3_ACCESS_KEY}}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-${S3_SECRET_KEY}}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
     volumes:
       - cloud_minio_data:/data
     command: ["server", "/data", "--console-address", ":9001"]
@@ -112,8 +112,8 @@ services:
       minio:
         condition: service_started
     environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-${S3_ACCESS_KEY}}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-${S3_SECRET_KEY}}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
     entrypoint: ["sh", "-c"]
     command: >
       until mc alias set minio http://minio:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" 2>/dev/null; do
@@ -127,7 +127,7 @@ services:
     restart: "no"
     environment:
       - RESTIC_REPOSITORY=${RESTIC_REPOSITORY:-/repo}
-      - RESTIC_PASSWORD=${RESTIC_PASSWORD:-just_a_rather_very_important_password}
+      - RESTIC_PASSWORD=${RESTIC_PASSWORD:?Set RESTIC_PASSWORD in .env}
     volumes:
       - /repo
       - /backups
@@ -136,20 +136,20 @@ services:
 
 volumes:
   cloud_baikal_config:
-    external:
-      name: "${PROJECT_NAME:-server-apps}_baikal_config"
+    name: "${PROJECT_NAME:-server-apps}_baikal_config"
+    external: true
   cloud_baikal_data:
-    external:
-      name: "${PROJECT_NAME:-server-apps}_baikal_data"
+    name: "${PROJECT_NAME:-server-apps}_baikal_data"
+    external: true
   cloud_jellyfin_config:
-    external:
-      name: "${PROJECT_NAME:-server-apps}_jellyfin_config"
+    name: "${PROJECT_NAME:-server-apps}_jellyfin_config"
+    external: true
   cloud_jellyfin_cache:
-    external:
-      name: "${PROJECT_NAME:-server-apps}_jellyfin_cache"
+    name: "${PROJECT_NAME:-server-apps}_jellyfin_cache"
+    external: true
   cloud_jellyfin_data:
-    external:
-      name: "${PROJECT_NAME:-server-apps}_jellyfin_data"
+    name: "${PROJECT_NAME:-server-apps}_jellyfin_data"
+    external: true
   cloud_minio_data:
-    external:
-      name: "${PROJECT_NAME:-server-apps}_minio_data"
+    name: "${PROJECT_NAME:-server-apps}_minio_data"
+    external: true

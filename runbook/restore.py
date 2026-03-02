@@ -1,18 +1,16 @@
-import argparse
-from dotenv import load_dotenv
 from pathlib import Path
-import os
 import subprocess
+import argparse
+import dotenv
 import sys
 
-_ROOT = Path(__file__).resolve().parent.parent
+_ROOT = Path(dotenv.find_dotenv()).parent
 sys.path.insert(0, str(_ROOT))
 
 
 def main():
     from src.backups.restore import restore_snapshot
-
-    load_dotenv()
+    from src.utils.secrets import read_secret
 
     parser = argparse.ArgumentParser(
         description="Restore a restic snapshot into a target path"
@@ -31,7 +29,7 @@ def main():
     )
     parser.add_argument(
         "--project",
-        default=os.getenv("PROJECT_NAME") or _ROOT.name,
+        default=read_secret("PROJECT_NAME") or _ROOT.name,
         help="Compose project name used for docker volume names",
     )
     parser.add_argument(

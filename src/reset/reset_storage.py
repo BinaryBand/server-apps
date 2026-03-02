@@ -1,11 +1,10 @@
 import argparse
-import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
+from src.utils.secrets import load_env, read_secret
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -13,7 +12,7 @@ LOCAL_ROOT = REPO_ROOT / ".local"
 
 
 def get_project_name() -> str:
-    return os.environ.get("PROJECT_NAME") or REPO_ROOT.name
+    return read_secret("PROJECT_NAME") or REPO_ROOT.name
 
 
 def run_command(cmd: list[str], *, dry_run: bool = False, check: bool = True) -> int:
@@ -87,7 +86,7 @@ def remove_local_path(path: Path, *, dry_run: bool = False) -> None:
 
 
 def main() -> None:
-    load_dotenv(REPO_ROOT / ".env")
+    load_env(REPO_ROOT / ".env")
 
     parser = argparse.ArgumentParser(
         description="Reset project runtime storage to a clean slate"
