@@ -2,11 +2,16 @@
 - name: Apply host permissions manifest
   hosts: local
   gather_facts: false
-  become: true
 
   vars:
     permissions_manifest_path: "{{ manifest_path | default('infra/permissions.yml') }}"
     repo_root_path: "{{ repo_root | default(playbook_dir ~ '/..') }}"
+    permissions_mode_selected: "{{ permissions_mode | default('runtime') }}"
+    apply_privileged: "{{ permissions_mode_selected == 'bootstrap' }}"
+    apply_reset: "{{ permissions_mode_selected == 'reset' }}"
+    reset_uid_selected: "{{ (reset_uid | default(lookup('ansible.builtin.env', 'PUID', default='1000'))) | int }}"
+    reset_gid_selected: "{{ (reset_gid | default(lookup('ansible.builtin.env', 'PGID', default='1000'))) | int }}"
+    reset_paths: "{{ permissions_data.reset_paths | default([]) }}"
     rclone_env:
       PCLOUD_ACCESS_TOKEN: "{{ lookup('ansible.builtin.env', 'PCLOUD_ACCESS_TOKEN', default='') }}"
       PCLOUD_EXPIRY: "{{ lookup('ansible.builtin.env', 'PCLOUD_EXPIRY', default='') }}"
@@ -20,14 +25,17 @@
         name: permissions_data
 
     - name: Ensure declared groups exist
+      become: true
       ansible.builtin.group:
         name: "{{ item.key }}"
         gid: "{{ item.value.gid | int }}"
         non_unique: true
         state: present
       loop: "{{ (permissions_data.users | default({})) | dict2items }}"
+      when: apply_privileged
 
     - name: Ensure declared users exist
+      become: true
       ansible.builtin.user:
         name: "{{ item.key }}"
         uid: "{{ item.value.uid | int }}"
@@ -37,14 +45,17 @@
         comment: "{{ item.value.comment | default(item.key) }}"
         state: present
       loop: "{{ (permissions_data.users | default({})) | dict2items }}"
+      when: apply_privileged
 
     - name: Ensure volume directories exist
       ansible.builtin.file:
         path: "{{ repo_root_path }}/{{ item.key }}"
         state: directory
       loop: "{{ (permissions_data.volumes | default({})) | dict2items }}"
+      when: not apply_reset
 
     - name: Apply ownership and mode for declared volumes
+      become: true
       ansible.builtin.file:
         path: "{{ repo_root_path }}/{{ item.key }}"
         owner: "{{ item.value.owner | default('root') }}"
@@ -53,14 +64,40 @@
         recurse: "{{ item.value.recurse | default(false) | bool }}"
         state: directory
       loop: "{{ (permissions_data.volumes | default({})) | dict2items }}"
+      when: apply_privileged
+
+    - name: Apply runtime mode for declared volumes
+      ansible.builtin.file:
+        path: "{{ repo_root_path }}/{{ item.key }}"
+        mode: "{{ item.value.runtime_mode | default(item.value.mode | default('0755')) }}"
+        recurse: "{{ item.value.runtime_recurse | default(false) | bool }}"
+        state: directory
+      loop: "{{ (permissions_data.volumes | default({})) | dict2items }}"
+      when:
+        - permissions_mode_selected == 'runtime'
+        - item.value.runtime_mode is defined
+
+    - name: Normalize ownership and permissions for reset paths
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - -v
+          - "{{ repo_root_path }}:/repo"
+          - alpine:3.20
+          - sh
+          - -lc
+          - "mkdir -p '/repo/{{ item.path }}' && chown -R {{ reset_uid_selected }}:{{ reset_gid_selected }} '/repo/{{ item.path }}' && chmod -R u+rwX '/repo/{{ item.path }}'"
+      loop: "{{ reset_paths }}"
+      when: apply_reset
 
     - name: Ensure rclone config parent exists
       ansible.builtin.file:
         path: "{{ repo_root_path }}/{{ permissions_data.templates.rclone.parent_dir | default('./.local/rclone') }}"
         state: directory
-        owner: "{{ permissions_data.templates.rclone.owner | default('root') }}"
-        group: "{{ permissions_data.templates.rclone.group | default('root') }}"
         mode: "0755"
+      when: not apply_reset
 
     - name: Validate required environment for rclone template
       ansible.builtin.assert:
@@ -73,11 +110,20 @@
           Missing env vars required for rclone config rendering.
           Ensure PCLOUD_ACCESS_TOKEN, PCLOUD_EXPIRY, and MINIO_ROOT_USER/MINIO_ROOT_PASSWORD
           (or S3_ACCESS_KEY/S3_SECRET_KEY aliases) are exported.
+      when: not apply_reset
 
     - name: Render rclone config from template
       ansible.builtin.template:
         src: "{{ repo_root_path }}/{{ permissions_data.templates.rclone.src | default('ansible/templates/rclone.conf.j2') }}"
         dest: "{{ repo_root_path }}/{{ permissions_data.templates.rclone.dest | default('./.local/rclone/rclone.conf') }}"
+        mode: "{{ permissions_data.templates.rclone.mode | default('0600') }}"
+      when: not apply_reset
+
+    - name: Apply rclone config ownership in bootstrap mode
+      become: true
+      ansible.builtin.file:
+        path: "{{ repo_root_path }}/{{ permissions_data.templates.rclone.dest | default('./.local/rclone/rclone.conf') }}"
         owner: "{{ permissions_data.templates.rclone.owner | default('root') }}"
         group: "{{ permissions_data.templates.rclone.group | default('root') }}"
         mode: "{{ permissions_data.templates.rclone.mode | default('0600') }}"
+      when: apply_privileged

@@ -1,6 +1,6 @@
 import subprocess
 
-from src.utils.compose import compose_cmd
+from src.utils.compose import compose_cmd, ensure_external_volumes
 from src.utils.runtime import repo_root
 
 
@@ -13,8 +13,11 @@ if __name__ == "__main__":
     if not apply_perms.exists():
         raise SystemExit(f"Permissions script not found: {apply_perms}")
 
-    print("Applying host permissions and rendering runtime templates via Ansible...")
-    subprocess.run([str(apply_perms)], check=True)
+    print("Preparing runtime directories and templates via Ansible (non-privileged)...")
+    subprocess.run(["bash", str(apply_perms), "--runtime"], check=True)
+
+    print("Ensuring required external Docker volumes exist...")
+    ensure_external_volumes()
 
     subprocess.run(compose_cmd("up", "-d"), check=True)
 

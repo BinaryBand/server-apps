@@ -2,37 +2,37 @@ services:
   init:
     volumes:
       - type: bind
-        source: ../.local/logs
+        source: ./.local/logs
         target: /logs
 
   baikal:
     volumes:
       - type: bind
-        source: ../.local/logs
+        source: ./.local/logs
         target: /logs
 
   jellyfin:
     volumes:
       - type: bind
-        source: ../.local/media
+        source: ./.local/media
         target: /media
         read_only: true
         bind:
-          propagation: rshared
+          propagation: ${MEDIA_PROPAGATION:-rprivate}
       - type: bind
-        source: ../.local/logs
+        source: ./.local/logs
         target: /logs
 
   minio:
     volumes:
       - type: bind
-        source: ../.local/logs
+        source: ./.local/logs
         target: /logs
 
   minio-setup:
     volumes:
       - type: bind
-        source: ../.local/logs
+        source: ./.local/logs
         target: /logs
 
   rclone:
@@ -40,28 +40,28 @@ services:
       - /dev/fuse:/dev/fuse
     volumes:
       - type: bind
-        source: ../.local/media
+        source: ./.local/media
         target: /media
         bind:
-          propagation: rshared
+          propagation: ${MEDIA_PROPAGATION:-rprivate}
       - type: bind
-        source: ../.local/rclone
+        source: ./.local/rclone
         target: /config/rclone
         read_only: true
       - type: bind
-        source: ../.local/logs
+        source: ./.local/logs
         target: /logs
       - type: bind
-        source: ../scripts/entrypoint-rclone.sh
+        source: ./scripts/entrypoint-rclone.sh
         target: /usr/local/bin/entrypoint-rclone.sh
         read_only: true
-    entrypoint: ["/usr/local/bin/entrypoint-rclone.sh"]
+    entrypoint: ["sh", "/usr/local/bin/entrypoint-rclone.sh"]
 
   restic:
     volumes:
       - type: bind
-        source: ../.local/restic
+        source: ./.local/restic
         target: /repo
       - type: bind
-        source: ../.local/backups
+        source: ./.local/backups
         target: /backups

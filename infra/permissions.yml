@@ -28,6 +28,7 @@ volumes:
     owner: jellyfin
     group: jellyfin
     mode: "0750"
+    runtime_mode: "0777"
     recurse: true
 
   ./.local/restic:
@@ -35,6 +36,13 @@ volumes:
     group: root
     mode: "0700"
     recurse: true
+
+reset_paths:
+  - path: ./.local/backups
+  - path: ./.local/logs
+  - path: ./.local/restic
+  - path: ./.local/media
+  - path: ./.local/rclone
 
 services:
   jellyfin:

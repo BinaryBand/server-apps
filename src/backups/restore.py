@@ -19,6 +19,13 @@ def _run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
 
 
+def _normalize_permissions_for_reset(repo_root_path: Path) -> None:
+    apply_perms_script = repo_root_path / "scripts" / "apply-perms.sh"
+    if not apply_perms_script.exists():
+        raise SystemExit(f"Permissions script not found: {apply_perms_script}")
+    _run(["bash", str(apply_perms_script), "--reset"])
+
+
 def _resolve_host_restore_dir(repo_root: Path, target: str) -> Path | None:
     backups_root = repo_root / ".local" / "backups"
     if target == "/backups":
@@ -84,7 +91,12 @@ def pull_restic_repo_from_pcloud() -> None:
         "/repo",
     ]
     print("Running:", " ".join(cmd))
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError:
+        print("Repairing repository permissions via Ansible reset mode and retrying...")
+        _normalize_permissions_for_reset(root)
+        subprocess.run(cmd, check=True)
 
 
 def _apply_restored_volumes(
@@ -94,7 +106,16 @@ def _apply_restored_volumes(
         host_restore_dir / "volumes",
         host_restore_dir / "backups" / "volumes",
     ]
-    restore_volumes_root = next((p for p in candidate_roots if p.exists()), None)
+    restore_volumes_root = None
+    for candidate in candidate_roots:
+        try:
+            if candidate.exists():
+                restore_volumes_root = candidate
+                break
+        except PermissionError:
+            print(
+                f"Skipping inaccessible restore path (permission denied): {candidate}"
+            )
     if restore_volumes_root is None:
         print(
             "No restored volume tree found. Checked: "
@@ -119,6 +140,50 @@ def _apply_restored_volumes(
         _sync_dir_to_volume(source_dir, volume_name)
 
 
+def _preflight_restore_target(
+    repo_root_path: Path, target: str, host_restore_dir: Path | None
+) -> None:
+    if host_restore_dir is not None and target == "/backups/restore":
+        _normalize_permissions_for_reset(repo_root_path)
+    if (
+        host_restore_dir is not None
+        and target == "/backups/restore"
+        and host_restore_dir.exists()
+    ):
+        print(f"Clearing existing restore directory: {host_restore_dir}")
+        shutil.rmtree(host_restore_dir)
+
+
+def _execute_restore(snapshot: str, target: str) -> None:
+    from src.backups.restic_runner import run_restic_command
+
+    pull_restic_repo_from_pcloud()
+    run_restic_command(["restore", snapshot, "--target", target])
+
+
+def _post_restore_permissions(
+    repo_root_path: Path, target: str, host_restore_dir: Path | None
+) -> None:
+    if host_restore_dir is not None and target.startswith("/backups/"):
+        _normalize_permissions_for_reset(repo_root_path)
+
+
+def _post_restore_apply(
+    repo_root_path: Path,
+    project: str,
+    host_restore_dir: Path | None,
+    no_apply_volumes: bool,
+) -> None:
+    if no_apply_volumes:
+        return
+
+    if host_restore_dir is None:
+        print("Restore target is outside /backups; skipping volume apply step.")
+        return
+
+    _apply_restored_volumes(repo_root_path, project, host_restore_dir)
+
+
 def restore_snapshot(
     snapshot: str = "latest",
     target: str = "/backups/restore",
@@ -133,31 +198,11 @@ def restore_snapshot(
     - `no_apply_volumes`: if True, do not copy restored files into docker volumes
     """
     load_env()
-    from src.backups.restic_runner import run_restic_command
-
     root = repo_root()
     project = project or project_name()
 
     host_restore_dir = _resolve_host_restore_dir(root, target)
-    if (
-        host_restore_dir is not None
-        and target == "/backups/restore"
-        and host_restore_dir.exists()
-    ):
-        print(f"Clearing existing restore directory: {host_restore_dir}")
-        shutil.rmtree(host_restore_dir)
-
-    # ensure local restic repository is refreshed from remote before restore
-    pull_restic_repo_from_pcloud()
-
-    # perform restic restore
-    run_restic_command(["restore", snapshot, "--target", target])
-
-    if no_apply_volumes:
-        return
-
-    if host_restore_dir is None:
-        print("Restore target is outside /backups; skipping volume apply step.")
-        return
-
-    _apply_restored_volumes(root, project, host_restore_dir)
+    _preflight_restore_target(root, target, host_restore_dir)
+    _execute_restore(snapshot, target)
+    _post_restore_permissions(root, target, host_restore_dir)
+    _post_restore_apply(root, project, host_restore_dir, no_apply_volumes)

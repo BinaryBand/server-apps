@@ -8,11 +8,6 @@ if __package__ in {None, ""}:
     if root_str not in sys.path:
         sys.path.insert(0, root_str)
 
-from runbook._bootstrap import ensure_repo_on_syspath
-
-
-ensure_repo_on_syspath()
-
 DEFAULT_RESTIC_EXCLUDES = ["/backups/restore/**"]
 
 
@@ -23,7 +18,7 @@ def main():
 
     root = repo_root()
     default_backups_dir = root / ".local" / "backups"
-    default_include_file = root / "configs" / "filters" / "backup-include.txt"
+    default_include_file = root / "configs" / "backup-include.txt"
     default_rclone_config_host = root / ".local" / "rclone"
 
     parser = argparse.ArgumentParser(

@@ -9,11 +9,6 @@ if __package__ in {None, ""}:
     if root_str not in sys.path:
         sys.path.insert(0, root_str)
 
-from runbook._bootstrap import ensure_repo_on_syspath
-
-
-ensure_repo_on_syspath()
-
 
 def main():
     from src.backups.restore import restore_snapshot

@@ -13,10 +13,6 @@ REPO_ROOT = repo_root()
 LOCAL_ROOT = local_root()
 
 
-def get_project_name() -> str:
-    return project_name()
-
-
 def run_command(cmd: list[str], *, dry_run: bool = False, check: bool = True) -> int:
     print("Running:", " ".join(cmd))
     if dry_run:
@@ -87,6 +83,13 @@ def remove_local_path(path: Path, *, dry_run: bool = False) -> None:
         path.unlink(missing_ok=True)
 
 
+def normalize_reset_permissions(*, dry_run: bool = False) -> None:
+    apply_perms_script = REPO_ROOT / "scripts" / "apply-perms.sh"
+    if not apply_perms_script.exists():
+        raise SystemExit(f"Permissions script not found: {apply_perms_script}")
+    run_command(["bash", str(apply_perms_script), "--reset"], dry_run=dry_run)
+
+
 def main() -> None:
     load_env(REPO_ROOT / ".env")
 
@@ -112,7 +115,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    project = get_project_name()
+    project = project_name()
 
     targets: list[Path] = [
         LOCAL_ROOT / "backups",
@@ -146,6 +149,9 @@ def main() -> None:
 
     removed, failed = remove_project_volumes(project, dry_run=args.dry_run)
     print(f"Project volumes removed: {removed}, failed: {failed}")
+
+    print("Normalizing local reset-path permissions via Ansible...")
+    normalize_reset_permissions(dry_run=args.dry_run)
 
     for target in targets:
         remove_local_path(target, dry_run=args.dry_run)
