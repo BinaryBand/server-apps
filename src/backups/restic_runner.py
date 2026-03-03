@@ -1,7 +1,8 @@
-from pathlib import Path
 import subprocess
 from typing import List
 
+from src.utils.compose import compose_cmd
+from src.utils.runtime import repo_root
 from src.utils.secrets import read_secret
 
 
@@ -21,9 +22,9 @@ def push_restic_repo_to_pcloud() -> None:
         print("Skipping restic pCloud sync (RESTIC_PCLOUD_SYNC disabled).")
         return
 
-    repo_root = Path(__file__).resolve().parents[2]
-    local_repo = repo_root / ".local" / "restic"
-    rclone_config_dir = repo_root / ".local" / "rclone"
+    root = repo_root()
+    local_repo = root / ".local" / "restic"
+    rclone_config_dir = root / ".local" / "rclone"
     rclone_config_file = rclone_config_dir / "rclone.conf"
 
     if not rclone_config_file.exists():
@@ -52,26 +53,14 @@ def push_restic_repo_to_pcloud() -> None:
 
 
 def run_restic_command(cmd_args: List[str]) -> None:
-    # Allow overriding the compose command via env; default to modern `docker compose`.
-    docker_compose_env: str = str(read_secret("DOCKER_COMPOSE_CMD") or "docker compose")
-    # Split into argv (e.g., "docker compose" -> ["docker","compose"]).
-    docker_compose_cmd: List[str] = docker_compose_env.split()
-
-    # Use the same compose files as the project init flow for consistency.
-    compose_files: List[str] = ["-f", "compose/base.yml", "-f", "compose/dev.yml"]
-
-    cmd: List[str] = (
-        docker_compose_cmd
-        + compose_files
-        + [
-            "--profile",
-            PROFILE,
-            "run",
-            "--rm",
-            "--no-deps",
-            "restic",
-        ]
-        + cmd_args
+    cmd: List[str] = compose_cmd(
+        "--profile",
+        PROFILE,
+        "run",
+        "--rm",
+        "--no-deps",
+        "restic",
+        *cmd_args,
     )
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)

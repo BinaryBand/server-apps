@@ -54,6 +54,18 @@ services:
     extra_groups: []
     capabilities: []
 
+templates:
+  rclone:
+    src: ansible/templates/rclone.conf.j2
+    parent_dir: ./.local/rclone
+    dest: ./.local/rclone/rclone.conf
+    owner: root
+    group: root
+    mode: "0600"
+
 apply:
-  method: script # options: script | ansible
+  method: ansible # options: ansible
   script: scripts/apply-perms.sh
+  ansible:
+    playbook: ansible/apply-permissions.yml
+    inventory: ansible/inventory.ini

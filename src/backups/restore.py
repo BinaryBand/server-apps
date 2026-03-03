@@ -2,6 +2,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from src.utils.runtime import project_name, repo_root
 from src.utils.secrets import load_env, read_secret
 
 RCLONE_IMAGE: str = str(
@@ -54,9 +55,9 @@ def pull_restic_repo_from_pcloud() -> None:
         print("Skipping restic pCloud sync (RESTIC_PCLOUD_SYNC disabled).")
         return
 
-    repo_root = Path(__file__).resolve().parents[2]
-    local_repo = repo_root / ".local" / "restic"
-    rclone_config_dir = repo_root / ".local" / "rclone"
+    root = repo_root()
+    local_repo = root / ".local" / "restic"
+    rclone_config_dir = root / ".local" / "rclone"
     rclone_config_file = rclone_config_dir / "rclone.conf"
 
     if not rclone_config_file.exists():
@@ -134,10 +135,10 @@ def restore_snapshot(
     load_env()
     from src.backups.restic_runner import run_restic_command
 
-    repo_root = Path(__file__).resolve().parents[2]
-    project = project or read_secret("PROJECT_NAME") or repo_root.name
+    root = repo_root()
+    project = project or project_name()
 
-    host_restore_dir = _resolve_host_restore_dir(repo_root, target)
+    host_restore_dir = _resolve_host_restore_dir(root, target)
     if (
         host_restore_dir is not None
         and target == "/backups/restore"
@@ -159,4 +160,4 @@ def restore_snapshot(
         print("Restore target is outside /backups; skipping volume apply step.")
         return
 
-    _apply_restored_volumes(repo_root, project, host_restore_dir)
+    _apply_restored_volumes(root, project, host_restore_dir)

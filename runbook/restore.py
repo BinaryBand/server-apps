@@ -1,16 +1,23 @@
-from pathlib import Path
 import subprocess
 import argparse
-import dotenv
 import sys
+from pathlib import Path
 
-_ROOT = Path(dotenv.find_dotenv()).parent
-sys.path.insert(0, str(_ROOT))
+if __package__ in {None, ""}:
+    root = Path(__file__).resolve().parents[1]
+    root_str = str(root)
+    if root_str not in sys.path:
+        sys.path.insert(0, root_str)
+
+from runbook._bootstrap import ensure_repo_on_syspath
+
+
+ensure_repo_on_syspath()
 
 
 def main():
     from src.backups.restore import restore_snapshot
-    from src.utils.secrets import read_secret
+    from src.utils.runtime import project_name
 
     parser = argparse.ArgumentParser(
         description="Restore a restic snapshot into a target path"
@@ -29,7 +36,7 @@ def main():
     )
     parser.add_argument(
         "--project",
-        default=read_secret("PROJECT_NAME") or _ROOT.name,
+        default=project_name(),
         help="Compose project name used for docker volume names",
     )
     parser.add_argument(

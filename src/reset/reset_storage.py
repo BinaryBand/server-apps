@@ -4,15 +4,17 @@ import subprocess
 import sys
 from pathlib import Path
 
-from src.utils.secrets import load_env, read_secret
+from src.utils.compose import compose_cmd
+from src.utils.secrets import load_env
+from src.utils.runtime import local_root, project_name, repo_root
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-LOCAL_ROOT = REPO_ROOT / ".local"
+REPO_ROOT = repo_root()
+LOCAL_ROOT = local_root()
 
 
 def get_project_name() -> str:
-    return read_secret("PROJECT_NAME") or REPO_ROOT.name
+    return project_name()
 
 
 def run_command(cmd: list[str], *, dry_run: bool = False, check: bool = True) -> int:
@@ -137,7 +139,7 @@ def main() -> None:
 
     if not args.skip_compose_down:
         run_command(
-            ["docker", "compose", "down", "--volumes", "--remove-orphans"],
+            compose_cmd("down", "--volumes", "--remove-orphans"),
             dry_run=args.dry_run,
             check=False,
         )

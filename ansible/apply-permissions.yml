@@ -1,0 +1,83 @@
+---
+- name: Apply host permissions manifest
+  hosts: local
+  gather_facts: false
+  become: true
+
+  vars:
+    permissions_manifest_path: "{{ manifest_path | default('infra/permissions.yml') }}"
+    repo_root_path: "{{ repo_root | default(playbook_dir ~ '/..') }}"
+    rclone_env:
+      PCLOUD_ACCESS_TOKEN: "{{ lookup('ansible.builtin.env', 'PCLOUD_ACCESS_TOKEN', default='') }}"
+      PCLOUD_EXPIRY: "{{ lookup('ansible.builtin.env', 'PCLOUD_EXPIRY', default='') }}"
+      MINIO_ROOT_USER: "{{ lookup('ansible.builtin.env', 'MINIO_ROOT_USER', default=lookup('ansible.builtin.env', 'S3_ACCESS_KEY', default='')) }}"
+      MINIO_ROOT_PASSWORD: "{{ lookup('ansible.builtin.env', 'MINIO_ROOT_PASSWORD', default=lookup('ansible.builtin.env', 'S3_SECRET_KEY', default='')) }}"
+
+  tasks:
+    - name: Load permissions manifest
+      ansible.builtin.include_vars:
+        file: "{{ permissions_manifest_path }}"
+        name: permissions_data
+
+    - name: Ensure declared groups exist
+      ansible.builtin.group:
+        name: "{{ item.key }}"
+        gid: "{{ item.value.gid | int }}"
+        non_unique: true
+        state: present
+      loop: "{{ (permissions_data.users | default({})) | dict2items }}"
+
+    - name: Ensure declared users exist
+      ansible.builtin.user:
+        name: "{{ item.key }}"
+        uid: "{{ item.value.uid | int }}"
+        group: "{{ item.key }}"
+        shell: /usr/sbin/nologin
+        create_home: false
+        comment: "{{ item.value.comment | default(item.key) }}"
+        state: present
+      loop: "{{ (permissions_data.users | default({})) | dict2items }}"
+
+    - name: Ensure volume directories exist
+      ansible.builtin.file:
+        path: "{{ repo_root_path }}/{{ item.key }}"
+        state: directory
+      loop: "{{ (permissions_data.volumes | default({})) | dict2items }}"
+
+    - name: Apply ownership and mode for declared volumes
+      ansible.builtin.file:
+        path: "{{ repo_root_path }}/{{ item.key }}"
+        owner: "{{ item.value.owner | default('root') }}"
+        group: "{{ item.value.group | default('root') }}"
+        mode: "{{ item.value.mode | default('0755') }}"
+        recurse: "{{ item.value.recurse | default(false) | bool }}"
+        state: directory
+      loop: "{{ (permissions_data.volumes | default({})) | dict2items }}"
+
+    - name: Ensure rclone config parent exists
+      ansible.builtin.file:
+        path: "{{ repo_root_path }}/{{ permissions_data.templates.rclone.parent_dir | default('./.local/rclone') }}"
+        state: directory
+        owner: "{{ permissions_data.templates.rclone.owner | default('root') }}"
+        group: "{{ permissions_data.templates.rclone.group | default('root') }}"
+        mode: "0755"
+
+    - name: Validate required environment for rclone template
+      ansible.builtin.assert:
+        that:
+          - rclone_env.PCLOUD_ACCESS_TOKEN | length > 0
+          - rclone_env.PCLOUD_EXPIRY | length > 0
+          - rclone_env.MINIO_ROOT_USER | length > 0
+          - rclone_env.MINIO_ROOT_PASSWORD | length > 0
+        fail_msg: >-
+          Missing env vars required for rclone config rendering.
+          Ensure PCLOUD_ACCESS_TOKEN, PCLOUD_EXPIRY, and MINIO_ROOT_USER/MINIO_ROOT_PASSWORD
+          (or S3_ACCESS_KEY/S3_SECRET_KEY aliases) are exported.
+
+    - name: Render rclone config from template
+      ansible.builtin.template:
+        src: "{{ repo_root_path }}/{{ permissions_data.templates.rclone.src | default('ansible/templates/rclone.conf.j2') }}"
+        dest: "{{ repo_root_path }}/{{ permissions_data.templates.rclone.dest | default('./.local/rclone/rclone.conf') }}"
+        owner: "{{ permissions_data.templates.rclone.owner | default('root') }}"
+        group: "{{ permissions_data.templates.rclone.group | default('root') }}"
+        mode: "{{ permissions_data.templates.rclone.mode | default('0600') }}"

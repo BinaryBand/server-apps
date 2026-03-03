@@ -1,11 +1,17 @@
 from pathlib import Path
 import argparse
-import dotenv
 import sys
 
+if __package__ in {None, ""}:
+    root = Path(__file__).resolve().parents[1]
+    root_str = str(root)
+    if root_str not in sys.path:
+        sys.path.insert(0, root_str)
 
-_ROOT = Path(dotenv.find_dotenv()).parent
-sys.path.insert(0, str(_ROOT))
+from runbook._bootstrap import ensure_repo_on_syspath
+
+
+ensure_repo_on_syspath()
 
 DEFAULT_RESTIC_EXCLUDES = ["/backups/restore/**"]
 
@@ -13,19 +19,19 @@ DEFAULT_RESTIC_EXCLUDES = ["/backups/restore/**"]
 def main():
     from src.backups.gather import gather_with_include_file
     from src.backups.restic_runner import run_backup
-    from src.utils.secrets import read_secret
+    from src.utils.runtime import project_name, repo_root
 
-    repo_root = Path(__file__).resolve().parents[1]
-    default_backups_dir = repo_root / ".local" / "backups"
-    default_include_file = repo_root / "configs" / "filters" / "backup-include.txt"
-    default_rclone_config_host = repo_root / ".local" / "rclone"
+    root = repo_root()
+    default_backups_dir = root / ".local" / "backups"
+    default_include_file = root / "configs" / "filters" / "backup-include.txt"
+    default_rclone_config_host = root / ".local" / "rclone"
 
     parser = argparse.ArgumentParser(
         description="Gather backup data then create a restic snapshot of that target"
     )
     parser.add_argument(
         "--project",
-        default=read_secret("PROJECT_NAME", "cloud"),
+        default=project_name(),
         help="Compose project name used for volume names",
     )
     parser.add_argument(
