@@ -1,12 +1,14 @@
 {
-  "chat.tools.global.autoApprove": true,
   "cSpell.words": [
     "dockerfiles",
+    "dotenv",
     "jellyfin",
     "mountpoint",
     "pcloud",
-    "PGID",
-    "PUID",
+    "pgid",
+    "puid",
+    "rclone",
+    "restic",
     "setuptools"
   ]
 }

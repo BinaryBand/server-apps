@@ -46,6 +46,7 @@ def push_restic_repo_to_pcloud() -> None:
         "sync",
         "/repo",
         RESTIC_PCLOUD_REMOTE,
+        '--progress',
     ]
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)

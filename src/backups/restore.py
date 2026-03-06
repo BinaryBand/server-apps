@@ -44,6 +44,7 @@ def _sync_dir_to_volume(source_dir: Path, volume_name: str) -> None:
             "sync",
             "/source",
             "/dest",
+            '--progress',
         ]
     )
 
@@ -81,6 +82,7 @@ def pull_restic_repo_from_pcloud() -> None:
         "sync",
         RESTIC_PCLOUD_REMOTE,
         "/repo",
+        '--progress',
     ]
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)

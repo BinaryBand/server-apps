@@ -3,6 +3,7 @@ import subprocess
 
 from src.backups.db_snapshot import snapshot_sqlite
 from src.utils.secrets import read_secret
+from src.utils import volumes as volutils
 
 
 RCLONE_IMAGE: str = (
@@ -26,10 +27,23 @@ def _is_sqlite_candidate(file_path: Path) -> bool:
 
 
 def _create_db_snapshots(backups_dir: Path) -> None:
-    data_root = backups_dir / "volumes" / "jellyfin_data" / "data"
-    if not data_root.exists():
-        print(f"Skipping db snapshot pass; data root not found: {data_root}")
+    volume_dirs = volutils.gathered_volume_dirs(backups_dir)
+    if not volume_dirs:
+        print(f"Skipping db snapshot pass; no volumes found under: {backups_dir / 'volumes'}")
         return
+
+    for volume_dir in volume_dirs:
+        _create_db_snapshots_for_volume(volume_dir)
+
+
+def _create_db_snapshots_for_volume(volume_dir: Path) -> None:
+    # Prefer the conventional 'data' subdirectory, but fall back to scanning
+    # the entire volume directory in case files use a different layout.
+    data_subdir = volume_dir / "data"
+    if data_subdir.exists():
+        data_root = data_subdir
+    else:
+        data_root = volume_dir
 
     db_files = sorted(
         file_path
@@ -37,11 +51,10 @@ def _create_db_snapshots(backups_dir: Path) -> None:
         if file_path.is_file() and _is_sqlite_candidate(file_path)
     )
     if not db_files:
-        print(f"No SQLite files found for snapshot pass in: {data_root}")
         return
 
     snapshot_root = data_root / "db-snapshots"
-    print(f"Creating SQLite snapshots for {len(db_files)} file(s)...")
+    print(f"Creating SQLite snapshots for {len(db_files)} file(s) in {volume_dir.name}...")
     failures = []
     for db_file in db_files:
         relative_parent = db_file.parent.relative_to(data_root)
@@ -73,43 +86,14 @@ def gather_with_include_file(
 
     backups_dir.mkdir(parents=True, exist_ok=True)
 
-    jellyfin_config_vol = f"{project}_jellyfin_config"
-    jellyfin_data_vol = f"{project}_jellyfin_data"
-    baikal_config_vol = f"{project}_baikal_config"
-    baikal_data_vol = f"{project}_baikal_data"
-    minio_data_vol = f"{project}_minio_data"
-
-    cmd = [
-        "docker",
-        "run",
-        "--rm",
-        "-v",
-        f"{jellyfin_config_vol}:/data/volumes/jellyfin_config:ro",
-        "-v",
-        f"{jellyfin_data_vol}:/data/volumes/jellyfin_data:ro",
-        "-v",
-        f"{baikal_config_vol}:/data/volumes/baikal_config:ro",
-        "-v",
-        f"{baikal_data_vol}:/data/volumes/baikal_data:ro",
-        "-v",
-        f"{minio_data_vol}:/data/volumes/minio_data:ro",
-        "-v",
-        f"{str(backups_dir)}:/backups",
-        "-v",
-        f"{str(include_file)}:/filters/backup-include.txt:ro",
-    ]
+    cmd = ["docker", "run", "--rm"]
+    cmd += volutils.rclone_docker_volume_flags(project)
+    cmd += ["-v", f"{str(backups_dir)}:/backups", "-v", f"{str(include_file)}:/filters/backup-include.txt:ro"]
 
     if rclone_config_host.exists():
         cmd += ["-v", f"{str(rclone_config_host)}:/config/rclone:ro"]
 
-    cmd += [
-        RCLONE_IMAGE,
-        "sync",
-        "/data",
-        "/backups",
-        "--include-from",
-        "/filters/backup-include.txt",
-    ]
+    cmd += [RCLONE_IMAGE, "sync", "/data", "/backups", "--progress", "--include-from", "/filters/backup-include.txt"]
 
     run(cmd)
     _create_db_snapshots(backups_dir)
