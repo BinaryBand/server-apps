@@ -27,7 +27,7 @@ volumes:
   ./.local/logs:
     owner: jellyfin
     group: jellyfin
-    mode: "0750"
+    mode: "0777"
     recurse: true
 
   ./.local/restic:

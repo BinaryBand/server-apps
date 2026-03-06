@@ -1,4 +1,5 @@
 {
+  "chat.tools.global.autoApprove": true,
   "cSpell.words": [
     "dockerfiles",
     "jellyfin",

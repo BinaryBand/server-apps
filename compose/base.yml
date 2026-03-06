@@ -11,9 +11,15 @@ services:
     command:
       - 'mkdir -p /etc/jellyfin /var/cache/jellyfin /var/lib/jellyfin /media /logs && chown -R "${PUID:-1000}:${PGID:-1000}" /etc/jellyfin /var/cache/jellyfin /var/lib/jellyfin /media || true'
     volumes:
-      - cloud_jellyfin_config:/etc/jellyfin
-      - cloud_jellyfin_cache:/var/cache/jellyfin
-      - cloud_jellyfin_data:/var/lib/jellyfin
+      - type: bind
+        source: ${JELLYFIN_CONFIG_DIR:-./jellyfin/config}
+        target: /etc/jellyfin
+      - type: bind
+        source: ${JELLYFIN_CACHE_DIR:-./jellyfin/cache}
+        target: /var/cache/jellyfin
+      - type: bind
+        source: ${JELLYFIN_DATA_DIR:-./jellyfin/data}
+        target: /var/lib/jellyfin
 
   baikal:
     image: ckulka/baikal:0.10.1
@@ -53,9 +59,15 @@ services:
       - JELLYFIN_DATA_DIR=/var/lib/jellyfin
       - JELLYFIN_LOG_DIR=/logs
     volumes:
-      - cloud_jellyfin_cache:/var/cache/jellyfin
-      - cloud_jellyfin_config:/etc/jellyfin
-      - cloud_jellyfin_data:/var/lib/jellyfin
+      - type: bind
+        source: ${JELLYFIN_CACHE_DIR:-./jellyfin/cache}
+        target: /var/cache/jellyfin
+      - type: bind
+        source: ${JELLYFIN_CONFIG_DIR:-./jellyfin/config}
+        target: /etc/jellyfin
+      - type: bind
+        source: ${JELLYFIN_DATA_DIR:-./jellyfin/data}
+        target: /var/lib/jellyfin
       - /media
       - /logs
     ports:
@@ -74,7 +86,9 @@ services:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
     volumes:
-      - cloud_minio_data:/data
+      - type: bind
+        source: ${MINIO_DATA_PATH:-./minio}
+        target: /data
     command: ["server", "/data", "--console-address", ":9001"]
     ports:
       - "9000:9000"
@@ -149,7 +163,4 @@ volumes:
     external: true
   cloud_jellyfin_data:
     name: "${PROJECT_NAME:-server-apps}_jellyfin_data"
-    external: true
-  cloud_minio_data:
-    name: "${PROJECT_NAME:-server-apps}_minio_data"
     external: true

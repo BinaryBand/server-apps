@@ -6,6 +6,43 @@ from pathlib import Path
 from src.utils.secrets import read_all_secrets, read_secret_alias
 
 
+def ensure_logs_permissions(repo_root: Path) -> None:
+    logs_dir = repo_root / ".local" / "logs"
+    try:
+        logs_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+
+    try:
+        os.chmod(logs_dir, 0o777)
+    except PermissionError:
+        print(f"Warning: cannot chmod {logs_dir}; run with sudo if needed")
+
+    for log_file in logs_dir.glob("*.log"):
+        try:
+            os.chmod(log_file, 0o666)
+        except OSError:
+            pass
+
+    try:
+        access_acl = subprocess.run(
+            ["setfacl", "-m", "u::rwx,g::rwx,o::rwx", str(logs_dir)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        default_acl = subprocess.run(
+            ["setfacl", "-d", "-m", "u::rwx,g::rwx,o::rwx", str(logs_dir)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if access_acl.returncode != 0 or default_acl.returncode != 0:
+            print("Warning: setfacl could not be applied for .local/logs")
+    except FileNotFoundError:
+        print("Warning: setfacl not installed; new log files may not be world-writable")
+
+
 def render_rclone_template(template_path: Path, dest_path: Path):
     if not template_path.exists():
         print(f"Rclone template not found at {template_path}")
@@ -52,6 +89,7 @@ if __name__ == "__main__":
     dest = repo_root / ".local" / "rclone" / "rclone.conf"
 
     render_rclone_template(template, dest)
+    ensure_logs_permissions(repo_root)
 
     subprocess.run(
         [
