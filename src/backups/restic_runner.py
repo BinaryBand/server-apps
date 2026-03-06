@@ -1,8 +1,8 @@
+from pathlib import Path
 import subprocess
 from typing import List
 
 from src.utils.compose import compose_cmd
-from src.utils.runtime import repo_root
 from src.utils.secrets import read_secret
 
 
@@ -22,9 +22,9 @@ def push_restic_repo_to_pcloud() -> None:
         print("Skipping restic pCloud sync (RESTIC_PCLOUD_SYNC disabled).")
         return
 
-    root = repo_root()
-    local_repo = root / ".local" / "restic"
-    rclone_config_dir = root / ".local" / "rclone"
+    repo_root = Path(__file__).resolve().parents[2]
+    local_repo = repo_root / ".local" / "restic"
+    rclone_config_dir = repo_root / ".local" / "rclone"
     rclone_config_file = rclone_config_dir / "rclone.conf"
 
     if not rclone_config_file.exists():
@@ -47,6 +47,7 @@ def push_restic_repo_to_pcloud() -> None:
         "sync",
         "/repo",
         RESTIC_PCLOUD_REMOTE,
+        "--progress",
     ]
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)

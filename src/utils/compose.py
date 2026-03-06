@@ -10,10 +10,6 @@ COMPOSE_FILES: tuple[str, str] = ("compose/base.yml", "compose/dev.yml")
 EXTERNAL_VOLUME_SUFFIXES: tuple[str, ...] = (
     "baikal_config",
     "baikal_data",
-    "jellyfin_config",
-    "jellyfin_cache",
-    "jellyfin_data",
-    "minio_data",
 )
 
 
