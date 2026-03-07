@@ -6,12 +6,16 @@
   vars:
     permissions_manifest_path: "{{ manifest_path | default('infra/permissions.yml') }}"
     repo_root_path: "{{ repo_root | default(playbook_dir ~ '/..') }}"
+    project_name_selected: "{{ lookup('ansible.builtin.env', 'PROJECT_NAME', default=(repo_root_path | basename)) }}"
     permissions_mode_selected: "{{ permissions_mode | default('runtime') }}"
     apply_privileged: "{{ permissions_mode_selected == 'bootstrap' }}"
     apply_reset: "{{ permissions_mode_selected == 'reset' }}"
     reset_uid_selected: "{{ (reset_uid | default(lookup('ansible.builtin.env', 'PUID', default='1000'))) | int }}"
     reset_gid_selected: "{{ (reset_gid | default(lookup('ansible.builtin.env', 'PGID', default='1000'))) | int }}"
+    volume_entries: "{{ permissions_data.volumes | default([]) }}"
+    file_entries: "{{ permissions_data.files | default([]) }}"
     reset_paths: "{{ permissions_data.reset_paths | default([]) }}"
+    rclone_config_volume_name: "{{ project_name_selected }}_rclone_config"
     rclone_env:
       PCLOUD_ACCESS_TOKEN: "{{ lookup('ansible.builtin.env', 'PCLOUD_ACCESS_TOKEN', default='') }}"
       PCLOUD_EXPIRY: "{{ lookup('ansible.builtin.env', 'PCLOUD_EXPIRY', default='') }}"
@@ -24,87 +28,10 @@
         file: "{{ permissions_manifest_path }}"
         name: permissions_data
 
-    - name: Ensure declared groups exist
-      become: true
-      ansible.builtin.group:
-        name: "{{ item.key }}"
-        gid: "{{ item.value.gid | int }}"
-        non_unique: true
-        state: present
-      loop: "{{ (permissions_data.users | default({})) | dict2items }}"
-      when: apply_privileged
-
-    - name: Ensure declared users exist
-      become: true
-      ansible.builtin.user:
-        name: "{{ item.key }}"
-        uid: "{{ item.value.uid | int }}"
-        group: "{{ item.key }}"
-        shell: /usr/sbin/nologin
-        create_home: false
-        comment: "{{ item.value.comment | default(item.key) }}"
-        state: present
-      loop: "{{ (permissions_data.users | default({})) | dict2items }}"
-      when: apply_privileged
-
-    - name: Ensure volume directories exist
-      ansible.builtin.file:
-        path: "{{ repo_root_path }}/{{ item.key }}"
-        state: directory
-      loop: "{{ (permissions_data.volumes | default({})) | dict2items }}"
+    - name: Reconcile startup permissions and runtime state
+      ansible.builtin.include_tasks:
+        file: tasks/reconcile-startup.yml
       when: not apply_reset
-
-    - name: Ensure declared files exist
-      ansible.builtin.file:
-        path: "{{ repo_root_path }}/{{ item.key }}"
-        state: touch
-      loop: "{{ (permissions_data.files | default({})) | dict2items }}"
-      when: apply_privileged
-
-    - name: Apply ownership and mode for declared volumes
-      become: true
-      ansible.builtin.file:
-        path: "{{ repo_root_path }}/{{ item.key }}"
-        owner: "{{ item.value.owner | default('root') }}"
-        group: "{{ item.value.group | default('root') }}"
-        mode: "{{ item.value.mode | default('0755') }}"
-        recurse: "{{ item.value.recurse | default(false) | bool }}"
-        state: directory
-      loop: "{{ (permissions_data.volumes | default({})) | dict2items }}"
-      when: apply_privileged
-
-    - name: Apply ownership and mode for declared files
-      become: true
-      ansible.builtin.file:
-        path: "{{ repo_root_path }}/{{ item.key }}"
-        owner: "{{ item.value.owner | default('root') }}"
-        group: "{{ item.value.group | default('root') }}"
-        mode: "{{ item.value.mode | default('0644') }}"
-        state: file
-      loop: "{{ (permissions_data.files | default({})) | dict2items }}"
-      when: apply_privileged
-
-    - name: Apply runtime mode for declared volumes
-      ansible.builtin.file:
-        path: "{{ repo_root_path }}/{{ item.key }}"
-        mode: "{{ item.value.runtime_mode | default(item.value.mode | default('0755')) }}"
-        recurse: "{{ item.value.runtime_recurse | default(false) | bool }}"
-        state: directory
-      loop: "{{ (permissions_data.volumes | default({})) | dict2items }}"
-      when:
-        - permissions_mode_selected == 'runtime'
-        - item.value.runtime_mode is defined
-
-    - name: Apply runtime mode for declared files
-      ansible.builtin.file:
-        path: "{{ repo_root_path }}/{{ item.key }}"
-        mode: "{{ item.value.runtime_mode | default(item.value.mode | default('0644')) }}"
-        state: file
-      loop: "{{ (permissions_data.files | default({})) | dict2items }}"
-      when:
-        - permissions_mode_selected == 'runtime'
-        - item.value.runtime_mode is defined
-      ignore_errors: true
 
     - name: Normalize ownership and permissions for reset paths
       ansible.builtin.command:
@@ -113,106 +40,17 @@
           - run
           - --rm
           - -v
-          - "{{ repo_root_path }}:/repo"
+          - "{{ (item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path) }}:/target"
           - alpine:3.20
           - sh
           - -lc
-          - "mkdir -p '/repo/{{ item.path }}' && chown -R {{ reset_uid_selected }}:{{ reset_gid_selected }} '/repo/{{ item.path }}' && chmod -R u+rwX '/repo/{{ item.path }}'"
+          - "mkdir -p /target && chown -R {{ reset_uid_selected }}:{{ reset_gid_selected }} /target && chmod -R u+rwX /target"
       loop: "{{ reset_paths }}"
-      when: apply_reset
+      when:
+        - apply_reset
+        - item.path | default('') | length > 0
 
-    - name: Ensure rclone config parent exists
-      ansible.builtin.file:
-        path: "{{ repo_root_path }}/{{ permissions_data.templates.rclone.parent_dir | default('./.local/rclone') }}"
-        state: directory
-        mode: "0755"
-      when: not apply_reset
-
-    - name: Validate required environment for rclone template
-      ansible.builtin.assert:
-        that:
-          - rclone_env.PCLOUD_ACCESS_TOKEN | length > 0
-          - rclone_env.PCLOUD_EXPIRY | length > 0
-          - rclone_env.MINIO_ROOT_USER | length > 0
-          - rclone_env.MINIO_ROOT_PASSWORD | length > 0
-        fail_msg: >-
-          Missing env vars required for rclone config rendering.
-          Ensure PCLOUD_ACCESS_TOKEN, PCLOUD_EXPIRY, and MINIO_ROOT_USER/MINIO_ROOT_PASSWORD
-          (or S3_ACCESS_KEY/S3_SECRET_KEY aliases) are exported.
-      when: not apply_reset
-
-    - name: Render rclone config from template
-      ansible.builtin.template:
-        src: "{{ repo_root_path }}/{{ permissions_data.templates.rclone.src | default('ansible/templates/rclone.conf.j2') }}"
-        dest: "{{ repo_root_path }}/{{ permissions_data.templates.rclone.dest | default('./.local/rclone/rclone.conf') }}"
-        mode: "{{ permissions_data.templates.rclone.mode | default('0600') }}"
-      when: not apply_reset
-
-    - name: Apply rclone config ownership in bootstrap mode
-      become: true
-      ansible.builtin.file:
-        path: "{{ repo_root_path }}/{{ permissions_data.templates.rclone.dest | default('./.local/rclone/rclone.conf') }}"
-        owner: "{{ permissions_data.templates.rclone.owner | default('root') }}"
-        group: "{{ permissions_data.templates.rclone.group | default('root') }}"
-        mode: "{{ permissions_data.templates.rclone.mode | default('0600') }}"
-      when: apply_privileged
-
-    - name: Start docker compose stack
-      community.docker.docker_compose_v2:
-        project_src: "{{ repo_root_path }}"
-        files:
-          - compose/base.yml
-          - compose/dev.yml
-        state: present
-      when: permissions_mode_selected == 'runtime'
-
-    - name: Wait for MinIO to be ready
-      ansible.builtin.wait_for:
-        port: 9000
-        host: 127.0.0.1
-        delay: 2
-        timeout: 60
-      when: permissions_mode_selected == 'runtime'
-
-    - name: Create MinIO media bucket
-      community.docker.docker_container_exec:
-        container: minio
-        command: >-
-          /bin/sh -c "mc alias set myminio http://127.0.0.1:9000 '{{ rclone_env.MINIO_ROOT_USER }}' '{{ rclone_env.MINIO_ROOT_PASSWORD }}' 2>/dev/null &&
-          if ! mc stat myminio/media >/dev/null 2>&1; then
-            mc mb myminio/media;
-          fi &&
-          anon_status=$(mc anonymous get myminio/media 2>/dev/null || true) &&
-          case \"$anon_status\" in
-            *download*) : ;;
-            *) mc anonymous set download myminio/media ;;
-          esac"
-      when: permissions_mode_selected == 'runtime'
-
-
-    - name: Assert rclone config exists in container
-      community.docker.docker_container_exec:
-        container: rclone
-        command: >-
-          /bin/sh -c 'test -f /config/rclone/rclone.conf'
-      register: _rclone_conf_check
-      failed_when: _rclone_conf_check.rc != 0
-      when: permissions_mode_selected == 'runtime'
-
-    - name: Assert rclone can contact MinIO
-      community.docker.docker_container_exec:
-        container: rclone
-        command: >-
-          /bin/sh -c 'rclone lsd minio: --max-depth 1'
-      register: _rclone_minio_check
-      failed_when: _rclone_minio_check.rc != 0
-      when: permissions_mode_selected == 'runtime'
-
-    - name: Assert rclone can contact pCloud
-      community.docker.docker_container_exec:
-        container: rclone
-        command: >-
-          /bin/sh -c 'rclone lsd pcloud: --max-depth 1'
-      register: _rclone_pcloud_check
-      failed_when: _rclone_pcloud_check.rc != 0
+    - name: Run runtime assertions
+      ansible.builtin.include_tasks:
+        file: tasks/assert-runtime.yml
       when: permissions_mode_selected == 'runtime'

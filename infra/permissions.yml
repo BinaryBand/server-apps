@@ -18,25 +18,26 @@ users:
     comment: "MinIO service account (system user)"
 
 volumes:
-  ./.local/media:
+  - path: "{{ lookup('ansible.builtin.env', 'MEDIA_DATA_PATH', default='./runtime/media') }}"
     owner: jellyfin
     group: rclone
     mode: "0755"
     recurse: true
 
-  ./.local/media/pcloud/Media:
+  - path: "{{ lookup('ansible.builtin.env', 'MEDIA_DATA_PATH', default='./runtime/media') }}/pcloud/Media"
     owner: rclone
     group: rclone
     mode: "0755"
     recurse: true
 
-  ./.local/logs:
+  - path: "{{ lookup('ansible.builtin.env', 'LOGS_DIR', default='./runtime/logs') }}"
     owner: jellyfin
     group: jellyfin
     mode: "0775"
+    runtime_mode: "0777"
     recurse: true
 
-  ./.local/restic:
+  - path: "{{ lookup('ansible.builtin.env', 'RESTIC_REPO_DIR', default='') }}"
     owner: root
     group: root
     mode: "0700"
@@ -44,18 +45,16 @@ volumes:
 
 
 files:
-  ./.local/logs/media.log:
+  - path: "{{ lookup('ansible.builtin.env', 'LOGS_DIR', default='./runtime/logs') }}/media.log"
     owner: root
     group: rclone
     mode: "0664"
-    runtime_mode: "0664"
 
 reset_paths:
-  - path: ./.local/backups
-  - path: ./.local/logs
-  - path: ./.local/restic
-  - path: ./.local/media
-  - path: ./.local/rclone
+  - path: "{{ lookup('ansible.builtin.env', 'BACKUPS_DIR', default='') }}"
+  - path: "{{ lookup('ansible.builtin.env', 'LOGS_DIR', default='./runtime/logs') }}"
+  - path: "{{ lookup('ansible.builtin.env', 'RESTIC_REPO_DIR', default='') }}"
+  - path: "{{ lookup('ansible.builtin.env', 'MEDIA_DATA_PATH', default='./runtime/media') }}"
 
 services:
   jellyfin:
@@ -78,8 +77,6 @@ services:
 templates:
   rclone:
     src: ansible/templates/rclone.conf.j2
-    parent_dir: ./.local/rclone
-    dest: ./.local/rclone/rclone.conf
     owner: root
     group: root
     mode: "0600"

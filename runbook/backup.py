@@ -26,9 +26,6 @@ def main():
     root = repo_root()
     default_include_file = root / "configs" / "backup-include.txt"
     default_backups_dir = read_secret("BACKUPS_DIR", "") or ""
-    default_rclone_config_host = read_secret("RCLONE_CONFIG_DIR") or str(
-        root / ".local" / "rclone"
-    )
 
     parser = argparse.ArgumentParser(
         description="Gather backup data then create a restic snapshot of that target"
@@ -50,11 +47,6 @@ def main():
             "Host backups directory override. Leave empty to use named volume "
             "${PROJECT_NAME}_backups mounted at /backups."
         ),
-    )
-    parser.add_argument(
-        "--rclone-config-host",
-        default=str(default_rclone_config_host),
-        help="Host rclone config directory",
     )
     parser.add_argument(
         "--restic-target",
@@ -85,7 +77,6 @@ def main():
             project=args.project,
             include_file=Path(args.include_file),
             backups_dir=backups_dir,
-            rclone_config_host=Path(args.rclone_config_host),
         )
     except GatherError as err:
         raise SystemExit(f"[stage:gather] {err}") from err

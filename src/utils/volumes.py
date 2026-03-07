@@ -21,7 +21,6 @@ STORAGE_DEFAULT_SUFFIXES = {
 STORAGE_OVERRIDE_ENV = {
 	"backups": "BACKUPS_DIR",
 	"restic_repo": "RESTIC_REPO_DIR",
-	"rclone_config": "RCLONE_CONFIG_DIR",
 }
 
 
@@ -47,10 +46,11 @@ def storage_mount_source(project: str, storage_key: str) -> Tuple[str, bool]:
 	Returns `(source, is_host_path)` where source is either a host path
 	from env override or a named docker volume using project prefix.
 	"""
-	env_key = STORAGE_OVERRIDE_ENV[storage_key]
-	override = read_secret(env_key)
-	if override:
-		return (str(Path(override).expanduser().resolve()), True)
+	env_key = STORAGE_OVERRIDE_ENV.get(storage_key)
+	if env_key:
+		override = read_secret(env_key)
+		if override:
+			return (str(Path(override).expanduser().resolve()), True)
 
 	suffix = STORAGE_DEFAULT_SUFFIXES[storage_key]
 	return (docker_volume_name(project, suffix), False)

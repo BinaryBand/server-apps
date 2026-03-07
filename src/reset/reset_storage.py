@@ -6,7 +6,15 @@ from pathlib import Path
 
 from src.utils.compose import compose_cmd
 from src.utils.secrets import load_env
-from src.utils.runtime import local_root, project_name, repo_root
+from src.utils.runtime import (
+    backups_root,
+    local_root,
+    logs_root,
+    media_root,
+    project_name,
+    repo_root,
+    restic_repo_root,
+)
 
 
 REPO_ROOT = repo_root()
@@ -101,12 +109,12 @@ def main() -> None:
     parser.add_argument(
         "--keep-restic",
         action="store_true",
-        help="Keep .local/restic repository",
+        help="Keep host restic repository override",
     )
     parser.add_argument(
         "--keep-media",
         action="store_true",
-        help="Keep .local/media mount directory contents",
+        help="Keep configured media mount directory contents",
     )
     parser.add_argument(
         "--skip-compose-down",
@@ -118,14 +126,16 @@ def main() -> None:
     project = project_name()
 
     targets: list[Path] = [
-        LOCAL_ROOT / "backups",
-        LOCAL_ROOT / "logs",
-        LOCAL_ROOT / "rclone" / "rclone.conf",
+        logs_root(),
     ]
-    if not args.keep_restic:
-        targets.append(LOCAL_ROOT / "restic")
+    configured_backups_root = backups_root()
+    if configured_backups_root is not None:
+        targets.append(configured_backups_root)
+    configured_restic_root = restic_repo_root()
+    if not args.keep_restic and configured_restic_root is not None:
+        targets.append(configured_restic_root)
     if not args.keep_media:
-        targets.append(LOCAL_ROOT / "media")
+        targets.append(media_root())
 
     print(f"Project: {project}")
     print("This will remove Docker runtime data and local state:")
@@ -157,9 +167,8 @@ def main() -> None:
         remove_local_path(target, dry_run=args.dry_run)
 
     if not args.dry_run:
-        (LOCAL_ROOT / "rclone").mkdir(parents=True, exist_ok=True)
         if args.keep_media:
-            (LOCAL_ROOT / "media").mkdir(parents=True, exist_ok=True)
+            media_root().mkdir(parents=True, exist_ok=True)
         print("Clean slate reset complete.")
     else:
         print("Dry run complete.")

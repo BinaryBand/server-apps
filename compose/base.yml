@@ -95,7 +95,7 @@ services:
       --read-only
       --uid "${PUID:-1000}"
       --gid "${MEDIA_GID:-3000}"
-      --umask 027
+      --umask 022
       --log-file /logs/media.log
       --log-level DEBUG
     volumes:

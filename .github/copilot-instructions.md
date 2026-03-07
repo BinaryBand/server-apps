@@ -1,10 +1,5 @@
 # Copilot Instructions
 
-## Purpose
-
-These instructions are for practical, enforceable guidance in this repository.
-Use this as the default review baseline for AI-authored and human-authored changes.
-
 ## Current Architecture (Enforceable)
 
 - `runbook/*.py`: Orchestrators that sequence stages and parse CLI arguments.

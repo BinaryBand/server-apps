@@ -56,22 +56,18 @@ def push_restic_repo_to_pcloud() -> None:
 
     repo_root = Path(__file__).resolve().parents[2]
     project = read_secret("PROJECT_NAME") or repo_root.name
-    rclone_config_dir = Path(
-        read_secret("RCLONE_CONFIG_DIR") or str(repo_root / ".local" / "rclone")
-    ).resolve()
-    rclone_config_file = rclone_config_dir / "rclone.conf"
-
-    if not rclone_config_file.exists():
-        print(f"rclone config not found: {rclone_config_file}")
-        return
 
     cmd = [
         "docker",
         "run",
         "--rm",
         *volutils.storage_docker_mount_flags(project, "restic_repo", "/repo"),
-        "-v",
-        f"{str(rclone_config_dir.resolve())}:/config/rclone:ro",
+        *volutils.storage_docker_mount_flags(
+            project,
+            "rclone_config",
+            "/config/rclone",
+            read_only=True,
+        ),
         "-e",
         "RCLONE_CONFIG=/config/rclone/rclone.conf",
         RCLONE_IMAGE,

@@ -2,21 +2,21 @@ services:
 
   baikal:
     volumes:
-      - ./.local/logs:/logs
+      - ${LOGS_DIR:-./runtime/logs}:/logs
 
   jellyfin:
     volumes:
       - type: bind
-        source: ${MEDIA_DATA_PATH:-./.local/media}
+        source: ${MEDIA_DATA_PATH:-./runtime/media}
         target: /media
         read_only: true
         bind:
             propagation: ${MEDIA_PROPAGATION:-rshared}
-      - ./.local/logs:/logs
+      - ${LOGS_DIR:-./runtime/logs}:/logs
 
   minio:
     volumes:
-      - ./.local/logs:/logs
+      - ${LOGS_DIR:-./runtime/logs}:/logs
 
 
   rclone:
@@ -24,15 +24,12 @@ services:
       - /dev/fuse:/dev/fuse
     volumes:
       - type: bind
-        source: ${MEDIA_DATA_PATH:-./.local/media}
+        source: ${MEDIA_DATA_PATH:-./runtime/media}
         target: /media
         bind:
-            propagation: ${MEDIA_PROPAGATION:-rshared}
-      - type: bind
-        source: ./.local/rclone
-        target: /config/rclone
-        read_only: true
-      - ./.local/logs:/logs
+          propagation: ${MEDIA_PROPAGATION:-rshared}
+      - rclone_config_data:/config/rclone:ro
+      - ${LOGS_DIR:-./runtime/logs}:/logs
 
   restic:
     volumes:
@@ -40,6 +37,9 @@ services:
       - ${BACKUPS_DIR:-backups_data}:/backups
 
 volumes:
+  rclone_config_data:
+    name: "${PROJECT_NAME:-server-apps}_rclone_config"
+    external: true
   restic_repo_data:
     name: "${PROJECT_NAME:-server-apps}_restic"
   backups_data:
