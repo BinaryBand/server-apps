@@ -13,9 +13,19 @@ RCLONE_IMAGE: str = (
 SQLITE_EXTENSIONS = {".db", ".sqlite", ".sqlite3"}
 
 
+class GatherError(RuntimeError):
+    """Raised when gather operations fail."""
+
+
+
 def run(cmd):
     print("Running:", " ".join(cmd))
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as err:
+        raise GatherError(
+            f"Gather command failed with exit code {err.returncode}: {' '.join(cmd)}"
+        ) from err
 
 
 def _is_sqlite_candidate(file_path: Path) -> bool:
@@ -73,22 +83,32 @@ def _create_db_snapshots_for_volume(volume_dir: Path) -> None:
 
 
 def gather_with_include_file(
-    project: str, include_file: Path, backups_dir: Path, rclone_config_host: Path
+    project: str,
+    include_file: Path,
+    backups_dir: Path | None,
+    rclone_config_host: Path,
 ):
-    backups_dir = backups_dir.resolve()
     include_file = include_file.resolve()
     rclone_config_host = rclone_config_host.resolve()
+    backups_dir = backups_dir.resolve() if backups_dir else None
 
     if not include_file.exists():
-        raise SystemExit(f"Include file not found: {include_file}")
+        raise GatherError(f"Include file not found: {include_file}")
     if not include_file.is_file():
-        raise SystemExit(f"Include path is not a file: {include_file}")
+        raise GatherError(f"Include path is not a file: {include_file}")
 
-    backups_dir.mkdir(parents=True, exist_ok=True)
+    if backups_dir:
+        backups_dir.mkdir(parents=True, exist_ok=True)
 
     cmd = ["docker", "run", "--rm"]
     cmd += volutils.rclone_docker_volume_flags(project)
-    cmd += ["-v", f"{str(backups_dir)}:/backups", "-v", f"{str(include_file)}:/filters/backup-include.txt:ro"]
+
+    if backups_dir:
+        cmd += ["-v", f"{str(backups_dir)}:/backups"]
+    else:
+        cmd += volutils.storage_docker_mount_flags(project, "backups", "/backups")
+
+    cmd += ["-v", f"{str(include_file)}:/filters/backup-include.txt:ro"]
 
     if rclone_config_host.exists():
         cmd += ["-v", f"{str(rclone_config_host)}:/config/rclone:ro"]
@@ -96,7 +116,12 @@ def gather_with_include_file(
     cmd += [RCLONE_IMAGE, "sync", "/data", "/backups", "--progress", "--include-from", "/filters/backup-include.txt"]
 
     run(cmd)
-    _create_db_snapshots(backups_dir)
+    if backups_dir:
+        _create_db_snapshots(backups_dir)
+    else:
+        print(
+            "Skipping host-side SQLite snapshot pass; backups are using a docker named volume."
+        )
 
 
 def main():

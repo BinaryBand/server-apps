@@ -3,6 +3,7 @@ import shutil
 import subprocess
 
 from src.utils.secrets import load_env, read_secret
+from src.utils import volumes as volutils
 
 RCLONE_IMAGE: str = str(
     read_secret("RCLONE_IMAGE")
@@ -13,13 +14,26 @@ RESTIC_PCLOUD_REMOTE: str = str(
 )
 
 
+class RestoreRunnerError(RuntimeError):
+    """Raised when restore execution commands fail."""
+
+
 def _run(cmd: list[str]) -> None:
     print("Running:", " ".join(cmd))
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as err:
+        raise RestoreRunnerError(
+            f"restore command failed with exit code {err.returncode}: {' '.join(cmd)}"
+        ) from err
 
 
 def _resolve_host_restore_dir(repo_root: Path, target: str) -> Path | None:
-    backups_root = repo_root / ".local" / "backups"
+    backups_override = read_secret("BACKUPS_DIR")
+    if not backups_override:
+        return None
+
+    backups_root = Path(backups_override).expanduser().resolve()
     if target == "/backups":
         return backups_root
     if target.startswith("/backups/"):
@@ -49,6 +63,49 @@ def _sync_dir_to_volume(source_dir: Path, volume_name: str) -> None:
     )
 
 
+def _sync_volume_path_to_target(
+    backups_volume_name: str,
+    source_relative_path: str,
+    target_mount: str,
+) -> None:
+    _run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-e",
+            "RCLONE_CONFIG=/dev/null",
+            "-v",
+            f"{backups_volume_name}:/source-root:ro",
+            "-v",
+            f"{target_mount}:/dest",
+            RCLONE_IMAGE,
+            "sync",
+            f"/source-root/{source_relative_path}",
+            "/dest",
+            "--progress",
+        ]
+    )
+
+
+def _volume_subdir_exists(volume_name: str, relative_path: str) -> bool:
+    probe = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{volume_name}:/source-root:ro",
+            "alpine:3.20",
+            "sh",
+            "-lc",
+            f"test -d '/source-root/{relative_path}'",
+        ],
+        check=False,
+    )
+    return probe.returncode == 0
+
+
 def pull_restic_repo_from_pcloud() -> None:
     """Sync restic repository from pCloud before restore."""
     if read_secret("RESTIC_PCLOUD_SYNC", "1") in {"0", "false", "False", "no", "NO"}:
@@ -56,8 +113,10 @@ def pull_restic_repo_from_pcloud() -> None:
         return
 
     repo_root = Path(__file__).resolve().parents[2]
-    local_repo = repo_root / ".local" / "restic"
-    rclone_config_dir = repo_root / ".local" / "rclone"
+    project = read_secret("PROJECT_NAME") or repo_root.name
+    rclone_config_dir = Path(
+        read_secret("RCLONE_CONFIG_DIR") or str(repo_root / ".local" / "rclone")
+    ).resolve()
     rclone_config_file = rclone_config_dir / "rclone.conf"
 
     if not rclone_config_file.exists():
@@ -66,14 +125,11 @@ def pull_restic_repo_from_pcloud() -> None:
         )
         return
 
-    local_repo.mkdir(parents=True, exist_ok=True)
-
     cmd = [
         "docker",
         "run",
         "--rm",
-        "-v",
-        f"{str(local_repo.resolve())}:/repo",
+        *volutils.storage_docker_mount_flags(project, "restic_repo", "/repo"),
         "-v",
         f"{str(rclone_config_dir.resolve())}:/config/rclone:ro",
         "-e",
@@ -85,7 +141,12 @@ def pull_restic_repo_from_pcloud() -> None:
         '--progress',
     ]
     print("Running:", " ".join(cmd))
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as err:
+        raise RestoreRunnerError(
+            f"restic repository sync failed with exit code {err.returncode}: {' '.join(cmd)}"
+        ) from err
 
 
 def _apply_restored_volumes(
@@ -103,21 +164,57 @@ def _apply_restored_volumes(
         )
         return
 
-    mappings = [
-        ("jellyfin_config", f"{project}_jellyfin_config"),
-        ("jellyfin_data", f"{project}_jellyfin_data"),
-        ("baikal_config", f"{project}_baikal_config"),
-        ("baikal_data", f"{project}_baikal_data"),
-        ("minio_data", f"{project}_minio_data"),
-    ]
+    mappings = list(volutils.LOGICAL_VOLUMES)
 
-    for source_name, volume_name in mappings:
+    for source_name in mappings:
         source_dir = restore_volumes_root / source_name
         if not source_dir.exists():
             print(f"Skipping {source_name}; not present in restored snapshot.")
             continue
-        print(f"Applying restored data: {source_name} -> {volume_name}")
-        _sync_dir_to_volume(source_dir, volume_name)
+
+        override = volutils.host_bind_path(source_name)
+        target_mount = (
+            str(override.resolve()) if override else volutils.docker_volume_name(project, source_name)
+        )
+        print(f"Applying restored data: {source_name} -> {target_mount}")
+        _sync_dir_to_volume(source_dir, target_mount)
+
+
+def _apply_restored_volumes_from_backups_volume(project: str, target: str) -> None:
+    backups_volume_name, _ = volutils.storage_mount_source(project, "backups")
+    target_prefix = ""
+    if target != "/backups":
+        target_prefix = target.removeprefix("/backups/").strip("/") + "/"
+
+    for source_name in volutils.LOGICAL_VOLUMES:
+        candidates = [
+            f"{target_prefix}volumes/{source_name}",
+            f"{target_prefix}backups/volumes/{source_name}",
+        ]
+        source_relative_path = next(
+            (
+                candidate
+                for candidate in candidates
+                if _volume_subdir_exists(backups_volume_name, candidate)
+            ),
+            None,
+        )
+
+        if source_relative_path is None:
+            print(
+                f"Skipping {source_name}; not present in restored snapshot paths {', '.join(candidates)}."
+            )
+            continue
+
+        override = volutils.host_bind_path(source_name)
+        target_mount = (
+            str(override.resolve()) if override else volutils.docker_volume_name(project, source_name)
+        )
+
+        print(
+            f"Applying restored data from backups volume: {source_relative_path} -> {target_mount}"
+        )
+        _sync_volume_path_to_target(backups_volume_name, source_relative_path, target_mount)
 
 
 def restore_snapshot(
@@ -125,6 +222,7 @@ def restore_snapshot(
     target: str = "/backups/restore",
     project: str | None = None,
     no_apply_volumes: bool = False,
+    allow_destructive_apply: bool = False,
 ) -> None:
     """Run restic restore into `target` then copy restored volume trees back into docker volumes.
 
@@ -157,8 +255,18 @@ def restore_snapshot(
     if no_apply_volumes:
         return
 
-    if host_restore_dir is None:
-        print("Restore target is outside /backups; skipping volume apply step.")
+    if not allow_destructive_apply:
+        raise RestoreRunnerError(
+            "Restore apply uses destructive sync semantics. "
+            "Pass allow_destructive_apply=True only when intentional."
+        )
+
+    if host_restore_dir is not None:
+        _apply_restored_volumes(repo_root, project, host_restore_dir)
         return
 
-    _apply_restored_volumes(repo_root, project, host_restore_dir)
+    if target.startswith("/backups"):
+        _apply_restored_volumes_from_backups_volume(project, target)
+        return
+
+    print("Restore target is outside /backups; skipping volume apply step.")

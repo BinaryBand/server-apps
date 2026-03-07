@@ -11,12 +11,7 @@ if __name__ == "__main__":
     if not apply_perms.exists():
         raise SystemExit(f"Permissions script not found: {apply_perms}")
 
-    # Render rclone config and prepare runtime directories via Ansible.
+    # Render rclone config, prepare directories, and start compose stack via Ansible.
     subprocess.run(["bash", str(apply_perms), "--runtime"], check=True)
-
-    subprocess.run(
-        ["docker", "compose", "-f", "compose/base.yml", "-f", "compose/dev.yml", "up", "-d"],
-        check=True,
-    )
 
     print("Initialization complete.")

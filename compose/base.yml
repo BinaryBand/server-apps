@@ -1,35 +1,10 @@
 services:
-  init:
-    image: alpine:3.20
-    restart: "no"
-    security_opt:
-      - no-new-privileges:true
-    environment:
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
-    entrypoint: ["sh", "-c"]
-    command:
-      - 'mkdir -p /etc/jellyfin /var/cache/jellyfin /var/lib/jellyfin /media /logs && chown -R "${PUID:-1000}:${PGID:-1000}" /etc/jellyfin /var/cache/jellyfin /var/lib/jellyfin /media || true'
-    volumes:
-      - type: bind
-        source: ${JELLYFIN_CONFIG_DIR:-./jellyfin/config}
-        target: /etc/jellyfin
-      - type: bind
-        source: ${JELLYFIN_CACHE_DIR:-./jellyfin/cache}
-        target: /var/cache/jellyfin
-      - type: bind
-        source: ${JELLYFIN_DATA_DIR:-./jellyfin/data}
-        target: /var/lib/jellyfin
-
   baikal:
     image: ckulka/baikal:0.10.1
     container_name: baikal
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    depends_on:
-      init:
-        condition: service_completed_successfully
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
@@ -40,13 +15,12 @@ services:
       - cloud_baikal_data:/var/www/baikal/Specific
 
   jellyfin:
+    container_name: jellyfin
     image: jellyfin/jellyfin:${JELLYFIN_VERSION:-latest}
     security_opt:
       - no-new-privileges:true
     user: "${PUID:-1000}:${PGID:-1000}"
     depends_on:
-      init:
-        condition: service_completed_successfully
       rclone:
         condition: service_started
     group_add:
@@ -75,13 +49,11 @@ services:
     restart: unless-stopped
 
   minio:
+    container_name: minio
     image: minio/minio:${MINIO_VERSION:-latest}
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    depends_on:
-      init:
-        condition: service_completed_successfully
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
@@ -104,6 +76,7 @@ services:
       retries: 5
 
   rclone:
+    container_name: rclone
     image: rclone/rclone:${RCLONE_VERSION:-latest}
     cap_add:
       - SYS_ADMIN
@@ -113,28 +86,24 @@ services:
       - PUID=${PUID:-1000}
       - MEDIA_GID=${MEDIA_GID:-3000}
       - RCLONE_CONFIG=/config/rclone/rclone.conf
+    command: >-
+      mount "${RCLONE_REMOTE:-pcloud}:Media" /media/pcloud/Media
+      --allow-other
+      --vfs-cache-mode writes
+      --vfs-cache-max-size 5G
+      --vfs-cache-max-age 12h
+      --read-only
+      --uid "${PUID:-1000}"
+      --gid "${MEDIA_GID:-3000}"
+      --umask 027
+      --log-file /logs/media.log
+      --log-level DEBUG
     volumes:
       - /media
       - /config/rclone
       - /logs
     restart: unless-stopped
 
-  minio-setup:
-    image: minio/mc:${MINIO_MC_VERSION:-latest}
-    restart: "no"
-    depends_on:
-      minio:
-        condition: service_started
-    environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
-    entrypoint: ["sh", "-c"]
-    command: >
-      until mc alias set minio http://minio:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" 2>/dev/null; do
-        sleep 1;
-      done;
-      mc mb --ignore-existing minio/media;
-      mc anonymous set download minio/media;
 
   restic:
     image: restic/restic:0.18.1

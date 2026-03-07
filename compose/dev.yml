@@ -1,67 +1,47 @@
 services:
-  init:
-    volumes:
-      - type: bind
-        source: ./.local/logs
-        target: /logs
 
   baikal:
     volumes:
-      - type: bind
-        source: ./.local/logs
-        target: /logs
+      - ./.local/logs:/logs
 
   jellyfin:
     volumes:
       - type: bind
-        source: ./.local/media
+        source: ${MEDIA_DATA_PATH:-./.local/media}
         target: /media
         read_only: true
         bind:
-          propagation: ${MEDIA_PROPAGATION:-rprivate}
-      - type: bind
-        source: ./.local/logs
-        target: /logs
+            propagation: ${MEDIA_PROPAGATION:-rshared}
+      - ./.local/logs:/logs
 
   minio:
     volumes:
-      - type: bind
-        source: ./.local/logs
-        target: /logs
+      - ./.local/logs:/logs
 
-  minio-setup:
-    volumes:
-      - type: bind
-        source: ./.local/logs
-        target: /logs
 
   rclone:
     devices:
       - /dev/fuse:/dev/fuse
     volumes:
       - type: bind
-        source: ./.local/media
+        source: ${MEDIA_DATA_PATH:-./.local/media}
         target: /media
         bind:
-          propagation: ${MEDIA_PROPAGATION:-rprivate}
+            propagation: ${MEDIA_PROPAGATION:-rshared}
       - type: bind
         source: ./.local/rclone
         target: /config/rclone
         read_only: true
-      - type: bind
-        source: ./.local/logs
-        target: /logs
-      - type: bind
-        source: ./scripts/entrypoint-rclone.sh
-        target: /usr/local/bin/entrypoint-rclone.sh
-        read_only: true
-    entrypoint: ["sh", "/usr/local/bin/entrypoint-rclone.sh"]
+      - ./.local/logs:/logs
 
   restic:
     volumes:
-      - type: bind
-        source: ./.local/restic
-        target: /repo
-      - type: bind
-        source: ./.local/backups
-        target: /backups
+      - ${RESTIC_REPO_DIR:-restic_repo_data}:/repo
+      - ${BACKUPS_DIR:-backups_data}:/backups
+
+volumes:
+  restic_repo_data:
+    name: "${PROJECT_NAME:-server-apps}_restic"
+  backups_data:
+    name: "${PROJECT_NAME:-server-apps}_backups"
+    external: true

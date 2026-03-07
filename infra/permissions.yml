@@ -24,6 +24,12 @@ volumes:
     mode: "0755"
     recurse: true
 
+  ./.local/media/pcloud/Media:
+    owner: rclone
+    group: rclone
+    mode: "0755"
+    recurse: true
+
   ./.local/logs:
     owner: jellyfin
     group: jellyfin
@@ -35,6 +41,14 @@ volumes:
     group: root
     mode: "0700"
     recurse: true
+
+
+files:
+  ./.local/logs/media.log:
+    owner: root
+    group: rclone
+    mode: "0664"
+    runtime_mode: "0664"
 
 reset_paths:
   - path: ./.local/backups

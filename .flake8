@@ -1,9 +1,0 @@
-[flake8]
-exclude =
-    .venv,
-    __pycache__,
-    .git,
-max-line-length = 90
-ignore =
-    E203,  # whitespace before ':', conflicts with black
-    W503,  # line break before binary operator, conflicts with black

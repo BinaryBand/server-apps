@@ -54,6 +54,13 @@
       loop: "{{ (permissions_data.volumes | default({})) | dict2items }}"
       when: not apply_reset
 
+    - name: Ensure declared files exist
+      ansible.builtin.file:
+        path: "{{ repo_root_path }}/{{ item.key }}"
+        state: touch
+      loop: "{{ (permissions_data.files | default({})) | dict2items }}"
+      when: apply_privileged
+
     - name: Apply ownership and mode for declared volumes
       become: true
       ansible.builtin.file:
@@ -66,6 +73,17 @@
       loop: "{{ (permissions_data.volumes | default({})) | dict2items }}"
       when: apply_privileged
 
+    - name: Apply ownership and mode for declared files
+      become: true
+      ansible.builtin.file:
+        path: "{{ repo_root_path }}/{{ item.key }}"
+        owner: "{{ item.value.owner | default('root') }}"
+        group: "{{ item.value.group | default('root') }}"
+        mode: "{{ item.value.mode | default('0644') }}"
+        state: file
+      loop: "{{ (permissions_data.files | default({})) | dict2items }}"
+      when: apply_privileged
+
     - name: Apply runtime mode for declared volumes
       ansible.builtin.file:
         path: "{{ repo_root_path }}/{{ item.key }}"
@@ -76,6 +94,17 @@
       when:
         - permissions_mode_selected == 'runtime'
         - item.value.runtime_mode is defined
+
+    - name: Apply runtime mode for declared files
+      ansible.builtin.file:
+        path: "{{ repo_root_path }}/{{ item.key }}"
+        mode: "{{ item.value.runtime_mode | default(item.value.mode | default('0644')) }}"
+        state: file
+      loop: "{{ (permissions_data.files | default({})) | dict2items }}"
+      when:
+        - permissions_mode_selected == 'runtime'
+        - item.value.runtime_mode is defined
+      ignore_errors: true
 
     - name: Normalize ownership and permissions for reset paths
       ansible.builtin.command:
@@ -127,3 +156,63 @@
         group: "{{ permissions_data.templates.rclone.group | default('root') }}"
         mode: "{{ permissions_data.templates.rclone.mode | default('0600') }}"
       when: apply_privileged
+
+    - name: Start docker compose stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ repo_root_path }}"
+        files:
+          - compose/base.yml
+          - compose/dev.yml
+        state: present
+      when: permissions_mode_selected == 'runtime'
+
+    - name: Wait for MinIO to be ready
+      ansible.builtin.wait_for:
+        port: 9000
+        host: 127.0.0.1
+        delay: 2
+        timeout: 60
+      when: permissions_mode_selected == 'runtime'
+
+    - name: Create MinIO media bucket
+      community.docker.docker_container_exec:
+        container: minio
+        command: >-
+          /bin/sh -c "mc alias set myminio http://127.0.0.1:9000 '{{ rclone_env.MINIO_ROOT_USER }}' '{{ rclone_env.MINIO_ROOT_PASSWORD }}' 2>/dev/null &&
+          if ! mc stat myminio/media >/dev/null 2>&1; then
+            mc mb myminio/media;
+          fi &&
+          anon_status=$(mc anonymous get myminio/media 2>/dev/null || true) &&
+          case \"$anon_status\" in
+            *download*) : ;;
+            *) mc anonymous set download myminio/media ;;
+          esac"
+      when: permissions_mode_selected == 'runtime'
+
+
+    - name: Assert rclone config exists in container
+      community.docker.docker_container_exec:
+        container: rclone
+        command: >-
+          /bin/sh -c 'test -f /config/rclone/rclone.conf'
+      register: _rclone_conf_check
+      failed_when: _rclone_conf_check.rc != 0
+      when: permissions_mode_selected == 'runtime'
+
+    - name: Assert rclone can contact MinIO
+      community.docker.docker_container_exec:
+        container: rclone
+        command: >-
+          /bin/sh -c 'rclone lsd minio: --max-depth 1'
+      register: _rclone_minio_check
+      failed_when: _rclone_minio_check.rc != 0
+      when: permissions_mode_selected == 'runtime'
+
+    - name: Assert rclone can contact pCloud
+      community.docker.docker_container_exec:
+        container: rclone
+        command: >-
+          /bin/sh -c 'rclone lsd pcloud: --max-depth 1'
+      register: _rclone_pcloud_check
+      failed_when: _rclone_pcloud_check.rc != 0
+      when: permissions_mode_selected == 'runtime'
