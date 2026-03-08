@@ -23,11 +23,9 @@ class ResticRunnerError(RuntimeError):
     """Raised when restic/rclone runner commands fail."""
 
 
-def _ensure_external_backups_volume_exists() -> None:
-    """Create the external backups volume in named-volume mode if missing."""
-    source, is_host = storage_mount_source(PROJECT_NAME, "backups")
-    if is_host:
-        return
+def _ensure_restic_repo_volume_exists() -> None:
+    """Create the external restic repository volume when it is missing."""
+    source = storage_mount_source(PROJECT_NAME, "restic_repo")
 
     probe = subprocess.run(
         ["docker", "volume", "inspect", source],
@@ -62,7 +60,7 @@ def push_restic_repo_to_pcloud() -> None:
 
 
 def run_restic_command(cmd_args: List[str]) -> None:
-    _ensure_external_backups_volume_exists()
+    _ensure_restic_repo_volume_exists()
 
     cmd: List[str] = compose_cmd(
         "--profile", PROFILE, "run", "--rm", "--no-deps", "restic", *cmd_args

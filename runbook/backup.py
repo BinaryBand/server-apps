@@ -1,16 +1,15 @@
 from src.backups.gather import GatherError, gather_with_include_file
-from src.backups.restic_runner import (
+from src.utils.docker.wrappers.restic import (
     ResticRunnerError,
     has_restic_repository,
     initialize_restic_repository,
     run_backup,
 )
 from src.utils.runtime import PROJECT_NAME, repo_root
-from src.utils.secrets import read_secret
 
 from argparse import ArgumentParser, Namespace
-from pathlib import Path
 import sys
+from pathlib import Path
 
 
 if __package__ in {None, ""}:
@@ -23,24 +22,19 @@ DEFAULT_RESTIC_EXCLUDES = ["/backups/restore/**"]
 def main():
     root: Path = repo_root()
     default_include_file = root / "configs" / "backup-include.txt"
-    default_backups_dir = read_secret("BACKUPS_DIR", "") or ""
 
     parser = ArgumentParser(description="Record a restic snapshot")
     parser.add_argument("--project", default=PROJECT_NAME)
     parser.add_argument("--include-file", default=str(default_include_file))
-    parser.add_argument("--backups-dir", default=default_backups_dir)
     parser.add_argument("--restic-target", default="/backups")
     parser.add_argument("--restic-arg", action="append", default=[])
     args: Namespace = parser.parse_args()
-
-    backups_dir = Path(args.backups_dir).resolve() if args.backups_dir else None
 
     try:
         print("[stage:gather] Starting gather phase")
         gather_with_include_file(
             project=args.project,
             include_file=Path(args.include_file),
-            backups_dir=backups_dir,
         )
     except GatherError as err:
         raise SystemExit(f"[stage:gather] {err}") from err

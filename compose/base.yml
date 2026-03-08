@@ -33,15 +33,9 @@ services:
       - JELLYFIN_DATA_DIR=/var/lib/jellyfin
       - JELLYFIN_LOG_DIR=/logs
     volumes:
-      - type: bind
-        source: ${JELLYFIN_CACHE_DIR:-./jellyfin/cache}
-        target: /var/cache/jellyfin
-      - type: bind
-        source: ${JELLYFIN_CONFIG_DIR:-./jellyfin/config}
-        target: /etc/jellyfin
-      - type: bind
-        source: ${JELLYFIN_DATA_DIR:-./jellyfin/data}
-        target: /var/lib/jellyfin
+      - jellyfin_cache_data:/var/cache/jellyfin
+      - cloud_jellyfin_config:/etc/jellyfin
+      - cloud_jellyfin_data:/var/lib/jellyfin
       - /media
       - /logs
     ports:
@@ -109,18 +103,28 @@ services:
     image: restic/restic:0.18.1
     restart: "no"
     environment:
-      - RESTIC_REPOSITORY=${RESTIC_REPOSITORY:-/repo}
       - RESTIC_PASSWORD=${RESTIC_PASSWORD:?Set RESTIC_PASSWORD in .env}
     volumes:
-      - /repo
-      - /backups
+      - restic_repo_data:/repo
+      - backups_data:/backups
     profiles:
       - on-demand
 
 volumes:
+  cloud_jellyfin_config:
+    name: "${PROJECT_NAME:-server-apps}_jellyfin_config"
+    external: true
+  cloud_jellyfin_data:
+    name: "${PROJECT_NAME:-server-apps}_jellyfin_data"
+    external: true
+  jellyfin_cache_data:
   cloud_baikal_config:
     name: "${PROJECT_NAME:-server-apps}_baikal_config"
     external: true
   cloud_baikal_data:
     name: "${PROJECT_NAME:-server-apps}_baikal_data"
     external: true
+  restic_repo_data:
+    name: "${PROJECT_NAME:-server-apps}_restic_repo_data"
+    external: true
+  backups_data:

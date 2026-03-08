@@ -1,23 +1,12 @@
 from src.utils.docker.compose import compose_cmd
 from src.utils.permissions import run_permissions_playbook
-from src.utils.runtime import (
-    PROJECT_NAME,
-    backups_root,
-    logs_root,
-    media_root,
-    repo_root,
-    restic_repo_root,
-)
+from src.utils.runtime import PROJECT_NAME, logs_root, media_root
 from src.utils.docker.volumes import list_project_volumes
 
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 import subprocess
 import shutil
-
-
-REPO_ROOT: Path = repo_root()
-LOCAL_ROOT: Path = REPO_ROOT / "runtime"
 
 
 def remove_project_volumes(project: str, *, dry_run: bool = False) -> tuple[int, int]:
@@ -29,6 +18,11 @@ def remove_project_volumes(project: str, *, dry_run: bool = False) -> tuple[int,
     removed = 0
     failed = 0
     for volume in volumes:
+        if dry_run:
+            print(f"Would remove volume: {volume}")
+            removed += 1
+            continue
+
         try:
             subprocess.run(["docker", "volume", "rm", "-f", volume], check=True)
             removed += 1
@@ -41,7 +35,8 @@ def remove_project_volumes(project: str, *, dry_run: bool = False) -> tuple[int,
 def remove_local_path(path: Path, *, dry_run: bool = False) -> None:
     if not path.exists():
         return
-    print(f"Removing: {path}")
+    action = "Would remove" if dry_run else "Removing"
+    print(f"{action}: {path}")
     if dry_run:
         return
     if path.is_dir():
@@ -52,7 +47,8 @@ def remove_local_path(path: Path, *, dry_run: bool = False) -> None:
 
 def normalize_reset_permissions(*, dry_run: bool = False) -> None:
     if dry_run:
-        print("Running: ansible-playbook apply-permissions.yml --check (reset mode)")
+        print("Would run: ansible-playbook apply-permissions.yml --check (reset mode)")
+        return
     run_permissions_playbook(mode="reset", dry_run=dry_run)
 
 
@@ -60,18 +56,11 @@ def main() -> None:
     parser = ArgumentParser(description="Reset project storage and runtime state")
     parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
     parser.add_argument("--dry-run", action="store_true", help="Print actions only")
-    parser.add_argument("--keep-restic", action="store_true")
     parser.add_argument("--keep-media", action="store_true")
     parser.add_argument("--skip-compose-down", action="store_true")
     args: Namespace = parser.parse_args()
 
     targets: list[Path] = [logs_root()]
-    configured_backups_root = backups_root()
-    if configured_backups_root is not None:
-        targets.append(configured_backups_root)
-    configured_restic_root = restic_repo_root()
-    if not args.keep_restic and configured_restic_root is not None:
-        targets.append(configured_restic_root)
     if not args.keep_media:
         targets.append(media_root())
 
@@ -89,14 +78,22 @@ def main() -> None:
             return
 
     if not args.skip_compose_down:
-        subprocess.run(
-            compose_cmd("down", "--volumes", "--remove-orphans"), check=False
-        )
+        compose_down_cmd = compose_cmd("down", "--volumes", "--remove-orphans")
+        if args.dry_run:
+            print(f"Would run: {' '.join(compose_down_cmd)}")
+        else:
+            subprocess.run(compose_down_cmd, check=False)
 
     removed, failed = remove_project_volumes(PROJECT_NAME, dry_run=args.dry_run)
-    print(f"Project volumes removed: {removed}, failed: {failed}")
+    if args.dry_run:
+        print(f"Project volumes that would be removed: {removed}, failed: {failed}")
+    else:
+        print(f"Project volumes removed: {removed}, failed: {failed}")
 
-    print("Normalizing local reset-path permissions via Ansible...")
+    if args.dry_run:
+        print("Would normalize local reset-path permissions via Ansible...")
+    else:
+        print("Normalizing local reset-path permissions via Ansible...")
     normalize_reset_permissions(dry_run=args.dry_run)
 
     for target in targets:

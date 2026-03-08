@@ -1,4 +1,3 @@
-from src.utils.docker.runner import docker_run
 from src.utils.runtime import media_root
 from src.utils.secrets import read_secret
 
@@ -90,7 +89,7 @@ def rclone_sync(
     ]
 
     try:
-        docker_run(cmd, check=True)
+        subprocess.run(["docker", "run", "--rm", *cmd], check=True)
     except CalledProcessError as err:
         return_code = err.returncode
         raise RuntimeError(f"rclone sync failed with {return_code}: {' '.join(cmd)}")

@@ -8,7 +8,7 @@ Small runbook + Docker Compose stack for personal cloud services (Jellyfin, MinI
 - Stop stack: `python runbook/stop.py`
 - Backup snapshot: `python runbook/backup.py`
 - Restore snapshot: `python runbook/restore.py [snapshot] [target]`
-- Clean-slate reset: `python -m src.reset.reset_storage --yes`
+- Clean-slate reset: `python runbook/_reset.py --yes`
 
 ## Setup
 
@@ -35,9 +35,43 @@ Small runbook + Docker Compose stack for personal cloud services (Jellyfin, MinI
 - `PROJECT_NAME` (compose project/volume prefix)
 - `PUID`, `PGID`, `MEDIA_GID` (container/user mapping)
 - `MEDIA_PROPAGATION` (default `rprivate`)
-- `RESTIC_REPOSITORY`, `RCLONE_REMOTE`
+- `RCLONE_REMOTE`
 
 Defaults live in `.env.example`.
+
+### Permission Flow Diagram
+
+```mermaid
+flowchart TB
+
+subgraph Main_Flow
+	subgraph Jellyfin_Scope
+		media[(Media)] -->|ro:/*| jellyfin[Jellyfin]
+		jellyfin <--> jellyfinvol[(Jellyfin volumes)]
+	end
+
+	subgraph Baikal_Scope
+		baikal[Baikal] <--> baikalvol[(Baikal volumes)]
+	end
+	
+	subgraph MinIO_Scope
+		minio[MinIO] <--> miniobind[/MinIO data bind/]
+	end
+end
+
+subgraph Backup_Flow
+	staging[(Staging area)] <.-> restic[Restic]
+	restic <.-> repo[(Restic Snapshot)]
+end
+
+jellyfinvol <.->|rw:/*| sync[Backup / restore]
+baikalvol <.->|rw:/*| sync
+miniobind <.->|rw:/minio_data/.minio.sys| sync
+sync <.->|rw:/*| staging
+
+rclone1[Cloud:/Media] --> media
+rclone2[Cloud:/Backups/Restic] <.-> repo
+```
 
 ## Repo landmarks
 

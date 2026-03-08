@@ -10,10 +10,11 @@
     permissions_mode_selected: "{{ permissions_mode | default('runtime') }}"
     apply_privileged: "{{ permissions_mode_selected == 'bootstrap' }}"
     apply_reset: "{{ permissions_mode_selected == 'reset' }}"
+    runtime_uid_selected: "{{ lookup('ansible.builtin.env', 'PUID', default='1000') | int }}"
+    runtime_gid_selected: "{{ lookup('ansible.builtin.env', 'PGID', default='1000') | int }}"
     reset_uid_selected: "{{ (reset_uid | default(lookup('ansible.builtin.env', 'PUID', default='1000'))) | int }}"
     reset_gid_selected: "{{ (reset_gid | default(lookup('ansible.builtin.env', 'PGID', default='1000'))) | int }}"
     volume_entries: "{{ permissions_data.volumes | default([]) }}"
-    file_entries: "{{ permissions_data.files | default([]) }}"
     reset_paths: "{{ permissions_data.reset_paths | default([]) }}"
     rclone_config_volume_name: "{{ project_name_selected }}_rclone_config"
     rclone_env:

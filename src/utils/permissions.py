@@ -24,7 +24,6 @@ def run_permissions_playbook(
     mode: MODE,
     manifest_path: str = "infra/permissions.yml",
     dry_run: bool = False,
-    passthrough_args: list[str] | None = None,
 ) -> None:
     root = repo_root()
     dotenv.load_dotenv()
@@ -55,9 +54,6 @@ def run_permissions_playbook(
 
     if dry_run:
         command.append("--check")
-
-    if passthrough_args:
-        command.extend(passthrough_args)
 
     if mode == "bootstrap" and os.geteuid() != 0:
         print("Bootstrap mode requires root to apply host ownership/users.")

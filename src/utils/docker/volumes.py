@@ -1,7 +1,7 @@
 from src.utils.secrets import read_secret
 
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 import subprocess
 
 
@@ -15,14 +15,13 @@ LOGICAL_VOLUMES: list[str] = [
 ]
 
 STORAGE_DEFAULT_SUFFIXES: dict[str, str] = {
-    "backups": "backups",
-    "restic_repo": "restic",
+    "backups": "backups_data",
+    "restic_repo": "restic_repo_data",
     "rclone_config": "rclone_config",
 }
 
-STORAGE_OVERRIDE_ENV: dict[str, str] = {
-    "backups": "BACKUPS_DIR",
-    "restic_repo": "RESTIC_REPO_DIR",
+LOGICAL_VOLUME_OVERRIDE_ENV: dict[str, str] = {
+    "minio_data": "MINIO_DATA_DIR",
 }
 
 
@@ -62,8 +61,11 @@ def list_project_volumes(project: str) -> list[str]:
 
 
 def host_bind_path(logical_name: str) -> Optional[Path]:
-    """Return the host override path for a logical volume, if configured."""
-    env_key = logical_name.upper() + "_DIR"
+    """Return the host override path for logical volumes that still support it."""
+    env_key = LOGICAL_VOLUME_OVERRIDE_ENV.get(logical_name)
+    if env_key is None:
+        return None
+
     value = read_secret(env_key)
     if value:
         p = Path(value).expanduser().resolve()
@@ -72,20 +74,10 @@ def host_bind_path(logical_name: str) -> Optional[Path]:
     return None
 
 
-def storage_mount_source(project: str, storage_key: str) -> Tuple[str, bool]:
-    """Resolve storage source for docker mounts.
-
-    Returns `(source, is_host_path)` where source is either a host path
-    from env override or a named docker volume using project prefix.
-    """
-    env_key = STORAGE_OVERRIDE_ENV.get(storage_key)
-    if env_key:
-        override = read_secret(env_key)
-        if override:
-            return (str(Path(override).expanduser().resolve()), True)
-
+def storage_mount_source(project: str, storage_key: str) -> str:
+    """Return the named docker volume backing the requested storage key."""
     suffix = STORAGE_DEFAULT_SUFFIXES[storage_key]
-    return (docker_volume_name(project, suffix), False)
+    return docker_volume_name(project, suffix)
 
 
 def storage_docker_mount_flags(
@@ -95,11 +87,8 @@ def storage_docker_mount_flags(
     *,
     read_only: bool = False,
 ) -> list[str]:
-    """Return docker `-v` flags for storage key with override-aware source."""
-    source, is_host = storage_mount_source(project, storage_key)
-    if is_host and not read_only:
-        Path(source).mkdir(parents=True, exist_ok=True)
-
+    """Return docker `-v` flags for a named storage volume."""
+    source = storage_mount_source(project, storage_key)
     mount = f"{source}:{target_path}"
     if read_only:
         mount += ":ro"
@@ -118,16 +107,3 @@ def rclone_docker_volume_flags(project: str) -> list[str]:
             vol = docker_volume_name(project, logical)
             flags += ["-v", f"{vol}:{dest}:ro"]
     return flags
-
-
-def backups_volume_path(backups_dir: Path, logical_name: str) -> Path:
-    """Return the path under backups where a logical volume would be placed."""
-    return backups_dir / "volumes" / logical_name
-
-
-def gathered_volume_dirs(backups_dir: Path) -> list[Path]:
-    """Return all volume directories present under backups_dir/volumes/."""
-    volumes_root = backups_dir / "volumes"
-    if not volumes_root.exists():
-        return []
-    return sorted(child for child in volumes_root.iterdir() if child.is_dir())

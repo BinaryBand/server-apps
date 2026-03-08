@@ -1,11 +1,10 @@
 from src.utils.docker import volumes as volatile
-from src.utils.runtime import backups_root, PROJECT_NAME
+from src.utils.runtime import PROJECT_NAME
 from src.utils.docker.wrappers.rclone import rclone_sync
+from src.utils.docker.wrappers import restic
 from src.utils.secrets import read_secret
 
-from pathlib import Path
 import subprocess
-import shutil
 
 
 RESTIC_PCLOUD_REMOTE: str = str(
@@ -15,37 +14,6 @@ RESTIC_PCLOUD_REMOTE: str = str(
 
 class RestoreRunnerError(RuntimeError):
     """Raised when restore execution commands fail."""
-
-
-def _run(cmd: list[str]) -> None:
-    print("Running:", " ".join(cmd))
-    try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError as err:
-        raise RestoreRunnerError(
-            f"restore command failed with exit code {err.returncode}: {' '.join(cmd)}"
-        ) from err
-
-
-def _resolve_host_restore_dir(repo_root: Path, target: str) -> Path | None:
-    backups_override = backups_root()
-    if not backups_override:
-        return None
-
-    if target == "/backups":
-        return backups_override
-    if target.startswith("/backups/"):
-        relative = target.removeprefix("/backups/")
-        return backups_override / relative
-    return None
-
-
-def _sync_dir_to_volume(source_dir: Path, volume_name: str) -> None:
-    docker_args = ["-e", "RCLONE_CONFIG=/dev/null"]
-    docker_args += ["-v", f"{str(source_dir.resolve())}:/source:ro"]
-    docker_args += ["-v", f"{volume_name}:/dest"]
-
-    rclone_sync("/source", "/dest", docker_args=docker_args)
 
 
 def _sync_volume_path_to_target(
@@ -100,41 +68,8 @@ def pull_restic_repo_from_pcloud() -> None:
         raise RestoreRunnerError(f"restic repository sync failed: {err}") from err
 
 
-def _apply_restored_volumes(
-    repo_root: Path, project: str, host_restore_dir: Path
-) -> None:
-    candidate_roots = [
-        host_restore_dir / "volumes",
-        host_restore_dir / "backups" / "volumes",
-    ]
-    restore_volumes_root = next((p for p in candidate_roots if p.exists()), None)
-    if restore_volumes_root is None:
-        print(
-            "No restored volume tree found. Checked: "
-            + ", ".join(str(p) for p in candidate_roots)
-        )
-        return
-
-    mappings = list(volatile.LOGICAL_VOLUMES)
-
-    for source_name in mappings:
-        source_dir = restore_volumes_root / source_name
-        if not source_dir.exists():
-            print(f"Skipping {source_name}; not present in restored snapshot.")
-            continue
-
-        override = volatile.host_bind_path(source_name)
-        target_mount = (
-            str(override.resolve())
-            if override
-            else volatile.docker_volume_name(project, source_name)
-        )
-        print(f"Applying restored data: {source_name} -> {target_mount}")
-        _sync_dir_to_volume(source_dir, target_mount)
-
-
 def _apply_restored_volumes_from_backups_volume(project: str, target: str) -> None:
-    backups_volume_name, _ = volatile.storage_mount_source(project, "backups")
+    backups_volume_name = volatile.storage_mount_source(project, "backups")
     target_prefix = ""
     if target != "/backups":
         target_prefix = target.removeprefix("/backups/").strip("/") + "/"
@@ -183,34 +118,15 @@ def restore_snapshot(
 
     - `snapshot`: restic snapshot id or 'latest'
     - `target`: restore path inside restic container (e.g. '/backups/restore')
-    - `project`: compose project name used as volume name prefix; if None, uses cwd name
     - `no_apply_volumes`: if True, do not copy restored files into docker volumes
     """
-    from src.backups.restic_runner import run_restic_command
-    from src.utils.runtime import PROJECT_NAME, repo_root
-
-    root = repo_root()
-
-    host_restore_dir = _resolve_host_restore_dir(root, target)
-    if (
-        host_restore_dir is not None
-        and target == "/backups/restore"
-        and host_restore_dir.exists()
-    ):
-        print(f"Clearing existing restore directory: {host_restore_dir}")
-        shutil.rmtree(host_restore_dir)
-
     # ensure local restic repository is refreshed from remote before restore
     pull_restic_repo_from_pcloud()
 
     # perform restic restore
-    run_restic_command(["restore", snapshot, "--target", target])
+    restic.run_restic_command(["restore", snapshot, "--target", target])
 
     if no_apply_volumes:
-        return
-
-    if host_restore_dir is not None:
-        _apply_restored_volumes(root, PROJECT_NAME, host_restore_dir)
         return
 
     if target.startswith("/backups"):

@@ -8,28 +8,16 @@ class GatherError(RuntimeError):
     """Raised when gather operations fail."""
 
 
-def gather_with_include_file(
-    project: str, include_file: Path, backups_dir: Path | None
-):
+def gather_with_include_file(project: str, include_file: Path):
     include_file = include_file.resolve()
-    backups_dir = backups_dir.resolve() if backups_dir else None
 
     if not include_file.exists():
         raise GatherError(f"Include file not found: {include_file}")
     if not include_file.is_file():
         raise GatherError(f"Include path is not a file: {include_file}")
 
-    if backups_dir:
-        backups_dir.mkdir(parents=True, exist_ok=True)
-
     docker_args = volatile.rclone_docker_volume_flags(project)
-
-    if backups_dir:
-        docker_args += ["-v", f"{str(backups_dir)}:/backups"]
-    else:
-        docker_args += volatile.storage_docker_mount_flags(
-            project, "backups", "/backups"
-        )
+    docker_args += volatile.storage_docker_mount_flags(project, "backups", "/backups")
 
     docker_args += ["-v", f"{str(include_file)}:/filters/backup-include.txt:ro"]
     docker_args += volatile.storage_docker_mount_flags(

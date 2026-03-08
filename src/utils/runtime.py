@@ -26,17 +26,3 @@ def media_root() -> Path:
 
 def logs_root() -> Path:
     return _resolve_host_path("LOGS_DIR", "runtime/logs")
-
-
-def backups_root() -> Path | None:
-    value: str | None = read_secret("BACKUPS_DIR")
-    if not value:
-        return None
-    return Path(value).expanduser().resolve()
-
-
-def restic_repo_root() -> Path | None:
-    value: str | None = read_secret("RESTIC_REPO_DIR")
-    if not value:
-        return None
-    return Path(value).expanduser().resolve()
