@@ -1,34 +1,15 @@
+from src.utils.docker import volumes as volatile
+from src.utils.docker.wrappers.rclone import rclone_sync
+
 from pathlib import Path
-import subprocess
-
-from src.utils.secrets import read_secret
-from src.utils import volumes as volutils
-
-
-RCLONE_IMAGE: str = (
-    read_secret("RCLONE_IMAGE")
-    or f"rclone/rclone:{read_secret('RCLONE_VERSION', 'latest')}"
-)
 
 
 class GatherError(RuntimeError):
     """Raised when gather operations fail."""
 
 
-def run(cmd):
-    print("Running:", " ".join(cmd))
-    try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError as err:
-        raise GatherError(
-            f"Gather command failed with exit code {err.returncode}: {' '.join(cmd)}"
-        ) from err
-
-
 def gather_with_include_file(
-    project: str,
-    include_file: Path,
-    backups_dir: Path | None,
+    project: str, include_file: Path, backups_dir: Path | None
 ):
     include_file = include_file.resolve()
     backups_dir = backups_dir.resolve() if backups_dir else None
@@ -41,22 +22,26 @@ def gather_with_include_file(
     if backups_dir:
         backups_dir.mkdir(parents=True, exist_ok=True)
 
-    cmd = ["docker", "run", "--rm"]
-    cmd += volutils.rclone_docker_volume_flags(project)
+    docker_args = volatile.rclone_docker_volume_flags(project)
 
     if backups_dir:
-        cmd += ["-v", f"{str(backups_dir)}:/backups"]
+        docker_args += ["-v", f"{str(backups_dir)}:/backups"]
     else:
-        cmd += volutils.storage_docker_mount_flags(project, "backups", "/backups")
+        docker_args += volatile.storage_docker_mount_flags(
+            project, "backups", "/backups"
+        )
 
-    cmd += ["-v", f"{str(include_file)}:/filters/backup-include.txt:ro"]
-    cmd += volutils.storage_docker_mount_flags(
-        project,
-        "rclone_config",
-        "/config/rclone",
-        read_only=True,
+    docker_args += ["-v", f"{str(include_file)}:/filters/backup-include.txt:ro"]
+    docker_args += volatile.storage_docker_mount_flags(
+        project, "rclone_config", "/config/rclone", read_only=True
     )
 
-    cmd += [RCLONE_IMAGE, "sync", "/data", "/backups", "--progress", "--include-from", "/filters/backup-include.txt"]
-
-    run(cmd)
+    try:
+        rclone_sync(
+            "/data",
+            "/backups",
+            docker_args=docker_args,
+            extra_args=["--include-from", "/filters/backup-include.txt"],
+        )
+    except Exception as err:
+        raise GatherError(err) from err

@@ -1,11 +1,11 @@
-import argparse
-import sqlite3
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
+import sqlite3
 
 
 def snapshot_sqlite(source_path: Path, output_path: Path) -> None:
-    src = source_path.resolve()
-    dst = output_path.resolve()
+    src: Path = source_path.resolve()
+    dst: Path = output_path.resolve()
 
     if not src.exists() or not src.is_file():
         raise SystemExit(f"Source SQLite file not found: {src}")
@@ -21,12 +21,10 @@ def snapshot_sqlite(source_path: Path, output_path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Create a hot SQLite snapshot from source file to destination file"
-    )
+    parser = ArgumentParser(description="Create a hot SQLite snapshot")
     parser.add_argument("source_path", help="Path to source SQLite file")
     parser.add_argument("output_path", help="Path to destination snapshot file")
-    args = parser.parse_args()
+    args: Namespace = parser.parse_args()
 
     snapshot_sqlite(Path(args.source_path), Path(args.output_path))
     print(f"Snapshot written to: {Path(args.output_path).resolve()}")

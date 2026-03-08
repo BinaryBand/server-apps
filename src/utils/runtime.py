@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from src.utils.secrets import read_secret
+
+from from_root import from_root
 from pathlib import Path
 
-from src.utils.secrets import REPO_ROOT, read_secret
+
+PROJECT_NAME = "cloud-apps"
 
 
 def repo_root() -> Path:
-    return REPO_ROOT
+    return from_root("pyproject.toml").parent
 
 
 def _resolve_host_path(env_key: str, default_relative: str) -> Path:
@@ -14,10 +18,6 @@ def _resolve_host_path(env_key: str, default_relative: str) -> Path:
     if value:
         return Path(value).expanduser().resolve()
     return (repo_root() / default_relative).resolve()
-
-
-def local_root() -> Path:
-    return (repo_root() / "runtime").resolve()
 
 
 def media_root() -> Path:
@@ -29,20 +29,14 @@ def logs_root() -> Path:
 
 
 def backups_root() -> Path | None:
-    value = read_secret("BACKUPS_DIR")
+    value: str | None = read_secret("BACKUPS_DIR")
     if not value:
         return None
     return Path(value).expanduser().resolve()
 
 
 def restic_repo_root() -> Path | None:
-    value = read_secret("RESTIC_REPO_DIR")
+    value: str | None = read_secret("RESTIC_REPO_DIR")
     if not value:
         return None
     return Path(value).expanduser().resolve()
-
-
-def project_name(default: str | None = None) -> str:
-    if default is None:
-        default = repo_root().name
-    return read_secret("PROJECT_NAME") or default
