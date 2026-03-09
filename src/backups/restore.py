@@ -1,7 +1,6 @@
 from src.utils.docker.volumes import (
-    LOGICAL_VOLUMES,
-    docker_volume_name,
-    host_bind_path,
+    logical_volume_names,
+    logical_volume_mount_source,
     storage_docker_mount_flags,
     storage_mount_source,
 )
@@ -18,20 +17,18 @@ RESTIC_PCLOUD_REMOTE: str = str(
 )
 
 
-class RestoreRunnerError(RuntimeError):
-    """Raised when restore execution commands fail."""
-
-
-def list_recent_snapshots(limit: int = 10) -> str:
+def recent_snapshots(limit: int = 10) -> str:
     """Return a recent restic snapshot listing after refreshing the local repo."""
-    pull_restic_repo_from_pcloud()
+    pull_restic_from_cloud()
 
     try:
         return restic.run_restic_command_with_output(
             ["snapshots", "--latest", str(limit)]
         )
     except restic.ResticRunnerError as err:
-        raise RestoreRunnerError(f"snapshot listing failed: {err}") from err
+        raise RuntimeError(
+            f"[recent_snapshots] snapshot listing failed: {err}"
+        ) from err
 
 
 def _sync_volume_path_to_target(
@@ -66,7 +63,7 @@ def _volume_subdir_exists(volume_name: str, relative_path: str) -> bool:
     return probe.returncode == 0
 
 
-def pull_restic_repo_from_pcloud() -> None:
+def pull_restic_from_cloud() -> None:
     """Sync restic repository from pCloud before restore."""
     if read_secret("RESTIC_PCLOUD_SYNC", "1") in {"0", "false", "False", "no", "NO"}:
         print("Skipping restic pCloud sync (RESTIC_PCLOUD_SYNC disabled).")
@@ -81,7 +78,9 @@ def pull_restic_repo_from_pcloud() -> None:
     try:
         rclone_sync(RESTIC_PCLOUD_REMOTE, "/repo", docker_args=docker_args)
     except Exception as err:
-        raise RestoreRunnerError(f"restic repository sync failed: {err}") from err
+        raise RuntimeError(
+            f"[pull_restic_from_cloud] restic repository sync failed: {err}"
+        ) from err
 
 
 def _apply_restored_volumes_from_backups_volume(project: str, target: str) -> None:
@@ -90,7 +89,7 @@ def _apply_restored_volumes_from_backups_volume(project: str, target: str) -> No
     if target != "/backups":
         target_prefix = target.removeprefix("/backups/").strip("/") + "/"
 
-    for source_name in LOGICAL_VOLUMES:
+    for source_name in logical_volume_names():
         candidates = [
             f"{target_prefix}volumes/{source_name}",
             f"{target_prefix}backups/volumes/{source_name}",
@@ -108,12 +107,7 @@ def _apply_restored_volumes_from_backups_volume(project: str, target: str) -> No
             print(f"Skipping {source_name}; not found in {', '.join(candidates)}.")
             continue
 
-        override = host_bind_path(source_name)
-        target_mount = (
-            str(override.resolve())
-            if override
-            else docker_volume_name(project, source_name)
-        )
+        target_mount = logical_volume_mount_source(project, source_name)
 
         print(f"Applying restored data: {source_relative_path} -> {target_mount}")
         _sync_volume_path_to_target(
@@ -133,7 +127,7 @@ def restore_snapshot(
     - `no_apply_volumes`: if True, do not copy restored files into docker volumes
     """
     # ensure local restic repository is refreshed from remote before restore
-    pull_restic_repo_from_pcloud()
+    pull_restic_from_cloud()
 
     # perform restic restore
     restic.run_restic_command(["restore", snapshot, "--target", target])

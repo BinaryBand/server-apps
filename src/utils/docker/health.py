@@ -107,11 +107,11 @@ def wait_for_container_exec(
     description: str,
     *,
     container: str,
-    shell_command: str,
+    exec_args: Sequence[str],
     timeout_seconds: float,
     interval_seconds: float,
 ) -> subprocess.CompletedProcess[str]:
-    command = ["docker", "exec", container, "sh", "-lc", shell_command]
+    command = ["docker", "exec", container, *list(exec_args)]
     return wait_for_command(
         description,
         command,
@@ -151,32 +151,32 @@ def wait_for_container_health(
 def run_runtime_health_checks() -> None:
     remote = read_secret("RCLONE_REMOTE", "pcloud") or "pcloud"
 
-    exec_checks: list[tuple[str, str, str, float, float]] = [
+    exec_checks: list[tuple[str, str, list[str], float, float]] = [
         (
             "Wait for rclone config",
             "rclone",
-            "test -f /config/rclone/rclone.conf",
+            ["test", "-f", "/config/rclone/rclone.conf"],
             30,
             1,
         ),
         (
             "Wait for rclone access to MinIO",
             "rclone",
-            "rclone lsd minio: --max-depth 1",
+            ["rclone", "lsd", "minio:", "--max-depth", "1"],
             45,
             3,
         ),
         (
             f"Wait for rclone access to {remote}",
             "rclone",
-            f"rclone lsd {shlex.quote(remote)}: --max-depth 1",
+            ["rclone", "lsd", f"{remote}:", "--max-depth", "1"],
             45,
             3,
         ),
         (
             "Wait for Jellyfin log write access",
             "jellyfin",
-            "touch /logs/.jellyfin-log.assert && rm -f /logs/.jellyfin-log.assert",
+            ["test", "-w", "/logs"],
             20,
             2,
         ),
@@ -185,14 +185,14 @@ def run_runtime_health_checks() -> None:
     for (
         description,
         container,
-        shell_command,
+        exec_args,
         timeout_seconds,
         interval_seconds,
     ) in exec_checks:
         wait_for_container_exec(
             description,
             container=container,
-            shell_command=shell_command,
+            exec_args=exec_args,
             timeout_seconds=timeout_seconds,
             interval_seconds=interval_seconds,
         )

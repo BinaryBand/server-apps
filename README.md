@@ -13,16 +13,22 @@ Small runbook + Docker Compose stack for personal cloud services (Jellyfin, MinI
 ## Setup
 
 1. Create env file:
-	- `cp .env.example .env`
-2. Set required secrets in `.env`:
-	- `MINIO_ROOT_USER`
-	- `MINIO_ROOT_PASSWORD`
-	- `RESTIC_PASSWORD`
-3. Create Python env and install deps:
-	- `python -m venv .venv`
-	- `source .venv/bin/activate`
-	- `pip install .`
-4. Ensure Docker + Docker Compose plugin are installed and running.
+
+- `cp .env.example .env`
+
+1. Set required secrets in `.env`:
+
+- `MINIO_ROOT_USER`
+- `MINIO_ROOT_PASSWORD`
+- `RESTIC_PASSWORD`
+
+1. Create Python env and install deps:
+
+- `python -m venv .venv`
+- `source .venv/bin/activate`
+- `pip install .`
+
+1. Ensure Docker + Docker Compose plugin are installed and running.
 
 ## Key behavior
 
@@ -33,12 +39,16 @@ Small runbook + Docker Compose stack for personal cloud services (Jellyfin, MinI
 
 ## Most important config
 
-- `PUID`, `PGID`, `MEDIA_GID` (container/user mapping)
+- `MINIO_DATA_DIR` (host path for MinIO data bind mount)
 - `RCLONE_REMOTE`
 
 The Docker Compose project name is pinned to `cloud-apps`.
 
 Defaults live in `.env.example`.
+
+Container UID/GID and shared media group values are fixed and managed centrally via compose + permissions automation.
+
+Storage volume definitions are centralized in `compose/base.yml` + `compose/dev.yml` and consumed by runtime helpers.
 
 ### Operational Flow Diagrams
 
@@ -67,7 +77,7 @@ Ansible owns reconciliation and setup; Python owns post-start runtime health che
 flowchart LR
 
 backup[python runbook/backup.py]
-gather[gather_with_include_file]
+gather[gather_stage]
 staging[(backups_data volume)]
 restic[restic backup]
 repo[(restic_repo_data volume)]
@@ -88,7 +98,7 @@ The gather stage is intentionally separate from restic. It mounts the logical vo
 flowchart LR
 
 restore[python runbook/restore.py]
-pull[pull_restic_repo_from_pcloud]
+pull[pull_restic_from_cloud]
 repo[(restic_repo_data volume)]
 remote_repo[(pCloud Backups Restic remote)]
 restic_restore[restic restore to /backups/restore]

@@ -1,54 +1,124 @@
+from src.utils.docker.compose_storage import (
+    external_alias_name_pairs,
+    rendered_compose_config,
+    service_volume_sources,
+)
 from src.utils.secrets import read_secret
+from src.utils.runtime import repo_root
 
 from pathlib import Path
 from typing import Optional
 import subprocess
 
 
-# Logical volume names as represented under /data inside the gather container
-LOGICAL_VOLUMES: list[str] = [
-    "jellyfin_config",
-    "jellyfin_data",
-    "baikal_config",
-    "baikal_data",
-    "minio_data",
-]
-
-STORAGE_DEFAULT_SUFFIXES: dict[str, str] = {
-    "backups": "backups_data",
-    "restic_repo": "restic_repo_data",
-    "rclone_config": "rclone_config",
+LOGICAL_TARGETS: dict[str, tuple[str, str]] = {
+    "jellyfin_config": ("jellyfin", "/etc/jellyfin"),
+    "jellyfin_data": ("jellyfin", "/var/lib/jellyfin"),
+    "baikal_config": ("baikal", "/var/www/baikal/config"),
+    "baikal_data": ("baikal", "/var/www/baikal/Specific"),
+    "minio_data": ("minio", "/data"),
 }
 
-LOGICAL_VOLUME_OVERRIDE_ENV: dict[str, str] = {
+STORAGE_TARGETS: dict[str, tuple[str, str]] = {
+    "backups": ("restic", "/backups"),
+    "restic_repo": ("restic", "/repo"),
+    "rclone_config": ("rclone", "/config/rclone"),
+}
+
+LOGICAL_BIND_ENV: dict[str, str] = {
     "minio_data": "MINIO_DATA_DIR",
 }
 
 
+def _logical_config(logical_name: str) -> dict[str, str | bool]:
+    if logical_name not in LOGICAL_TARGETS:
+        raise KeyError(f"Unknown logical volume: {logical_name}")
+    return {"logical_name": logical_name}
+
+
+def _storage_config(storage_key: str) -> dict[str, str | bool]:
+    if storage_key not in STORAGE_TARGETS:
+        raise KeyError(f"Unknown storage key: {storage_key}")
+    return {"storage_key": storage_key}
+
+
+def logical_volume_names() -> list[str]:
+    return list(LOGICAL_TARGETS.keys())
+
+
+def _resolve_volume_source(source: str) -> str:
+    return external_alias_name_pairs().get(source, source)
+
+
+def _logical_source(logical_name: str) -> tuple[str, str]:
+    service_name, target = LOGICAL_TARGETS[logical_name]
+    source = service_volume_sources(service_name).get(target)
+    if source is None:
+        raise RuntimeError(
+            f"[volumes] Missing source for logical volume '{logical_name}' at {service_name}:{target}"
+        )
+    mount_type = "bind" if logical_name in LOGICAL_BIND_ENV else "named"
+    return (mount_type, source)
+
+
+def _storage_source(storage_key: str) -> str:
+    service_name, target = STORAGE_TARGETS[storage_key]
+    source = service_volume_sources(service_name).get(target)
+    if source is None:
+        raise RuntimeError(
+            f"[volumes] Missing source for storage key '{storage_key}' at {service_name}:{target}"
+        )
+    return source
+
+
+def external_volume_suffixes() -> list[str]:
+    """Return external docker volume names required by compose."""
+    return list(external_alias_name_pairs().values())
+
+
+def required_external_volume_names(project: str) -> list[str]:
+    """Return required external docker volume names.
+
+    Names are canonical and defined directly in compose.
+    """
+    return external_volume_suffixes()
+
+
 def docker_volume_name(project: str, logical_name: str) -> str:
-    """Return the docker volume name for a project and logical volume."""
-    return f"{project}_{logical_name}"
+    """Return canonical docker volume name for a logical volume."""
+    return logical_name
 
 
 def _list_docker_volumes(*args: str) -> list[str]:
-    cmd = ["docker", "volume", "ls", *args, "--format", "{{.Name}}"]
-    proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    cmd: list[str] = ["docker", "volume", "ls", *args, "--format", "{{.Name}}"]
+    proc: subprocess.CompletedProcess[str] = subprocess.run(
+        cmd, check=False, capture_output=True, text=True
+    )
     if proc.returncode != 0:
         return []
     return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
 
 def list_project_volumes(project: str) -> list[str]:
-    """List project-owned volumes, preferring compose labels with a prefix fallback."""
-    volumes = _list_docker_volumes(
+    """List compose-managed volumes for this stack."""
+    volumes: list[str] = _list_docker_volumes(
         "--filter", f"label=com.docker.compose.project={project}"
     )
     if volumes:
         return volumes
 
-    fallback = _list_docker_volumes()
-    prefix = f"{project}_"
-    return [name for name in fallback if name.startswith(prefix)]
+    configured: set[str] = set(external_alias_name_pairs().values())
+
+    compose_volumes = rendered_compose_config().get("volumes")
+    if isinstance(compose_volumes, dict):
+        for raw_cfg in compose_volumes.values():
+            if isinstance(raw_cfg, dict):
+                volume_name = raw_cfg.get("name")
+                if isinstance(volume_name, str) and volume_name:
+                    configured.add(volume_name)
+
+    existing = set(_list_docker_volumes())
+    return sorted(name for name in configured if name in existing)
 
 
 def remove_project_volumes(project: str, *, dry_run: bool = False) -> tuple[int, int]:
@@ -75,30 +145,44 @@ def remove_project_volumes(project: str, *, dry_run: bool = False) -> tuple[int,
 
 
 def host_bind_path(logical_name: str) -> Optional[Path]:
-    """Return the host override path for logical volumes that still support it."""
-    env_key = LOGICAL_VOLUME_OVERRIDE_ENV.get(logical_name)
+    """Return host bind path for logical volumes configured as bind mounts."""
+    _mount_type, _source = _logical_source(logical_name)
+    env_key = LOGICAL_BIND_ENV.get(logical_name)
     if env_key is None:
         return None
 
-    if value := read_secret(env_key):
-        p = Path(value).expanduser().resolve()
-        if p.exists():
-            return p
-    return None
+    raw_value = read_secret(env_key)
+    if not raw_value:
+        raw_value = "./minio"
+
+    if not raw_value:
+        raise RuntimeError(
+            f"Bind-mounted logical volume '{logical_name}' has no configured source path"
+        )
+
+    path = Path(raw_value).expanduser()
+    if not path.is_absolute():
+        path = repo_root() / path
+    return path.resolve()
 
 
 def logical_volume_mount_source(project: str, logical_name: str) -> str:
     """Return the host path or named volume source for a logical app volume."""
-    override = host_bind_path(logical_name)
+    _logical_config(logical_name)
+
+    override: Path | None = host_bind_path(logical_name)
     if override is not None:
         return str(override)
-    return docker_volume_name(project, logical_name)
+
+    _mount_type, source = _logical_source(logical_name)
+    return _resolve_volume_source(source)
 
 
 def storage_mount_source(project: str, storage_key: str) -> str:
     """Return the named docker volume backing the requested storage key."""
-    suffix = STORAGE_DEFAULT_SUFFIXES[storage_key]
-    return docker_volume_name(project, suffix)
+    _storage_config(storage_key)
+    source = _storage_source(storage_key)
+    return _resolve_volume_source(source)
 
 
 def storage_docker_mount_flags(
@@ -115,8 +199,8 @@ def storage_docker_mount_flags(
 def rclone_docker_volume_flags(project: str) -> list[str]:
     """Return docker run volume flags mounting all logical volumes read-only."""
     flags: list[str] = []
-    for logical in LOGICAL_VOLUMES:
+    for logical in logical_volume_names():
         dest = f"/data/volumes/{logical}"
-        source = logical_volume_mount_source(project, logical)
+        source: str = logical_volume_mount_source(project, logical)
         flags += ["-v", f"{source}:{dest}:ro"]
     return flags

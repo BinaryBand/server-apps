@@ -1,13 +1,20 @@
 from __future__ import annotations
 
-from src.backups.gather import gather_with_include_file
+from pathlib import Path
+import sys
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from src.backups.gather import gather_stage
+from src.utils.docker.volumes import logical_volume_names
 from src.utils.runtime import PROJECT_NAME, repo_root
 
-from pathlib import Path
 from unittest import TestCase, main
 from unittest.mock import patch
 import shutil
 import subprocess
+import uuid
 
 
 DOCKER_PROBE_TIMEOUT_SECONDS = 30
@@ -51,6 +58,51 @@ class GatherSmokeTest(TestCase):
 
         self.include_file = repo_root() / "configs" / "backup-include.txt"
         self.stage_roots = _stage_roots_from_include_file(self.include_file)
+        self.logical_volume_names = logical_volume_names()
+        self.source_volumes: dict[str, str] = {
+            logical_name: f"smoke-gather-{uuid.uuid4().hex[:8]}-{logical_name}"
+            for logical_name in self.logical_volume_names
+        }
+
+        for volume_name in self.source_volumes.values():
+            subprocess.run(
+                ["docker", "volume", "create", volume_name],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+        self._populate_source_volumes()
+
+    def tearDown(self) -> None:
+        for volume_name in self.source_volumes.values():
+            subprocess.run(
+                ["docker", "volume", "rm", "-f", volume_name],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+    def _populate_source_volumes(self) -> None:
+        for logical_name, volume_name in self.source_volumes.items():
+            subprocess.run(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "-v",
+                    f"{volume_name}:/target",
+                    "alpine:3.20",
+                    "sh",
+                    "-lc",
+                    (
+                        "set -eu && "
+                        "mkdir -p /target/data && "
+                        f"printf '%s\n' smoke > /target/data/{logical_name}.txt"
+                    ),
+                ],
+                check=True,
+            )
 
     def _assert_container_path_has_content(
         self, docker_args: list[str], container_path: str
@@ -89,6 +141,11 @@ class GatherSmokeTest(TestCase):
         )
 
     def test_gather_mounts_populated_stage_roots(self) -> None:
+        patched_flags: list[str] = []
+        for logical_name in self.logical_volume_names:
+            source_volume = self.source_volumes[logical_name]
+            patched_flags += ["-v", f"{source_volume}:/data/volumes/{logical_name}:ro"]
+
         def fake_rclone_sync(
             source: str,
             destination: str,
@@ -130,7 +187,11 @@ class GatherSmokeTest(TestCase):
                 )
 
         with patch("src.backups.gather.rclone_sync", side_effect=fake_rclone_sync):
-            gather_with_include_file(PROJECT_NAME, self.include_file)
+            with patch(
+                "src.backups.gather.volatile.rclone_docker_volume_flags",
+                return_value=patched_flags,
+            ):
+                gather_stage(PROJECT_NAME, self.include_file)
 
 
 if __name__ == "__main__":

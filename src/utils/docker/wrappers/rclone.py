@@ -1,10 +1,10 @@
 from src.utils.runtime import media_root
 from src.utils.secrets import read_secret
 
-from pathlib import Path
-from subprocess import CalledProcessError
+from subprocess import CalledProcessError, CompletedProcess
 from functools import cache
 from typing import Iterable
+from pathlib import Path
 
 import subprocess
 import shutil
@@ -14,11 +14,8 @@ import os
 
 @cache
 def _rclone_image() -> str:
-    RCLONE_IMAGE: str = (
-        read_secret("RCLONE_IMAGE")
-        or f"rclone/rclone:{read_secret('RCLONE_VERSION', 'latest')}"
-    )
-    return RCLONE_IMAGE
+    version: str = read_secret("RCLONE_VERSION", "latest")
+    return f"rclone/rclone:{version}"
 
 
 def _normalize_list(it: Iterable[str] | None) -> list[str]:
@@ -35,28 +32,57 @@ def _rclone_container_is_running(container_name: str = "rclone") -> bool:
     return probe.returncode == 0 and probe.stdout.strip() == "true"
 
 
+def _host_helper_command(command_args: list[str]) -> list[str]:
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--privileged",
+        "--pid=host",
+        "-v",
+        "/:/host",
+        "alpine:3.20",
+        "chroot",
+        "/host",
+        "nsenter",
+        "-t",
+        "1",
+        "-m",
+        *command_args,
+    ]
+
+
+def _docker_exec_rclone_command(command_args: list[str]) -> list[str]:
+    return ["docker", "exec", "rclone", *command_args]
+
+
+def _docker_run_rclone_sync_command(
+    source: str,
+    destination: str,
+    *,
+    docker_args: list[str],
+    extra_args: list[str],
+) -> list[str]:
+    cmd: list[str] = [
+        "docker",
+        "run",
+        "--rm",
+        *docker_args,
+        _rclone_image(),
+        "sync",
+        source,
+        destination,
+        "--progress",
+        *extra_args,
+    ]
+    return cmd
+
+
 def _cleanup_mount_path_via_helper(mount_path: Path) -> bool:
-    cleanup_script = "nsenter -t 1 -m sh -lc " + repr(
-        f"umount -l {mount_path} >/dev/null 2>&1 || true; "
-        f"rm -rf {mount_path} >/dev/null 2>&1 || true; "
-        f"mkdir -p {mount_path}"
-    )
-    result = subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "--privileged",
-            "--pid=host",
-            "-v",
-            "/:/host",
-            "alpine:3.20",
-            "chroot",
-            "/host",
-            "sh",
-            "-lc",
-            cleanup_script,
-        ],
+    subprocess.run(_host_helper_command(["umount", "-l", str(mount_path)]), check=False)
+    subprocess.run(_host_helper_command(["rm", "-rf", str(mount_path)]), check=False)
+    result: CompletedProcess[bytes] = subprocess.run(
+        _host_helper_command(["mkdir", "-p", str(mount_path)]),
         check=False,
     )
     return result.returncode == 0
@@ -79,18 +105,15 @@ def rclone_sync(
     docker_args = _normalize_list(docker_args)
     extra_args = _normalize_list(extra_args)
 
-    cmd: list[str] = [
-        *docker_args,
-        _rclone_image(),
-        "sync",
+    cmd = _docker_run_rclone_sync_command(
         source,
         destination,
-        "--progress",
-        *extra_args,
-    ]
+        docker_args=docker_args,
+        extra_args=extra_args,
+    )
 
     try:
-        subprocess.run(["docker", "run", "--rm", *cmd], check=True)
+        subprocess.run(cmd, check=True)
     except CalledProcessError as err:
         return_code = err.returncode
         raise RuntimeError(f"rclone sync failed with {return_code}: {' '.join(cmd)}")
@@ -105,17 +128,15 @@ def cleanup_media_mount() -> None:
     mount_path: Path = media_root() / "pcloud" / "Media"
 
     if _rclone_container_is_running():
-        subprocess.run(
-            [
-                "docker",
-                "exec",
-                "rclone",
-                "sh",
-                "-lc",
-                "fusermount -uz /media/pcloud/Media || umount -l /media/pcloud/Media || true",
-            ],
+        fuse_result = subprocess.run(
+            _docker_exec_rclone_command(["fusermount", "-uz", "/media/pcloud/Media"]),
             check=False,
         )
+        if fuse_result.returncode != 0:
+            subprocess.run(
+                _docker_exec_rclone_command(["umount", "-l", "/media/pcloud/Media"]),
+                check=False,
+            )
 
     if shutil.which("fusermount") is not None:
         subprocess.run(["fusermount", "-uz", str(mount_path)], check=False)

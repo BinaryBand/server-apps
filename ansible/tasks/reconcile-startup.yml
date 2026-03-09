@@ -1,166 +1,157 @@
-    - name: Ensure declared groups exist
-      become: true
-      ansible.builtin.group:
-        name: "{{ item.key }}"
-        gid: "{{ item.value.gid | int }}"
-        non_unique: true
-        state: present
-      loop: "{{ (permissions_data.users | default({})) | dict2items }}"
-      when: apply_privileged
+- name: Load compose base configuration for identity drift checks
+  ansible.builtin.include_vars:
+    file: "{{ repo_root_path }}/compose/base.yml"
+    name: compose_base
 
-    - name: Ensure declared users exist
-      become: true
-      ansible.builtin.user:
-        name: "{{ item.key }}"
-        uid: "{{ item.value.uid | int }}"
-        group: "{{ item.key }}"
-        shell: /usr/sbin/nologin
-        create_home: false
-        comment: "{{ item.value.comment | default(item.key) }}"
-        state: present
-      loop: "{{ (permissions_data.users | default({})) | dict2items }}"
-      when: apply_privileged
+- name: Derive fixed service identities from compose base configuration
+  ansible.builtin.set_fact:
+    compose_jellyfin_user: "{{ (((compose_base.services | default({})).jellyfin | default({})).user | default('')) }}"
+    compose_rclone_env: "{{ (((compose_base.services | default({})).rclone | default({})).environment | default([])) }}"
 
-    - name: Ensure volume directories exist
-      ansible.builtin.file:
-        path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
-        state: directory
-      loop: "{{ volume_entries }}"
-      when: item.path | default('') | length > 0
+- name: Assert Jellyfin and rclone IDs are aligned between compose and permissions manifest
+  ansible.builtin.assert:
+    that:
+      - "':' in compose_jellyfin_user"
+      - "(((permissions_data.users | default({})).jellyfin | default({})).uid | int) == ((compose_jellyfin_user.split(':')[0]) | int)"
+      - "(((permissions_data.users | default({})).jellyfin | default({})).gid | int) == ((compose_jellyfin_user.split(':')[1]) | int)"
+      - "(((permissions_data.users | default({})).rclone | default({})).uid | int) == (((compose_rclone_env | select('match', '^PUID=') | list | first | default('PUID=-1')) | regex_replace('^PUID=', '')) | int)"
+      - "(((permissions_data.users | default({})).rclone | default({})).gid | int) == (((compose_rclone_env | select('match', '^MEDIA_GID=') | list | first | default('MEDIA_GID=-1')) | regex_replace('^MEDIA_GID=', '')) | int)"
+    fail_msg: >-
+      UID/GID drift detected between compose/base.yml and infra/permissions.yml for jellyfin/rclone.
+      Keep fixed compose IDs and permissions manifest users synchronized.
 
-    - name: Apply ownership and mode for declared volumes
-      become: true
-      ansible.builtin.file:
-        path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
-        owner: "{{ item.owner | default('root') }}"
-        group: "{{ item.group | default('root') }}"
-        mode: "{{ item.mode | default('0755') }}"
-        recurse: "{{ item.recurse | default(false) | bool }}"
-        state: directory
-      loop: "{{ volume_entries }}"
-      when:
-        - apply_privileged
-        - item.path | default('') | length > 0
+- name: Ensure declared groups exist
+  become: true
+  ansible.builtin.group:
+    name: "{{ item.key }}"
+    gid: "{{ item.value.gid | int }}"
+    non_unique: true
+    state: present
+  loop: "{{ (permissions_data.users | default({})) | dict2items }}"
+  when: apply_privileged
 
-    - name: Apply runtime mode for declared volumes
-      ansible.builtin.file:
-        path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
-        mode: "{{ item.runtime_mode | default(item.mode | default('0755')) }}"
-        recurse: "{{ item.runtime_recurse | default(false) | bool }}"
-        state: directory
-      loop: "{{ volume_entries }}"
-      when:
-        - permissions_mode_selected == 'runtime'
-        - item.path | default('') | length > 0
-        - item.runtime_mode is defined
+- name: Ensure declared users exist
+  become: true
+  ansible.builtin.user:
+    name: "{{ item.key }}"
+    uid: "{{ item.value.uid | int }}"
+    group: "{{ item.key }}"
+    shell: /usr/sbin/nologin
+    create_home: false
+    comment: "{{ item.value.comment | default(item.key) }}"
+    state: present
+  loop: "{{ (permissions_data.users | default({})) | dict2items }}"
+  when: apply_privileged
 
-    - name: Create temporary staging directory for internal rclone config
-      ansible.builtin.tempfile:
-        state: directory
-        prefix: rclone-config-
-      register: rclone_config_staging
+- name: Ensure volume directories exist
+  ansible.builtin.file:
+    path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
+    state: directory
+  loop: "{{ volume_entries }}"
+  when: item.path | default('') | length > 0
 
-    - name: Ensure internal rclone config volume exists
-      community.docker.docker_volume:
-        name: "{{ rclone_config_volume_name }}"
-        state: present
+- name: Apply ownership and mode for declared volumes
+  become: true
+  ansible.builtin.file:
+    path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('0755') }}"
+    recurse: "{{ item.recurse | default(false) | bool }}"
+    state: directory
+  loop: "{{ volume_entries }}"
+  when:
+    - apply_privileged
+    - item.path | default('') | length > 0
 
-    - name: Validate required environment for rclone template
-      ansible.builtin.assert:
-        that:
-          - rclone_env.PCLOUD_ACCESS_TOKEN | length > 0
-          - rclone_env.PCLOUD_EXPIRY | length > 0
-          - rclone_env.MINIO_ROOT_USER | length > 0
-          - rclone_env.MINIO_ROOT_PASSWORD | length > 0
-        fail_msg: >-
-          Missing env vars required for rclone config rendering.
-          Ensure PCLOUD_ACCESS_TOKEN, PCLOUD_EXPIRY, and MINIO_ROOT_USER/MINIO_ROOT_PASSWORD
-          (or S3_ACCESS_KEY/S3_SECRET_KEY aliases) are exported.
+- name: Apply runtime mode for declared volumes
+  ansible.builtin.file:
+    path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
+    mode: "{{ item.runtime_mode | default(item.mode | default('0755')) }}"
+    recurse: "{{ item.runtime_recurse | default(false) | bool }}"
+    state: directory
+  loop: "{{ volume_entries }}"
+  when:
+    - permissions_mode_selected == 'runtime'
+    - item.path | default('') | length > 0
+    - item.runtime_mode is defined
 
-    - name: Render rclone config from template
-      ansible.builtin.template:
-        src: "{{ repo_root_path }}/ansible/templates/rclone.conf.j2"
-        dest: "{{ rclone_config_staging.path }}/rclone.conf"
-        mode: "0600"
+- name: Create temporary staging directory for internal rclone config
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: rclone-config-
+  register: rclone_config_staging
 
-    - name: Copy rendered rclone config into internal volume
-      ansible.builtin.command:
-        argv:
-          - docker
-          - run
-          - --rm
-          - -v
-          - "{{ rclone_config_volume_name }}:/config/rclone"
-          - -v
-          - "{{ rclone_config_staging.path }}:/staging:ro"
-          - alpine:3.20
-          - sh
-          - -lc
-          - "cp /staging/rclone.conf /config/rclone/rclone.conf && chmod 0600 /config/rclone/rclone.conf"
+- name: Ensure internal rclone config volume exists
+  community.docker.docker_volume:
+    name: "{{ rclone_config_volume_name }}"
+    state: present
 
-    - name: Remove temporary staging directory for internal rclone config
-      ansible.builtin.file:
-        path: "{{ rclone_config_staging.path }}"
-        state: absent
+- name: Validate required environment for rclone template
+  ansible.builtin.assert:
+    that:
+      - rclone_env.PCLOUD_ACCESS_TOKEN | length > 0
+      - rclone_env.PCLOUD_EXPIRY | length > 0
+      - rclone_env.MINIO_ROOT_USER | length > 0
+      - rclone_env.MINIO_ROOT_PASSWORD | length > 0
+    fail_msg: >-
+      Missing env vars required for rclone config rendering.
+      Ensure PCLOUD_ACCESS_TOKEN, PCLOUD_EXPIRY, and MINIO_ROOT_USER/MINIO_ROOT_PASSWORD
+      (or S3_ACCESS_KEY/S3_SECRET_KEY aliases) are exported.
 
-    - name: Start docker compose stack
-      community.docker.docker_compose_v2:
-        project_name: "{{ project_name_selected }}"
-        project_src: "{{ repo_root_path }}"
-        files:
-          - compose/base.yml
-          - compose/dev.yml
-        state: present
-      when: permissions_mode_selected == 'runtime'
+- name: Render rclone config from template
+  ansible.builtin.template:
+    src: "{{ repo_root_path }}/ansible/templates/rclone.conf.j2"
+    dest: "{{ rclone_config_staging.path }}/rclone.conf"
+    mode: "0600"
 
-    - name: Normalize Jellyfin named volume ownership
-      ansible.builtin.command:
-        argv:
-          - docker
-          - run
-          - --rm
-          - -v
-          - "{{ item }}:/target"
-          - alpine:3.20
-          - sh
-          - -lc
-          - >-
-            mkdir -p /target &&
-            chown -R {{ runtime_uid_selected }}:{{ runtime_gid_selected }} /target &&
-            chmod -R u+rwX /target
-      loop:
-        - "{{ project_name_selected }}_jellyfin_cache_data"
-        - "{{ project_name_selected }}_jellyfin_config"
-        - "{{ project_name_selected }}_jellyfin_data"
-      when: permissions_mode_selected == 'runtime'
+- name: Copy rendered rclone config into internal volume
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - -v
+      - "{{ rclone_config_volume_name }}:/config/rclone"
+      - -v
+      - "{{ rclone_config_staging.path }}:/staging:ro"
+      - alpine:3.20
+      - sh
+      - -lc
+      - "cp /staging/rclone.conf /config/rclone/rclone.conf && chmod 0600 /config/rclone/rclone.conf"
 
-    - name: Restart Jellyfin after volume permission normalization
-      ansible.builtin.command:
-        argv:
-          - docker
-          - restart
-          - jellyfin
-      when: permissions_mode_selected == 'runtime'
+- name: Remove temporary staging directory for internal rclone config
+  ansible.builtin.file:
+    path: "{{ rclone_config_staging.path }}"
+    state: absent
 
-    - name: Wait for MinIO to be ready
-      ansible.builtin.wait_for:
-        port: 9000
-        host: 127.0.0.1
-        delay: 2
-        timeout: 60
-      when: permissions_mode_selected == 'runtime'
+- name: Start docker compose stack
+  community.docker.docker_compose_v2:
+    project_name: "{{ project_name_selected }}"
+    project_src: "{{ repo_root_path }}"
+    files:
+      - compose/base.yml
+      - compose/dev.yml
+    state: present
+  when: permissions_mode_selected == 'runtime'
 
-    - name: Create MinIO media bucket
-      community.docker.docker_container_exec:
-        container: minio
-        command: >-
-          /bin/sh -c "mc alias set myminio http://127.0.0.1:9000 '{{ rclone_env.MINIO_ROOT_USER }}' '{{ rclone_env.MINIO_ROOT_PASSWORD }}' 2>/dev/null &&
-          if ! mc stat myminio/media >/dev/null 2>&1; then
-            mc mb myminio/media;
-          fi &&
-          anon_status=$(mc anonymous get myminio/media 2>/dev/null || true) &&
-          case \"$anon_status\" in
-            *download*) : ;;
-            *) mc anonymous set download myminio/media ;;
-          esac"
-      when: permissions_mode_selected == 'runtime'
+- name: Normalize Jellyfin named volume ownership
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - -v
+      - "{{ item }}:/target"
+      - alpine:3.20
+      - sh
+      - -lc
+      - >-
+        mkdir -p /target &&
+        chown -R {{ (((permissions_data.users | default({})).jellyfin | default({})).uid | default(8096)) | int }}:{{ (((permissions_data.users | default({})).jellyfin | default({})).gid | default(5572)) | int }} /target &&
+        chmod -R u+rwX /target
+  loop:
+    - "jellyfin_cache_data"
+    - "jellyfin_config"
+    - "jellyfin_data"
+  when: permissions_mode_selected == 'runtime'

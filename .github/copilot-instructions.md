@@ -1,72 +1,60 @@
 # Copilot Instructions
 
-## Current Architecture (Enforceable)
+## [Architectural Checklist](https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/architectural-principles)
 
-- `runbook/*.py`: Orchestrators that sequence stages and parse CLI arguments.
-- `ansible/apply-permissions.yml`: Manager-like reconciliation for host/runtime state.
-- `src/backups/*`, `src/reset/*`, `src/project/*`, `src/utils/*`: Toolbox and helper modules.
-- `compose/*.yml`, `infra/*.yml`, `configs/*`, `.env*`: Declarative configuration.
+- [ ] Separation of Concerns
+- [ ] Encapsulation
+- [ ] Dependency Inversion
+- [ ] Explicit Dependencies
+- [ ] Single Responsibility
+- [ ] Don't Repeat Yourself (DRY)
+- [ ] Persistence-agnostic
+- [ ] Bounded Contexts
+- [ ] Idempotency
+- [ ] Observability
 
-## Core Rules
+## Separation of Concerns
 
-### Separation Of Concerns
+An individual component must be exactly one of: Orchestrator, Manager, Toolbox, or Configuration.
 
-- Keep orchestration flow and stage ordering in `runbook/*`.
-- Keep subprocess wrappers, file transforms, and integration helpers in `src/*`.
-- Keep imperative workflow logic out of Compose and infra manifests.
+- **Orchestrator**
+  - Role: Linear pipeline runner — funnels data through a fixed sequence of Toolbox calls and Manager handoffs.
+  - Lifecycle: Ephemeral per-request/goal.
+  - Responsibilities: compose task list, enforce per-stage deadlines/cancellation, implement retries/backoff for orchestration-level failures, emit structured telemetry.
+- **Manager**
+  - Role: Stateful router/reconciler — observes the domain state in its scope, routes data to functions/managers, updates desired state, and returns data to the Orchestrator when ready for the next pipeline stage.
+  - Lifecycle: Long-lived, event-driven, reconciler loop.
+  - Responsibilities: routing, backpressure, rate-limiting, remediation decisions, event emission.
+- **Toolbox**
+  - Role: Pure processors — transform input → output, no control flow or orchestration responsibilities.
+  - Lifecycle: Stateless, callable functions/services.
+  - Responsibilities: deterministic processing, typed I/O, return structured errors; must NOT implement retries/timeouts/backoff (cooperative cancellation hooks are allowed); idempotency or idempotency keys required.
+- **Configuration**
+  - Role: Declarative data artifacts (service definitions, inventories, variables).
+  - Properties: immutable, canonical, validated, versioned, and human-diffable; may be transformed/packed at build/deploy time.
+  - Must not contain imperative orchestration logic.
 
-### Single Responsibility
+## Single responsibility
 
-- If a module starts managing both stage sequencing and low-level command construction, split it.
-- Keep environment/path/volume resolution centralized in `src/utils/runtime.py`, `src/utils/secrets.py`, and `src/utils/volumes.py`.
+If a component is doing multiple things, split it into multiple components.
 
-### Explicit Dependencies
+- **Python**
+  - Role: implement either Orchestrators or Toolbox functions (never both in same component/module). Utilities (logging, tracing helpers, schema validators) must be non-orchestrating.
+  - Orchestrator scripts: accept handoff messages, call toolboxes/managers, enforce per-stage deadlines, and emit structured events/telemetry.
+  - Toolbox functions: pure behavior, deterministic errors, typed I/O, idempotency keys. No internal retries/timeouts/backoff.
 
-- Prefer explicit function args for project names, target paths, and feature flags.
-- Allow environment-driven defaults, but keep override points visible in runbook CLI args.
-- For new storage-related logic, support named-volume defaults with optional host path overrides.
+## No shell in Python
 
-### Idempotency Strategy
-
-Every changed operation must have one of these documented in code comments or PR notes:
-
-1. Naturally idempotent behavior, or
-2. Explicit idempotency marker/tag strategy, or
-3. Intentional non-idempotent behavior with guardrails and a warning.
-
-Repo-specific expectations:
-
-- `ansible/apply-permissions.yml` tasks should remain declarative/idempotent.
-- Backup and restore flows must clearly call out destructive operations, especially `rclone sync` apply steps.
-- When changing snapshot behavior, document how `latest` and tags are expected to behave.
-
-### Error Handling
-
-- Toolbox modules should raise contextual exceptions with command/stage details.
-- Orchestrators should catch errors at stage boundaries and emit actionable messages.
-- Avoid returning raw subprocess errors without context about which stage failed.
-
-### Observability
-
-- Log stage boundaries in `runbook/*`.
-- Log external command invocations in Toolbox modules before execution.
-- Include enough context to troubleshoot path, mount, and volume resolution quickly.
-
-## Target State (Do Not Block PRs Yet)
-
-These are architectural goals that may require refactors:
-
-- Move direct Ansible shell execution into a reusable toolbox wrapper.
-- Tighten typed error hierarchy across backup/restore/reset modules.
-- Reduce orchestration decision logic inside toolbox functions where practical.
-
-When proposing these improvements, include migration steps and scope them separately from urgent fixes.
-
-## Pull Request Review Checklist
-
-- [ ] Is orchestration logic primarily confined to `runbook/*`?
-- [ ] Are Compose/infra/config changes declarative rather than procedural?
-- [ ] Is idempotency behavior clear for each modified operational path?
-- [ ] Are failure messages stage-aware and actionable?
-- [ ] Are storage path assumptions explicit and overrideable?
-- [ ] Are target-state refactors separated from immediate bugfixes?
+- Do not execute shell snippets from Python (no `sh -lc`, `/bin/sh -c`, `bash -c`, or command strings with `&&`, `||`, pipes, redirects, or globs).
+- Build commands as explicit argv lists and run them with `subprocess.run([...], check=...)`.
+- Separate command construction from execution: use small command-builder helpers that return `list[str]`, and thin executor functions that run those lists.
+- Prefer native APIs over shell utilities when available (`Path`, `os`, `shutil`, Docker/SDK wrappers, Ansible modules).
+- If no non-shell equivalent exists, document the exception at the call site and keep it isolated behind a single helper.
+- **Ansible**
+  - Treat playbooks/roles as declarative, idempotent configuration applicators (configuration/manager-like for infra state). Keep roles small and single-purpose.
+  - Avoid embedding orchestration sequencing; if ordered execution is required, have an Orchestrator (Python) invoke playbooks as distinct steps.
+  - Use inventories/vars as versioned configuration artifacts and validate them in CI (molecule or equivalent).
+- **Docker Compose**
+  - Treat compose files as human-diffable configuration describing service wiring and runtime hints only.
+  - Avoid embedding runtime orchestration (complex startup sequencing, retries). Use Orchestrator-managed startup sequencing or a lightweight init container when necessary.
+  - Prefer healthchecks, restart policies, and network definitions rather than procedural logic.

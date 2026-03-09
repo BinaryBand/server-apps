@@ -6,6 +6,8 @@ import dotenv
 import os
 import shutil
 import subprocess
+import sys
+from pathlib import Path
 from typing import Literal
 
 
@@ -13,6 +15,10 @@ MODE = Literal["bootstrap", "runtime", "reset"]
 
 
 def _ansible_playbook_bin() -> str:
+    venv_ansible_playbook = Path(sys.executable).with_name("ansible-playbook")
+    if venv_ansible_playbook.exists() and venv_ansible_playbook.is_file():
+        return str(venv_ansible_playbook)
+
     if (ansible_playbook := shutil.which("ansible-playbook")) is not None:
         return ansible_playbook
 

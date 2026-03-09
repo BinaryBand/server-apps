@@ -1,23 +1,16 @@
 from __future__ import annotations
 
+from src.utils.docker.volumes import required_external_volume_names
 from src.utils.runtime import PROJECT_NAME, repo_root
 
 from pathlib import Path
-import dotenv
 import subprocess
+import dotenv
 
 
 DOCKER_COMPOSE_CMD: list[str] = ["docker", "compose"]
 
 COMPOSE_FILES: tuple[str, str] = ("compose/base.yml", "compose/dev.yml")
-EXTERNAL_VOLUME_SUFFIXES: tuple[str, ...] = (
-    "jellyfin_config",
-    "jellyfin_data",
-    "baikal_config",
-    "baikal_data",
-    "backups_data",
-    "restic_repo_data",
-)
 
 
 def _compose_file_args() -> list[str]:
@@ -44,12 +37,8 @@ def compose_cmd(*args: str) -> list[str]:
     return [*DOCKER_COMPOSE_CMD, *_compose_file_args(), *args]
 
 
-def required_external_volume_names() -> list[str]:
-    return [f"{PROJECT_NAME}_{suffix}" for suffix in EXTERNAL_VOLUME_SUFFIXES]
-
-
 def ensure_external_volumes() -> None:
-    for volume_name in required_external_volume_names():
+    for volume_name in required_external_volume_names(PROJECT_NAME):
         probe = subprocess.run(
             ["docker", "volume", "inspect", volume_name],
             check=False,

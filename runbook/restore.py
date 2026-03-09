@@ -1,8 +1,4 @@
-from src.backups.restore import (
-    RestoreRunnerError,
-    list_recent_snapshots,
-    restore_snapshot,
-)
+from src.backups.restore import recent_snapshots, restore_snapshot
 from src.utils.runtime import repo_root
 
 from argparse import ArgumentParser, Namespace
@@ -25,7 +21,7 @@ def main():
     try:
         if args.list_snapshots:
             print("[stage:list] Listing recent snapshots")
-            if output := list_recent_snapshots().strip():
+            if output := recent_snapshots().strip():
                 print(output)
             else:
                 print("No snapshots found.")
@@ -34,7 +30,7 @@ def main():
         print("[stage:restore] Starting snapshot restore")
         restore_snapshot(args.snapshot, DEFAULT_RESTORE_TARGET, args.no_apply_volumes)
         print("[stage:complete] Restore pipeline completed")
-    except RestoreRunnerError as err:
+    except RuntimeError as err:
         raise SystemExit(f"[stage:restore] {err}") from err
 
 

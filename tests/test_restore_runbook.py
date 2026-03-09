@@ -12,7 +12,7 @@ class RestoreRunbookTest(TestCase):
         with (
             patch("runbook.restore.ArgumentParser.parse_args") as parse_args,
             patch(
-                "runbook.restore.list_recent_snapshots",
+                "runbook.restore.recent_snapshots",
                 return_value="ID Time\nabc now\n",
             ) as list_snapshots,
             patch("runbook.restore.restore_snapshot") as restore_snapshot,
@@ -32,7 +32,7 @@ class RestoreRunbookTest(TestCase):
     def test_restore_mode_uses_default_target(self) -> None:
         with (
             patch("runbook.restore.ArgumentParser.parse_args") as parse_args,
-            patch("runbook.restore.list_recent_snapshots") as list_snapshots,
+            patch("runbook.restore.recent_snapshots") as list_snapshots,
             patch("runbook.restore.restore_snapshot") as restore_snapshot,
         ):
             parse_args.return_value.snapshot = "latest"

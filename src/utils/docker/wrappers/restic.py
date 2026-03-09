@@ -55,7 +55,7 @@ def _ensure_restic_repo_volume_exists() -> None:
         raise ResticRunnerError(f"failed to ensure '{source}' exists") from err
 
 
-def push_restic_repo_to_pcloud() -> None:
+def push_restic_to_cloud() -> None:
     """Sync local restic repository to pCloud after backup."""
     if read_secret("RESTIC_PCLOUD_SYNC", "1") in {"0", "false", "False", "no", "NO"}:
         print("Skipping restic pCloud sync (RESTIC_PCLOUD_SYNC disabled).")
@@ -117,4 +117,4 @@ def run_backup(paths: list[str] | None = None, args: list[str] | None = None) ->
     extra_args = args or []
 
     run_restic_command(["backup", *backup_paths, *extra_args])
-    push_restic_repo_to_pcloud()
+    push_restic_to_cloud()

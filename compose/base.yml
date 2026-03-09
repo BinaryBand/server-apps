@@ -6,8 +6,8 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
+      - PUID=8096
+      - PGID=5572
     ports:
       - "5234:80"
     volumes:
@@ -19,15 +19,15 @@ services:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION:-latest}
     security_opt:
       - no-new-privileges:true
-    user: "${PUID:-1000}:${PGID:-1000}"
+    user: "8096:5572"
     depends_on:
       rclone:
         condition: service_started
     group_add:
-      - "${MEDIA_GID:-3000}"
+      - "5572"
     environment:
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
+      - PUID=8096
+      - PGID=5572
       - JELLYFIN_CACHE_DIR=/var/cache/jellyfin
       - JELLYFIN_CONFIG_DIR=/etc/jellyfin
       - JELLYFIN_DATA_DIR=/var/lib/jellyfin
@@ -63,7 +63,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget -qO- http://127.0.0.1:9000/minio/health/live || exit 1",
+          "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null || exit 1",
         ]
       interval: 30s
       timeout: 10s
@@ -77,8 +77,8 @@ services:
     security_opt:
       - apparmor:unconfined
     environment:
-      - PUID=${PUID:-1000}
-      - MEDIA_GID=${MEDIA_GID:-3000}
+      - PUID=8097
+      - MEDIA_GID=5572
       - RCLONE_CONFIG=/config/rclone/rclone.conf
     command: >-
       mount "${RCLONE_REMOTE:-pcloud}:Media" /media/pcloud/Media
@@ -87,8 +87,8 @@ services:
       --vfs-cache-max-size 5G
       --vfs-cache-max-age 12h
       --read-only
-      --uid "${PUID:-1000}"
-      --gid "${MEDIA_GID:-3000}"
+      --uid "8097"
+      --gid "5572"
       --umask 022
       --log-file /logs/media.log
       --log-level DEBUG
@@ -97,7 +97,6 @@ services:
       - /config/rclone
       - /logs
     restart: unless-stopped
-
 
   restic:
     image: restic/restic:0.18.1
@@ -113,21 +112,22 @@ services:
 
 volumes:
   cloud_jellyfin_config:
-    name: "cloud-apps_jellyfin_config"
+    name: "jellyfin_config"
     external: true
   cloud_jellyfin_data:
-    name: "cloud-apps_jellyfin_data"
+    name: "jellyfin_data"
     external: true
   jellyfin_cache_data:
+    name: "jellyfin_cache_data"
   cloud_baikal_config:
-    name: "cloud-apps_baikal_config"
+    name: "baikal_config"
     external: true
   cloud_baikal_data:
-    name: "cloud-apps_baikal_data"
+    name: "baikal_data"
     external: true
   restic_repo_data:
-    name: "cloud-apps_restic_repo_data"
+    name: "restic_repo_data"
     external: true
   backups_data:
-    name: "cloud-apps_backups_data"
+    name: "backups_data"
     external: true

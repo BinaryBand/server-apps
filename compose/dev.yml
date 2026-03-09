@@ -1,5 +1,6 @@
-services:
+# cspell:words rprivate
 
+services:
   baikal:
     volumes:
       - ${LOGS_DIR:-./runtime/logs}:/logs
@@ -11,13 +12,12 @@ services:
         target: /media
         read_only: true
         bind:
-            propagation: ${MEDIA_PROPAGATION:-rshared}
+          propagation: rprivate
       - ${LOGS_DIR:-./runtime/logs}:/logs
 
   minio:
     volumes:
       - ${LOGS_DIR:-./runtime/logs}:/logs
-
 
   rclone:
     devices:
@@ -27,10 +27,10 @@ services:
         source: ${MEDIA_DATA_PATH:-./runtime/media}
         target: /media
         bind:
-          propagation: ${MEDIA_PROPAGATION:-rshared}
+          propagation: rprivate
       - rclone_config_data:/config/rclone:ro
       - ${LOGS_DIR:-./runtime/logs}:/logs
 volumes:
   rclone_config_data:
-    name: "cloud-apps_rclone_config"
+    name: "rclone_config"
     external: true

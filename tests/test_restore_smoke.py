@@ -1,9 +1,14 @@
 from __future__ import annotations
 
-from src.backups.restore import restore_snapshot
-from src.utils.docker.volumes import LOGICAL_VOLUMES
-
 from pathlib import Path
+import sys
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from src.backups.restore import restore_snapshot
+from src.utils.docker.volumes import logical_volume_names
+
 from unittest import TestCase, main
 from unittest.mock import patch
 import shutil
@@ -13,6 +18,7 @@ import uuid
 
 DOCKER_PROBE_TIMEOUT_SECONDS = 30
 RESTORE_TARGET = "/backups/restore"
+LOGICAL_VOLUME_NAMES = logical_volume_names()
 
 
 class RestoreSmokeTest(TestCase):
@@ -32,7 +38,8 @@ class RestoreSmokeTest(TestCase):
         self.test_project = f"smoke-restore-{uuid.uuid4().hex[:8]}"
         self.backups_volume = f"{self.test_project}-backups-source"
         self.target_volumes = [
-            f"{self.test_project}_{logical_name}" for logical_name in LOGICAL_VOLUMES
+            f"{self.test_project}_{logical_name}"
+            for logical_name in LOGICAL_VOLUME_NAMES
         ]
 
         self._create_volume(self.backups_volume)
@@ -60,7 +67,7 @@ class RestoreSmokeTest(TestCase):
 
     def _populate_backups_volume(self) -> None:
         script_lines = ["set -eu"]
-        for logical_name in LOGICAL_VOLUMES:
+        for logical_name in LOGICAL_VOLUME_NAMES:
             script_lines.extend(
                 [
                     f"mkdir -p /backups/restore/volumes/{logical_name}",
@@ -145,7 +152,7 @@ class RestoreSmokeTest(TestCase):
             )
 
         with (
-            patch("src.backups.restore.pull_restic_repo_from_pcloud") as pull_repo,
+            patch("src.backups.restore.pull_restic_from_cloud") as pull_repo,
             patch(
                 "src.backups.restore.restic.run_restic_command"
             ) as run_restic_command,
@@ -153,8 +160,10 @@ class RestoreSmokeTest(TestCase):
                 "src.backups.restore.storage_mount_source",
                 return_value=self.backups_volume,
             ),
-            patch("src.backups.restore.host_bind_path", return_value=None),
-            patch("src.backups.restore.PROJECT_NAME", self.test_project),
+            patch(
+                "src.backups.restore.logical_volume_mount_source",
+                side_effect=lambda project, logical: f"{self.test_project}_{logical}",
+            ),
             patch("src.backups.restore.rclone_sync", side_effect=fake_rclone_sync),
         ):
             restore_snapshot(target=RESTORE_TARGET)
@@ -163,7 +172,7 @@ class RestoreSmokeTest(TestCase):
         run_restic_command.assert_called_once_with(
             ["restore", "latest", "--target", RESTORE_TARGET]
         )
-        self.assertEqual(seen_logical_names, set(LOGICAL_VOLUMES))
+        self.assertEqual(seen_logical_names, set(LOGICAL_VOLUME_NAMES))
 
 
 if __name__ == "__main__":

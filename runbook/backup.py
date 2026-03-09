@@ -1,4 +1,4 @@
-from src.backups.gather import GatherError, gather_with_include_file
+from src.backups.gather import gather_stage
 from src.utils.docker.wrappers.restic import (
     ResticRunnerError,
     has_restic_repository,
@@ -24,8 +24,8 @@ def main():
 
     try:
         print("[stage:gather] Starting gather phase")
-        gather_with_include_file(project=PROJECT_NAME, include_file=include_file)
-    except GatherError as err:
+        gather_stage(project=PROJECT_NAME, include_file=include_file)
+    except RuntimeError as err:
         raise SystemExit(f"[stage:gather] {err}") from err
 
     restic_args = []
