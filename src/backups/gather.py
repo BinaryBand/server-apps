@@ -13,6 +13,7 @@ def gather_with_include_file(project: str, include_file: Path):
 
     if not include_file.exists():
         raise GatherError(f"Include file not found: {include_file}")
+
     if not include_file.is_file():
         raise GatherError(f"Include path is not a file: {include_file}")
 

@@ -104,6 +104,7 @@ services:
     restart: "no"
     environment:
       - RESTIC_PASSWORD=${RESTIC_PASSWORD:?Set RESTIC_PASSWORD in .env}
+      - RESTIC_REPOSITORY=/repo
     volumes:
       - restic_repo_data:/repo
       - backups_data:/backups
@@ -112,19 +113,21 @@ services:
 
 volumes:
   cloud_jellyfin_config:
-    name: "${PROJECT_NAME:-server-apps}_jellyfin_config"
+    name: "cloud-apps_jellyfin_config"
     external: true
   cloud_jellyfin_data:
-    name: "${PROJECT_NAME:-server-apps}_jellyfin_data"
+    name: "cloud-apps_jellyfin_data"
     external: true
   jellyfin_cache_data:
   cloud_baikal_config:
-    name: "${PROJECT_NAME:-server-apps}_baikal_config"
+    name: "cloud-apps_baikal_config"
     external: true
   cloud_baikal_data:
-    name: "${PROJECT_NAME:-server-apps}_baikal_data"
+    name: "cloud-apps_baikal_data"
     external: true
   restic_repo_data:
-    name: "${PROJECT_NAME:-server-apps}_restic_repo_data"
+    name: "cloud-apps_restic_repo_data"
     external: true
   backups_data:
+    name: "cloud-apps_backups_data"
+    external: true

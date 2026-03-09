@@ -32,5 +32,5 @@ services:
       - ${LOGS_DIR:-./runtime/logs}:/logs
 volumes:
   rclone_config_data:
-    name: "${PROJECT_NAME:-server-apps}_rclone_config"
+    name: "cloud-apps_rclone_config"
     external: true

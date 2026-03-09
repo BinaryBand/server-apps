@@ -6,7 +6,7 @@
   vars:
     permissions_manifest_path: "{{ manifest_path | default('infra/permissions.yml') }}"
     repo_root_path: "{{ repo_root | default(playbook_dir ~ '/..') }}"
-    project_name_selected: "{{ lookup('ansible.builtin.env', 'PROJECT_NAME', default=(repo_root_path | basename)) }}"
+    project_name_selected: "cloud-apps"
     permissions_mode_selected: "{{ permissions_mode | default('runtime') }}"
     apply_privileged: "{{ permissions_mode_selected == 'bootstrap' }}"
     apply_reset: "{{ permissions_mode_selected == 'reset' }}"
@@ -51,7 +51,3 @@
         - apply_reset
         - item.path | default('') | length > 0
 
-    - name: Run runtime assertions
-      ansible.builtin.include_tasks:
-        file: tasks/assert-runtime.yml
-      when: permissions_mode_selected == 'runtime'

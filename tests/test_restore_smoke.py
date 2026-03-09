@@ -150,11 +150,11 @@ class RestoreSmokeTest(TestCase):
                 "src.backups.restore.restic.run_restic_command"
             ) as run_restic_command,
             patch(
-                "src.backups.restore.volatile.storage_mount_source",
+                "src.backups.restore.storage_mount_source",
                 return_value=self.backups_volume,
             ),
-            patch("src.backups.restore.volatile.host_bind_path", return_value=None),
-            patch("src.utils.runtime.PROJECT_NAME", self.test_project),
+            patch("src.backups.restore.host_bind_path", return_value=None),
+            patch("src.backups.restore.PROJECT_NAME", self.test_project),
             patch("src.backups.restore.rclone_sync", side_effect=fake_rclone_sync),
         ):
             restore_snapshot(target=RESTORE_TARGET)

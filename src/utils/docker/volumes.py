@@ -30,34 +30,48 @@ def docker_volume_name(project: str, logical_name: str) -> str:
     return f"{project}_{logical_name}"
 
 
-def list_project_volumes(project: str) -> list[str]:
-    cmd = [
-        "docker",
-        "volume",
-        "ls",
-        "--filter",
-        f"label=com.docker.compose.project={project}",
-        "--format",
-        "{{.Name}}",
-    ]
+def _list_docker_volumes(*args: str) -> list[str]:
+    cmd = ["docker", "volume", "ls", *args, "--format", "{{.Name}}"]
     proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
-    if proc.returncode == 0:
-        volumes = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
-        if volumes:
-            return volumes
-
-    fallback = subprocess.run(
-        ["docker", "volume", "ls", "--format", "{{.Name}}"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if fallback.returncode != 0:
+    if proc.returncode != 0:
         return []
+    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+
+
+def list_project_volumes(project: str) -> list[str]:
+    """List project-owned volumes, preferring compose labels with a prefix fallback."""
+    volumes = _list_docker_volumes(
+        "--filter", f"label=com.docker.compose.project={project}"
+    )
+    if volumes:
+        return volumes
+
+    fallback = _list_docker_volumes()
     prefix = f"{project}_"
-    return [
-        line.strip() for line in fallback.stdout.splitlines() if line.startswith(prefix)
-    ]
+    return [name for name in fallback if name.startswith(prefix)]
+
+
+def remove_project_volumes(project: str, *, dry_run: bool = False) -> tuple[int, int]:
+    """Remove project volumes and return `(removed, failed)` counters."""
+    volumes = list_project_volumes(project)
+    if not volumes:
+        print("No project volumes found.")
+        return 0, 0
+
+    removed = 0
+    for volume in volumes:
+        if dry_run:
+            print(f"Would remove volume: {volume}")
+            removed += 1
+            continue
+
+        try:
+            subprocess.run(["docker", "volume", "rm", "-f", volume], check=True)
+            removed += 1
+        except subprocess.CalledProcessError:
+            print(f"Failed to remove volume: {volume}")
+
+    return (removed, len(volumes) - removed)
 
 
 def host_bind_path(logical_name: str) -> Optional[Path]:
@@ -66,12 +80,19 @@ def host_bind_path(logical_name: str) -> Optional[Path]:
     if env_key is None:
         return None
 
-    value = read_secret(env_key)
-    if value:
+    if value := read_secret(env_key):
         p = Path(value).expanduser().resolve()
         if p.exists():
             return p
     return None
+
+
+def logical_volume_mount_source(project: str, logical_name: str) -> str:
+    """Return the host path or named volume source for a logical app volume."""
+    override = host_bind_path(logical_name)
+    if override is not None:
+        return str(override)
+    return docker_volume_name(project, logical_name)
 
 
 def storage_mount_source(project: str, storage_key: str) -> str:
@@ -81,11 +102,7 @@ def storage_mount_source(project: str, storage_key: str) -> str:
 
 
 def storage_docker_mount_flags(
-    project: str,
-    storage_key: str,
-    target_path: str,
-    *,
-    read_only: bool = False,
+    project: str, storage_key: str, target_path: str, *, read_only: bool = False
 ) -> list[str]:
     """Return docker `-v` flags for a named storage volume."""
     source = storage_mount_source(project, storage_key)
@@ -100,10 +117,6 @@ def rclone_docker_volume_flags(project: str) -> list[str]:
     flags: list[str] = []
     for logical in LOGICAL_VOLUMES:
         dest = f"/data/volumes/{logical}"
-        override = host_bind_path(logical)
-        if override:
-            flags += ["-v", f"{str(override)}:{dest}:ro"]
-        else:
-            vol = docker_volume_name(project, logical)
-            flags += ["-v", f"{vol}:{dest}:ro"]
+        source = logical_volume_mount_source(project, logical)
+        flags += ["-v", f"{source}:{dest}:ro"]
     return flags

@@ -5,10 +5,11 @@ from pathlib import Path
 from subprocess import CalledProcessError
 from functools import cache
 from typing import Iterable
+
+import subprocess
+import shutil
 import errno
 import os
-import shutil
-import subprocess
 
 
 @cache

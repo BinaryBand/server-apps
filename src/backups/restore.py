@@ -1,4 +1,10 @@
-from src.utils.docker import volumes as volatile
+from src.utils.docker.volumes import (
+    LOGICAL_VOLUMES,
+    docker_volume_name,
+    host_bind_path,
+    storage_docker_mount_flags,
+    storage_mount_source,
+)
 from src.utils.runtime import PROJECT_NAME
 from src.utils.docker.wrappers.rclone import rclone_sync
 from src.utils.docker.wrappers import restic
@@ -14,6 +20,18 @@ RESTIC_PCLOUD_REMOTE: str = str(
 
 class RestoreRunnerError(RuntimeError):
     """Raised when restore execution commands fail."""
+
+
+def list_recent_snapshots(limit: int = 10) -> str:
+    """Return a recent restic snapshot listing after refreshing the local repo."""
+    pull_restic_repo_from_pcloud()
+
+    try:
+        return restic.run_restic_command_with_output(
+            ["snapshots", "--latest", str(limit)]
+        )
+    except restic.ResticRunnerError as err:
+        raise RestoreRunnerError(f"snapshot listing failed: {err}") from err
 
 
 def _sync_volume_path_to_target(
@@ -54,10 +72,8 @@ def pull_restic_repo_from_pcloud() -> None:
         print("Skipping restic pCloud sync (RESTIC_PCLOUD_SYNC disabled).")
         return
 
-    docker_args = volatile.storage_docker_mount_flags(
-        PROJECT_NAME, "restic_repo", "/repo"
-    )
-    docker_args += volatile.storage_docker_mount_flags(
+    docker_args = storage_docker_mount_flags(PROJECT_NAME, "restic_repo", "/repo")
+    docker_args += storage_docker_mount_flags(
         PROJECT_NAME, "rclone_config", "/config/rclone", read_only=True
     )
     docker_args += ["-e", "RCLONE_CONFIG=/config/rclone/rclone.conf"]
@@ -69,12 +85,12 @@ def pull_restic_repo_from_pcloud() -> None:
 
 
 def _apply_restored_volumes_from_backups_volume(project: str, target: str) -> None:
-    backups_volume_name = volatile.storage_mount_source(project, "backups")
+    backups_volume_name = storage_mount_source(project, "backups")
     target_prefix = ""
     if target != "/backups":
         target_prefix = target.removeprefix("/backups/").strip("/") + "/"
 
-    for source_name in volatile.LOGICAL_VOLUMES:
+    for source_name in LOGICAL_VOLUMES:
         candidates = [
             f"{target_prefix}volumes/{source_name}",
             f"{target_prefix}backups/volumes/{source_name}",
@@ -89,21 +105,17 @@ def _apply_restored_volumes_from_backups_volume(project: str, target: str) -> No
         )
 
         if source_relative_path is None:
-            print(
-                f"Skipping {source_name}; not present in restored snapshot paths {', '.join(candidates)}."
-            )
+            print(f"Skipping {source_name}; not found in {', '.join(candidates)}.")
             continue
 
-        override = volatile.host_bind_path(source_name)
+        override = host_bind_path(source_name)
         target_mount = (
             str(override.resolve())
             if override
-            else volatile.docker_volume_name(project, source_name)
+            else docker_volume_name(project, source_name)
         )
 
-        print(
-            f"Applying restored data from backups volume: {source_relative_path} -> {target_mount}"
-        )
+        print(f"Applying restored data: {source_relative_path} -> {target_mount}")
         _sync_volume_path_to_target(
             backups_volume_name, source_relative_path, target_mount
         )

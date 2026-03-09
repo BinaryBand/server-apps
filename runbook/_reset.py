@@ -1,35 +1,12 @@
 from src.utils.docker.compose import compose_cmd
+from src.utils.docker.volumes import remove_project_volumes
 from src.utils.permissions import run_permissions_playbook
 from src.utils.runtime import PROJECT_NAME, logs_root, media_root
-from src.utils.docker.volumes import list_project_volumes
 
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 import subprocess
 import shutil
-
-
-def remove_project_volumes(project: str, *, dry_run: bool = False) -> tuple[int, int]:
-    volumes = list_project_volumes(project)
-    if not volumes:
-        print("No project volumes found.")
-        return (0, 0)
-
-    removed = 0
-    failed = 0
-    for volume in volumes:
-        if dry_run:
-            print(f"Would remove volume: {volume}")
-            removed += 1
-            continue
-
-        try:
-            subprocess.run(["docker", "volume", "rm", "-f", volume], check=True)
-            removed += 1
-        except subprocess.CalledProcessError:
-            failed += 1
-            print(f"Failed to remove volume: {volume}")
-    return (removed, failed)
 
 
 def remove_local_path(path: Path, *, dry_run: bool = False) -> None:
@@ -57,7 +34,6 @@ def main() -> None:
     parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
     parser.add_argument("--dry-run", action="store_true", help="Print actions only")
     parser.add_argument("--keep-media", action="store_true")
-    parser.add_argument("--skip-compose-down", action="store_true")
     args: Namespace = parser.parse_args()
 
     targets: list[Path] = [logs_root()]
@@ -77,12 +53,8 @@ def main() -> None:
             print("Aborted.")
             return
 
-    if not args.skip_compose_down:
-        compose_down_cmd = compose_cmd("down", "--volumes", "--remove-orphans")
-        if args.dry_run:
-            print(f"Would run: {' '.join(compose_down_cmd)}")
-        else:
-            subprocess.run(compose_down_cmd, check=False)
+    compose_down_cmd = compose_cmd("down", "--volumes", "--remove-orphans")
+    subprocess.run(compose_down_cmd, check=False)
 
     removed, failed = remove_project_volumes(PROJECT_NAME, dry_run=args.dry_run)
     if args.dry_run:

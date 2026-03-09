@@ -6,7 +6,10 @@ import subprocess
 
 def main():
     print("Shutting down server apps...")
+
+    print("[stage:volumes] Cleaning up media mount")
     cleanup_media_mount()
+
     subprocess.run(compose_cmd("down"), check=True)
     print("Shutdown complete.")
 

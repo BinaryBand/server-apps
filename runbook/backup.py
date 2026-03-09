@@ -7,41 +7,29 @@ from src.utils.docker.wrappers.restic import (
 )
 from src.utils.runtime import PROJECT_NAME, repo_root
 
-from argparse import ArgumentParser, Namespace
-import sys
 from pathlib import Path
-
+import sys
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(repo_root()))
 
 
 DEFAULT_RESTIC_EXCLUDES = ["/backups/restore/**"]
+DEFAULT_RESTIC_TARGET = "/backups"
 
 
 def main():
     root: Path = repo_root()
-    default_include_file = root / "configs" / "backup-include.txt"
-
-    parser = ArgumentParser(description="Record a restic snapshot")
-    parser.add_argument("--project", default=PROJECT_NAME)
-    parser.add_argument("--include-file", default=str(default_include_file))
-    parser.add_argument("--restic-target", default="/backups")
-    parser.add_argument("--restic-arg", action="append", default=[])
-    args: Namespace = parser.parse_args()
+    include_file = root / "configs" / "backup-include.txt"
 
     try:
         print("[stage:gather] Starting gather phase")
-        gather_with_include_file(
-            project=args.project,
-            include_file=Path(args.include_file),
-        )
+        gather_with_include_file(project=PROJECT_NAME, include_file=include_file)
     except GatherError as err:
         raise SystemExit(f"[stage:gather] {err}") from err
 
-    restic_args = list(args.restic_arg)
-
-    if args.restic_target == "/backups":
+    restic_args = []
+    if DEFAULT_RESTIC_TARGET == "/backups":
         for pattern in DEFAULT_RESTIC_EXCLUDES:
             restic_args.extend(["--exclude", pattern])
 
@@ -54,7 +42,7 @@ def main():
             raise SystemExit(f"[stage:restic-init] {err}") from err
 
     try:
-        run_backup(paths=[args.restic_target], restic_args=restic_args)
+        run_backup(paths=[DEFAULT_RESTIC_TARGET], args=restic_args)
     except ResticRunnerError as err:
         raise SystemExit(f"[stage:restic-backup] {err}") from err
 

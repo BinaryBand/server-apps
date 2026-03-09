@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 from src.utils.docker.compose import compose_cmd
-from src.utils.docker.volumes import (
-    storage_docker_mount_flags,
-    storage_mount_source,
-)
+from src.utils.docker.volumes import storage_docker_mount_flags, storage_mount_source
 from src.utils.docker.wrappers.rclone import rclone_sync
 from src.utils.runtime import PROJECT_NAME
 from src.utils.secrets import read_secret
 
-from typing import List
+from functools import cache
 import subprocess
 
 
@@ -19,8 +16,22 @@ RESTIC_PCLOUD_REMOTE: str = str(
 )
 
 
+@cache
+def _restic_image() -> str:
+    RESTIC_IMAGE: str = (
+        read_secret("RESTIC_IMAGE")
+        or f"restic/restic:{read_secret('RESTIC_VERSION', 'latest')}"
+    )
+    return RESTIC_IMAGE
+
+
 class ResticRunnerError(RuntimeError):
     """Raised when restic/rclone runner commands fail."""
+
+
+def _restic_compose_run_command(cmd_args: list[str]) -> list[str]:
+    core_args: list[str] = ["--profile", PROFILE, "run", "--rm", "--no-deps", "restic"]
+    return compose_cmd(*core_args, *cmd_args)
 
 
 def _ensure_restic_repo_volume_exists() -> None:
@@ -59,20 +70,32 @@ def push_restic_repo_to_pcloud() -> None:
     rclone_sync("/repo", RESTIC_PCLOUD_REMOTE, docker_args=docker_args)
 
 
-def run_restic_command(cmd_args: List[str]) -> None:
+def run_restic_command(cmd_args: list[str]) -> None:
     _ensure_restic_repo_volume_exists()
+    cmd = _restic_compose_run_command(cmd_args)
 
-    cmd: List[str] = compose_cmd(
-        "--profile", PROFILE, "run", "--rm", "--no-deps", "restic", *cmd_args
-    )
     print("Running:", " ".join(cmd))
     try:
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as err:
-        return_code = err.returncode
-        raise ResticRunnerError(
-            f"restic failed with {return_code}: {' '.join(cmd)}"
-        ) from err
+        return_code: int = err.returncode
+        command: str = " ".join(cmd)
+        raise ResticRunnerError(f"restic failed with {return_code}: {command}") from err
+
+
+def run_restic_command_with_output(cmd_args: list[str]) -> str:
+    _ensure_restic_repo_volume_exists()
+    cmd = _restic_compose_run_command(cmd_args)
+
+    print("Running:", " ".join(cmd))
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as err:
+        return_code: int = err.returncode
+        command: str = " ".join(cmd)
+        raise ResticRunnerError(f"restic failed with {return_code}: {command}") from err
+
+    return result.stdout
 
 
 def has_restic_repository() -> bool:
@@ -89,11 +112,9 @@ def initialize_restic_repository() -> None:
     run_restic_command(["init"])
 
 
-def run_backup(
-    paths: List[str] | None = None, restic_args: List[str] | None = None
-) -> None:
+def run_backup(paths: list[str] | None = None, args: list[str] | None = None) -> None:
     backup_paths = paths or ["/backups"]
-    extra_args = restic_args or []
+    extra_args = args or []
 
     run_restic_command(["backup", *backup_paths, *extra_args])
     push_restic_repo_to_pcloud()

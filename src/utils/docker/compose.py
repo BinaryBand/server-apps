@@ -15,6 +15,7 @@ EXTERNAL_VOLUME_SUFFIXES: tuple[str, ...] = (
     "jellyfin_data",
     "baikal_config",
     "baikal_data",
+    "backups_data",
     "restic_repo_data",
 )
 
@@ -49,6 +50,15 @@ def required_external_volume_names() -> list[str]:
 
 def ensure_external_volumes() -> None:
     for volume_name in required_external_volume_names():
+        probe = subprocess.run(
+            ["docker", "volume", "inspect", volume_name],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if probe.returncode == 0:
+            continue
+
         subprocess.run(
             ["docker", "volume", "create", volume_name],
             check=True,
