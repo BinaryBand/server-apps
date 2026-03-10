@@ -6,18 +6,25 @@
 - name: Derive fixed service identities from compose base configuration
   ansible.builtin.set_fact:
     compose_jellyfin_user: "{{ (((compose_base.services | default({})).jellyfin | default({})).user | default('')) }}"
+    compose_baikal_user: "{{ (((compose_base.services | default({})).baikal | default({})).user | default('')) }}"
     compose_rclone_env: "{{ (((compose_base.services | default({})).rclone | default({})).environment | default([])) }}"
+    compose_baikal_env: "{{ (((compose_base.services | default({})).baikal | default({})).environment | default([])) }}"
 
-- name: Assert Jellyfin and rclone IDs are aligned between compose and permissions manifest
+- name: Assert Jellyfin, Baikal, and rclone IDs are aligned between compose and permissions manifest
   ansible.builtin.assert:
     that:
       - "':' in compose_jellyfin_user"
+      - "':' in compose_baikal_user"
       - "(((permissions_data.users | default({})).jellyfin | default({})).uid | int) == ((compose_jellyfin_user.split(':')[0]) | int)"
       - "(((permissions_data.users | default({})).jellyfin | default({})).gid | int) == ((compose_jellyfin_user.split(':')[1]) | int)"
+      - "(((permissions_data.users | default({})).baikal | default({})).uid | int) == ((compose_baikal_user.split(':')[0]) | int)"
+      - "(((permissions_data.users | default({})).baikal | default({})).gid | int) == ((compose_baikal_user.split(':')[1]) | int)"
+      - "(((permissions_data.users | default({})).baikal | default({})).uid | int) == (((compose_baikal_env | select('match', '^PUID=') | list | first | default('PUID=-1')) | regex_replace('^PUID=', '')) | int)"
+      - "(((permissions_data.users | default({})).baikal | default({})).gid | int) == (((compose_baikal_env | select('match', '^PGID=') | list | first | default('PGID=-1')) | regex_replace('^PGID=', '')) | int)"
       - "(((permissions_data.users | default({})).rclone | default({})).uid | int) == (((compose_rclone_env | select('match', '^PUID=') | list | first | default('PUID=-1')) | regex_replace('^PUID=', '')) | int)"
       - "(((permissions_data.users | default({})).rclone | default({})).gid | int) == (((compose_rclone_env | select('match', '^MEDIA_GID=') | list | first | default('MEDIA_GID=-1')) | regex_replace('^MEDIA_GID=', '')) | int)"
     fail_msg: >-
-      UID/GID drift detected between compose/base.yml and infra/permissions.yml for jellyfin/rclone.
+      UID/GID drift detected between compose/base.yml and infra/permissions.yml for jellyfin/baikal/rclone.
       Keep fixed compose IDs and permissions manifest users synchronized.
 
 - name: Ensure declared groups exist
@@ -135,23 +142,38 @@
     state: present
   when: permissions_mode_selected == 'runtime'
 
-- name: Normalize Jellyfin named volume ownership
+- name: Define named volume ownership rules
+  ansible.builtin.set_fact:
+    named_volume_ownership_rules:
+      - name: jellyfin
+        owner_uid: "{{ (((permissions_data.users | default({})).jellyfin | default({})).uid | default(8096)) | int }}"
+        owner_gid: "{{ (((permissions_data.users | default({})).jellyfin | default({})).gid | default(5572)) | int }}"
+        volumes:
+          - jellyfin_cache_data
+          - jellyfin_config
+          - jellyfin_data
+      - name: baikal
+        owner_uid: "{{ (((permissions_data.users | default({})).baikal | default({})).uid | default(8098)) | int }}"
+        owner_gid: "{{ (((permissions_data.users | default({})).baikal | default({})).gid | default(5573)) | int }}"
+        volumes:
+          - baikal_config
+          - baikal_data
+  when: permissions_mode_selected == 'runtime'
+
+- name: Normalize named volume ownership
   ansible.builtin.command:
     argv:
       - docker
       - run
       - --rm
       - -v
-      - "{{ item }}:/target"
+      - "{{ item.1 }}:/target"
       - alpine:3.20
       - sh
       - -lc
       - >-
         mkdir -p /target &&
-        chown -R {{ (((permissions_data.users | default({})).jellyfin | default({})).uid | default(8096)) | int }}:{{ (((permissions_data.users | default({})).jellyfin | default({})).gid | default(5572)) | int }} /target &&
+        chown -R {{ item.0.owner_uid }}:{{ item.0.owner_gid }} /target &&
         chmod -R u+rwX /target
-  loop:
-    - "jellyfin_cache_data"
-    - "jellyfin_config"
-    - "jellyfin_data"
+  loop: "{{ named_volume_ownership_rules | subelements('volumes') }}"
   when: permissions_mode_selected == 'runtime'

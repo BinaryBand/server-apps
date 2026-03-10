@@ -2,6 +2,11 @@
 # - Keep secrets out of here; use Docker Secrets or a secrets manager.
 
 users:
+  baikal:
+    uid: 8098
+    gid: 5573
+    comment: "Service account for Baikal data/config volumes"
+
   jellyfin:
     uid: 8096
     gid: 5572

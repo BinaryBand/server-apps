@@ -5,9 +5,10 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    user: "8098:5573"
     environment:
-      - PUID=8096
-      - PGID=5572
+      - PUID=8098
+      - PGID=5573
     ports:
       - "5234:80"
     volumes:
