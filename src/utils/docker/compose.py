@@ -38,6 +38,17 @@ def compose_cmd(*args: str) -> list[str]:
 
 
 def ensure_external_volumes() -> None:
+    for volume_name in missing_external_volumes():
+        subprocess.run(
+            ["docker", "volume", "create", volume_name],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+
+def missing_external_volumes() -> list[str]:
+    missing: list[str] = []
     for volume_name in required_external_volume_names(PROJECT_NAME):
         probe = subprocess.run(
             ["docker", "volume", "inspect", volume_name],
@@ -45,12 +56,6 @@ def ensure_external_volumes() -> None:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        if probe.returncode == 0:
-            continue
-
-        subprocess.run(
-            ["docker", "volume", "create", volume_name],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        if probe.returncode != 0:
+            missing.append(volume_name)
+    return missing

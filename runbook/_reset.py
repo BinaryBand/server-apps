@@ -1,7 +1,15 @@
 from src.utils.docker.compose import compose_cmd
 from src.utils.docker.volumes import remove_project_volumes
+from src.utils.checkpoint import OperationCheckpoint
+from src.utils.locking import RunbookLock
 from src.utils.permissions import run_permissions_playbook
-from src.utils.runtime import PROJECT_NAME, logs_root, media_root
+from src.utils.runtime import (
+    PROJECT_NAME,
+    checkpoints_root,
+    locks_root,
+    logs_root,
+    media_root,
+)
 
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
@@ -53,30 +61,44 @@ def main() -> None:
             print("Aborted.")
             return
 
-    compose_down_cmd = compose_cmd("down", "--volumes", "--remove-orphans")
-    subprocess.run(compose_down_cmd, check=False)
+    with RunbookLock("backup-restore-reset", locks_root()):
+        checkpoint = OperationCheckpoint(
+            "reset",
+            checkpoints_root(),
+            resume=False,
+        )
+        checkpoint.start(desired="ResetCompleted")
 
-    removed, failed = remove_project_volumes(PROJECT_NAME, dry_run=args.dry_run)
-    if args.dry_run:
-        print(f"Project volumes that would be removed: {removed}, failed: {failed}")
-    else:
-        print(f"Project volumes removed: {removed}, failed: {failed}")
+        compose_down_cmd = compose_cmd("down", "--volumes", "--remove-orphans")
+        subprocess.run(compose_down_cmd, check=False)
+        checkpoint.mark_stage("compose-down", ok=True)
 
-    if args.dry_run:
-        print("Would normalize local reset-path permissions via Ansible...")
-    else:
-        print("Normalizing local reset-path permissions via Ansible...")
-    normalize_reset_permissions(dry_run=args.dry_run)
+        removed, failed = remove_project_volumes(PROJECT_NAME, dry_run=args.dry_run)
+        if args.dry_run:
+            print(f"Project volumes that would be removed: {removed}, failed: {failed}")
+        else:
+            print(f"Project volumes removed: {removed}, failed: {failed}")
+        checkpoint.mark_stage("remove-volumes", ok=failed == 0)
 
-    for target in targets:
-        remove_local_path(target, dry_run=args.dry_run)
+        if args.dry_run:
+            print("Would normalize local reset-path permissions via Ansible...")
+        else:
+            print("Normalizing local reset-path permissions via Ansible...")
+        normalize_reset_permissions(dry_run=args.dry_run)
+        checkpoint.mark_stage("reset-permissions", ok=True)
 
-    if not args.dry_run:
-        if args.keep_media:
-            media_root().mkdir(parents=True, exist_ok=True)
-        print("Clean slate reset complete.")
-    else:
-        print("Dry run complete.")
+        for target in targets:
+            remove_local_path(target, dry_run=args.dry_run)
+        checkpoint.mark_stage("cleanup-paths", ok=True)
+
+        if not args.dry_run:
+            if args.keep_media:
+                media_root().mkdir(parents=True, exist_ok=True)
+            checkpoint.finish(observed="ResetCompleted", ok=True)
+            print("Clean slate reset complete.")
+        else:
+            checkpoint.finish(observed="ResetDryRunCompleted", ok=True)
+            print("Dry run complete.")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,10 @@
 from src.backups.restore import recent_snapshots, restore_snapshot
-from src.utils.runtime import repo_root
+from src.utils.checkpoint import OperationCheckpoint
+from src.utils.locking import RunbookLock
+from src.utils.runtime import checkpoints_root, locks_root, repo_root
 
 from argparse import ArgumentParser, Namespace
+import os
 import sys
 
 
@@ -19,21 +22,40 @@ def main():
     parser.add_argument("--list-snapshots", action="store_true")
     parser.add_argument("--no-apply-volumes", action="store_true")
     args: Namespace = parser.parse_args()
+    resume_enabled = os.getenv("RUNBOOK_RESUME", "0") in {"1", "true", "True", "yes"}
 
-    try:
-        if args.list_snapshots:
-            print("[stage:list] Listing recent snapshots")
-            if output := recent_snapshots().strip():
-                print(output)
+    if args.list_snapshots:
+        print("[stage:list] Listing recent snapshots")
+        if output := recent_snapshots().strip():
+            print(output)
+        else:
+            print("No snapshots found.")
+        return
+
+    with RunbookLock("backup-restore-reset", locks_root()):
+        checkpoint = OperationCheckpoint(
+            "restore",
+            checkpoints_root(),
+            resume=resume_enabled,
+        )
+        checkpoint.start(desired="RestoreCompleted")
+
+        try:
+            if checkpoint.should_skip_stage("restore"):
+                print("[stage:restore] Skipping already completed stage")
             else:
-                print("No snapshots found.")
-            return
+                print("[stage:restore] Starting snapshot restore")
+                restore_snapshot(
+                    args.snapshot, DEFAULT_RESTORE_TARGET, args.no_apply_volumes
+                )
+                checkpoint.mark_stage("restore", ok=True)
 
-        print("[stage:restore] Starting snapshot restore")
-        restore_snapshot(args.snapshot, DEFAULT_RESTORE_TARGET, args.no_apply_volumes)
-        print("[stage:complete] Restore pipeline completed")
-    except RuntimeError as err:
-        raise SystemExit(f"[stage:restore] {err}") from err
+            checkpoint.finish(observed="RestoreCompleted", ok=True)
+            print("[stage:complete] Restore pipeline completed")
+        except RuntimeError as err:
+            checkpoint.mark_stage("restore", ok=False, message=str(err))
+            checkpoint.finish(observed="RestoreFailed", ok=False)
+            raise SystemExit(f"[stage:restore] {err}") from err
 
 
 if __name__ == "__main__":
