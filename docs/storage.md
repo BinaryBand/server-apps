@@ -18,7 +18,7 @@ flowchart LR
     BK_CFG[(baikal_config)]
     BK_DATA[(baikal_data)]
     RESTIC_REPO[(restic_repo_data)]
-    BACKUPS[(backup_data)]
+    BACKUPS[(backups_data)]
     RCLONE_CFG[(rclone_config)]
   end
 

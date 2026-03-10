@@ -1,3 +1,12 @@
+from pathlib import Path
+import sys
+
+if __package__ in {None, ""}:
+    repo_root = Path(__file__).resolve().parents[2]
+    repo_root_str = str(repo_root)
+    if repo_root_str not in sys.path:
+        sys.path.insert(0, repo_root_str)
+
 from src.utils.docker.volumes import (
     logical_volume_names,
     logical_volume_mount_source,

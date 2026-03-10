@@ -20,7 +20,7 @@ def _compose_file_args() -> list[str]:
     root: Path = repo_root()
     env: str = dotenv.find_dotenv()
 
-    cmd = ["--project-name", PROJECT_NAME, "--project-directory", str(root)]
+    cmd: list[str] = ["--project-name", PROJECT_NAME, "--project-directory", str(root)]
 
     if env:
         cmd += ["--env-file", env]

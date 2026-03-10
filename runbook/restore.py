@@ -8,7 +8,9 @@ import sys
 DEFAULT_RESTORE_TARGET = "/backups/restore"
 
 if __package__ in {None, ""}:
-    sys.path.insert(0, str(repo_root()))
+    repo_root_str = str(repo_root())
+    if repo_root_str not in sys.path:
+        sys.path.insert(0, repo_root_str)
 
 
 def main():

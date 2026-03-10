@@ -119,6 +119,7 @@ volumes:
     external: true
   jellyfin_cache_data:
     name: "jellyfin_cache_data"
+    external: true
   cloud_baikal_config:
     name: "baikal_config"
     external: true

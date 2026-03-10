@@ -1,4 +1,4 @@
-# cspell:words rprivate
+# cspell:words rprivate rshared rslave
 
 services:
   baikal:
@@ -12,7 +12,7 @@ services:
         target: /media
         read_only: true
         bind:
-          propagation: rprivate
+          propagation: rslave
       - ${LOGS_DIR:-./runtime/logs}:/logs
 
   minio:
@@ -27,7 +27,7 @@ services:
         source: ${MEDIA_DATA_PATH:-./runtime/media}
         target: /media
         bind:
-          propagation: rprivate
+          propagation: rshared
       - rclone_config_data:/config/rclone:ro
       - ${LOGS_DIR:-./runtime/logs}:/logs
 volumes:
