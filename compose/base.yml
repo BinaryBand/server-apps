@@ -51,6 +51,7 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    user: "1001:1001"
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}

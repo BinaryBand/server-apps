@@ -3,6 +3,11 @@ from src.toolbox.docker.compose_storage import (
     rendered_compose_config,
     service_volume_sources,
 )
+from src.configuration.storage_manifest import (
+    LOGICAL_VOLUME_NAMES,
+    STORAGE_TARGETS,
+    BIND_MOUNT_ENV,
+)
 from src.toolbox.core.secrets import read_secret
 from src.toolbox.core.runtime import repo_root
 
@@ -11,39 +16,8 @@ from typing import Optional
 import subprocess
 
 
-LOGICAL_TARGETS: dict[str, tuple[str, str]] = {
-    "jellyfin_config": ("jellyfin", "/etc/jellyfin"),
-    "jellyfin_data": ("jellyfin", "/var/lib/jellyfin"),
-    "baikal_config": ("baikal", "/var/www/baikal/config"),
-    "baikal_data": ("baikal", "/var/www/baikal/Specific"),
-    "minio_data": ("minio", "/data"),
-}
-
-STORAGE_TARGETS: dict[str, tuple[str, str]] = {
-    "backups": ("restic", "/backups"),
-    "restic_repo": ("restic", "/repo"),
-    "rclone_config": ("rclone", "/config/rclone"),
-}
-
-LOGICAL_BIND_ENV: dict[str, str] = {
-    "minio_data": "MINIO_DATA_DIR",
-}
-
-
-def _logical_config(logical_name: str) -> dict[str, str | bool]:
-    if logical_name not in LOGICAL_TARGETS:
-        raise KeyError(f"Unknown logical volume: {logical_name}")
-    return {"logical_name": logical_name}
-
-
-def _storage_config(storage_key: str) -> dict[str, str | bool]:
-    if storage_key not in STORAGE_TARGETS:
-        raise KeyError(f"Unknown storage key: {storage_key}")
-    return {"storage_key": storage_key}
-
-
 def logical_volume_names() -> list[str]:
-    return list(LOGICAL_TARGETS.keys())
+    return list(LOGICAL_VOLUME_NAMES)
 
 
 def _resolve_volume_source(source: str) -> str:
@@ -51,14 +25,14 @@ def _resolve_volume_source(source: str) -> str:
 
 
 def _logical_source(logical_name: str) -> tuple[str, str]:
-    service_name, target = LOGICAL_TARGETS[logical_name]
-    source = service_volume_sources(service_name).get(target)
-    if source is None:
+    if logical_name not in LOGICAL_VOLUME_NAMES:
+        raise KeyError(f"Unknown logical volume: {logical_name}")
+    if logical_name not in external_alias_name_pairs().values():
         raise RuntimeError(
-            f"[volumes] Missing source for logical volume '{logical_name}' at {service_name}:{target}"
+            f"[volumes] Logical volume '{logical_name}' not found in compose external volumes"
         )
-    mount_type = "bind" if logical_name in LOGICAL_BIND_ENV else "named"
-    return (mount_type, source)
+    mount_type = "bind" if logical_name in BIND_MOUNT_ENV else "named"
+    return (mount_type, logical_name)
 
 
 def _storage_source(storage_key: str) -> str:
@@ -146,19 +120,13 @@ def remove_project_volumes(project: str, *, dry_run: bool = False) -> tuple[int,
 
 def host_bind_path(logical_name: str) -> Optional[Path]:
     """Return host bind path for logical volumes configured as bind mounts."""
-    _mount_type, _source = _logical_source(logical_name)
-    env_key = LOGICAL_BIND_ENV.get(logical_name)
+    env_key = BIND_MOUNT_ENV.get(logical_name)
     if env_key is None:
         return None
 
     raw_value = read_secret(env_key)
     if not raw_value:
         raw_value = "./minio"
-
-    if not raw_value:
-        raise RuntimeError(
-            f"Bind-mounted logical volume '{logical_name}' has no configured source path"
-        )
 
     path = Path(raw_value).expanduser()
     if not path.is_absolute():
@@ -168,8 +136,6 @@ def host_bind_path(logical_name: str) -> Optional[Path]:
 
 def logical_volume_mount_source(project: str, logical_name: str) -> str:
     """Return the host path or named volume source for a logical app volume."""
-    _logical_config(logical_name)
-
     override: Path | None = host_bind_path(logical_name)
     if override is not None:
         return str(override)
@@ -180,7 +146,6 @@ def logical_volume_mount_source(project: str, logical_name: str) -> str:
 
 def storage_mount_source(project: str, storage_key: str) -> str:
     """Return the named docker volume backing the requested storage key."""
-    _storage_config(storage_key)
     source = _storage_source(storage_key)
     return _resolve_volume_source(source)
 

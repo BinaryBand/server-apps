@@ -18,6 +18,8 @@ def main() -> None:
 
     state = reconcile_once(check_only=args.check_only)
     print(f"[reconcile] observed={state.observed} status={state.runStatus}")
+    if state.runStatus == "failed":
+        sys.exit(1)
 
 
 if __name__ == "__main__":

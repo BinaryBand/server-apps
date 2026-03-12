@@ -3,29 +3,32 @@
     file: "{{ repo_root_path }}/compose/base.yml"
     name: compose_base
 
-- name: Derive fixed service identities from compose base configuration
+- name: Derive service identities from compose base configuration
   ansible.builtin.set_fact:
     compose_jellyfin_user: "{{ (((compose_base.services | default({})).jellyfin | default({})).user | default('')) }}"
     compose_baikal_user: "{{ (((compose_base.services | default({})).baikal | default({})).user | default('')) }}"
+    compose_minio_user: "{{ (((compose_base.services | default({})).minio | default({})).user | default('')) }}"
     compose_rclone_env: "{{ (((compose_base.services | default({})).rclone | default({})).environment | default([])) }}"
-    compose_baikal_env: "{{ (((compose_base.services | default({})).baikal | default({})).environment | default([])) }}"
 
-- name: Assert Jellyfin, Baikal, and rclone IDs are aligned between compose and permissions manifest
-  ansible.builtin.assert:
-    that:
-      - "':' in compose_jellyfin_user"
-      - "':' in compose_baikal_user"
-      - "(((permissions_data.users | default({})).jellyfin | default({})).uid | int) == ((compose_jellyfin_user.split(':')[0]) | int)"
-      - "(((permissions_data.users | default({})).jellyfin | default({})).gid | int) == ((compose_jellyfin_user.split(':')[1]) | int)"
-      - "(((permissions_data.users | default({})).baikal | default({})).uid | int) == ((compose_baikal_user.split(':')[0]) | int)"
-      - "(((permissions_data.users | default({})).baikal | default({})).gid | int) == ((compose_baikal_user.split(':')[1]) | int)"
-      - "(((permissions_data.users | default({})).baikal | default({})).uid | int) == (((compose_baikal_env | select('match', '^PUID=') | list | first | default('PUID=-1')) | regex_replace('^PUID=', '')) | int)"
-      - "(((permissions_data.users | default({})).baikal | default({})).gid | int) == (((compose_baikal_env | select('match', '^PGID=') | list | first | default('PGID=-1')) | regex_replace('^PGID=', '')) | int)"
-      - "(((permissions_data.users | default({})).rclone | default({})).uid | int) == (((compose_rclone_env | select('match', '^PUID=') | list | first | default('PUID=-1')) | regex_replace('^PUID=', '')) | int)"
-      - "(((permissions_data.users | default({})).rclone | default({})).gid | int) == (((compose_rclone_env | select('match', '^MEDIA_GID=') | list | first | default('MEDIA_GID=-1')) | regex_replace('^MEDIA_GID=', '')) | int)"
-    fail_msg: >-
-      UID/GID drift detected between compose/base.yml and infra/permissions.yml for jellyfin/baikal/rclone.
-      Keep fixed compose IDs and permissions manifest users synchronized.
+- name: Build service identity map from compose
+  ansible.builtin.set_fact:
+    service_identities:
+      jellyfin:
+        uid: "{{ compose_jellyfin_user.split(':')[0] | int }}"
+        gid: "{{ compose_jellyfin_user.split(':')[1] | int }}"
+        comment: "{{ permissions_data.users.jellyfin.comment | default('jellyfin') }}"
+      baikal:
+        uid: "{{ compose_baikal_user.split(':')[0] | int }}"
+        gid: "{{ compose_baikal_user.split(':')[1] | int }}"
+        comment: "{{ permissions_data.users.baikal.comment | default('baikal') }}"
+      rclone:
+        uid: "{{ (compose_rclone_env | select('match', '^PUID=') | list | first | default('PUID=8097')) | regex_replace('^PUID=', '') | int }}"
+        gid: "{{ (compose_rclone_env | select('match', '^MEDIA_GID=') | list | first | default('MEDIA_GID=5572')) | regex_replace('^MEDIA_GID=', '') | int }}"
+        comment: "{{ permissions_data.users.rclone.comment | default('rclone') }}"
+      minio:
+        uid: "{{ compose_minio_user.split(':')[0] | int }}"
+        gid: "{{ compose_minio_user.split(':')[1] | int }}"
+        comment: "{{ permissions_data.users.minio.comment | default('minio') }}"
 
 - name: Ensure declared groups exist
   become: true
@@ -34,7 +37,7 @@
     gid: "{{ item.value.gid | int }}"
     non_unique: true
     state: present
-  loop: "{{ (permissions_data.users | default({})) | dict2items }}"
+  loop: "{{ service_identities | dict2items }}"
   when: apply_privileged
 
 - name: Ensure declared users exist
@@ -47,7 +50,7 @@
     create_home: false
     comment: "{{ item.value.comment | default(item.key) }}"
     state: present
-  loop: "{{ (permissions_data.users | default({})) | dict2items }}"
+  loop: "{{ service_identities | dict2items }}"
   when: apply_privileged
 
 - name: Ensure volume directories exist
@@ -152,15 +155,15 @@
   ansible.builtin.set_fact:
     named_volume_ownership_rules:
       - name: jellyfin
-        owner_uid: "{{ (((permissions_data.users | default({})).jellyfin | default({})).uid | default(8096)) | int }}"
-        owner_gid: "{{ (((permissions_data.users | default({})).jellyfin | default({})).gid | default(5572)) | int }}"
+        owner_uid: "{{ service_identities.jellyfin.uid | int }}"
+        owner_gid: "{{ service_identities.jellyfin.gid | int }}"
         volumes:
           - jellyfin_cache_data
           - jellyfin_config
           - jellyfin_data
       - name: baikal
-        owner_uid: "{{ (((permissions_data.users | default({})).baikal | default({})).uid | default(8098)) | int }}"
-        owner_gid: "{{ (((permissions_data.users | default({})).baikal | default({})).gid | default(5573)) | int }}"
+        owner_uid: "{{ service_identities.baikal.uid | int }}"
+        owner_gid: "{{ service_identities.baikal.gid | int }}"
         volumes:
           - baikal_config
           - baikal_data

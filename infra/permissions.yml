@@ -1,25 +1,19 @@
 # Declarative permissions manifest for host-side user/group and volume ownership
 # - Keep secrets out of here; use Docker Secrets or a secrets manager.
 
+# UID/GID values are declared once in compose/base.yml and derived from there
+# at runtime. This file only describes the semantic role of each account.
 users:
   baikal:
-    uid: 8098
-    gid: 5573
     comment: "Service account for Baikal data/config volumes"
 
   jellyfin:
-    uid: 8096
-    gid: 5572
     comment: "Service account for Jellyfin (create on host if needed)"
 
   rclone:
-    uid: 8097
-    gid: 5572
     comment: "Service account for rclone mounts (shared group with media)"
 
   minio:
-    uid: 1001
-    gid: 1001
     comment: "MinIO service account (system user)"
 
 volumes:
