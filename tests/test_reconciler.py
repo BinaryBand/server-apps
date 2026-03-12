@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.utils.reconciler import reconcile_once
+from src.managers.reconciler import reconcile_once
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -12,9 +12,9 @@ class ReconcilerTest(TestCase):
     def test_check_only_reports_degraded_when_volume_drift_exists(self) -> None:
         with TemporaryDirectory() as temp_dir:
             with (
-                patch("src.utils.reconciler.state_root", return_value=Path(temp_dir)),
+                patch("src.managers.reconciler.state_root", return_value=Path(temp_dir)),
                 patch(
-                    "src.utils.reconciler.missing_external_volumes",
+                    "src.managers.reconciler.missing_external_volumes",
                     return_value=["rclone_config"],
                 ),
             ):
@@ -26,9 +26,9 @@ class ReconcilerTest(TestCase):
     def test_check_only_reports_healthy_when_checks_pass(self) -> None:
         with TemporaryDirectory() as temp_dir:
             with (
-                patch("src.utils.reconciler.state_root", return_value=Path(temp_dir)),
-                patch("src.utils.reconciler.missing_external_volumes", return_value=[]),
-                patch("src.utils.reconciler.run_runtime_health_checks") as health,
+                patch("src.managers.reconciler.state_root", return_value=Path(temp_dir)),
+                patch("src.managers.reconciler.missing_external_volumes", return_value=[]),
+                patch("src.managers.reconciler.run_runtime_health_checks") as health,
             ):
                 state = reconcile_once(check_only=True)
 

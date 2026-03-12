@@ -9,11 +9,13 @@ services:
     environment:
       - PUID=8098
       - PGID=5573
+      - BAIKAL_SKIP_CHOWN=1
     ports:
       - "5234:80"
     volumes:
       - cloud_baikal_config:/var/www/baikal/config
       - cloud_baikal_data:/var/www/baikal/Specific
+      - ./configs/baikal-apache.conf:/etc/apache2/sites-available/000-default.conf:ro
 
   jellyfin:
     container_name: jellyfin

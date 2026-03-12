@@ -28,3 +28,8 @@ class ComposeConfigModel(BaseModel):
 
     volumes: dict[str, ComposeVolumeDefinition] = {}
     services: dict[str, ComposeServiceDefinition] = {}
+
+
+# Semantic alias for the rendered Docker Compose configuration
+# Used by src.toolbox.docker.compose_storage.rendered_compose_config
+RenderedComposeConfig = ComposeConfigModel

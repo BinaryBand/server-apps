@@ -132,6 +132,12 @@
     path: "{{ rclone_config_staging.path }}"
     state: absent
 
+- name: Ensure old baikal container removed
+  community.docker.docker_container:
+    name: baikal
+    state: absent
+  when: permissions_mode_selected == 'runtime'
+
 - name: Start docker compose stack
   community.docker.docker_compose_v2:
     project_name: "{{ project_name_selected }}"

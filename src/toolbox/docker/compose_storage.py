@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.models.compose_config import ComposeConfigModel
-from src.utils.runtime import PROJECT_NAME, repo_root
+from src.configuration.compose_config import ComposeConfigModel
+from src.toolbox.runtime import PROJECT_NAME, repo_root
 
 from functools import lru_cache
 from pathlib import Path
@@ -56,7 +56,7 @@ def rendered_compose_config() -> dict[str, Any]:
         raise RuntimeError("[compose_storage] Rendered compose config is not a mapping")
 
     try:
-        model = ComposeConfigModel.model_validate(data)
+        model: ComposeConfigModel = ComposeConfigModel.model_validate(data)
     except ValidationError as err:
         raise RuntimeError(
             f"[compose_storage] Rendered compose config failed schema validation: {err}"

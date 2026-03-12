@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.utils.secrets import read_secret
+from src.toolbox.secrets import read_secret
 
 from from_root import from_root
 from pathlib import Path

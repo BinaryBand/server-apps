@@ -6,8 +6,8 @@ import sys
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.backups.restore import restore_snapshot
-from src.utils.docker.volumes import logical_volume_names
+from src.toolbox.backups.restore import restore_snapshot
+from src.toolbox.docker.volumes import logical_volume_names
 
 from unittest import TestCase, main
 from unittest.mock import patch
@@ -152,19 +152,19 @@ class RestoreSmokeTest(TestCase):
             )
 
         with (
-            patch("src.backups.restore.pull_restic_from_cloud") as pull_repo,
+            patch("src.toolbox.backups.restore.pull_restic_from_cloud") as pull_repo,
             patch(
-                "src.backups.restore.restic.run_restic_command"
+                "src.toolbox.backups.restore.restic.run_restic_command"
             ) as run_restic_command,
             patch(
-                "src.backups.restore.storage_mount_source",
+                "src.toolbox.backups.restore.storage_mount_source",
                 return_value=self.backups_volume,
             ),
             patch(
-                "src.backups.restore.logical_volume_mount_source",
+                "src.toolbox.backups.restore.logical_volume_mount_source",
                 side_effect=lambda project, logical: f"{self.test_project}_{logical}",
             ),
-            patch("src.backups.restore.rclone_sync", side_effect=fake_rclone_sync),
+            patch("src.toolbox.backups.restore.rclone_sync", side_effect=fake_rclone_sync),
         ):
             restore_snapshot(target=RESTORE_TARGET)
 

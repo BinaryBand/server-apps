@@ -4,14 +4,13 @@ import sys
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.utils.docker.compose import ensure_external_volumes
-from src.utils.docker.health import HealthCheckError, run_runtime_health_checks
-from src.utils.docker.lifecycle.runtime_post_start import run_runtime_post_start
-from src.utils.docker.post_start.errors import RuntimePostStartError
-from src.utils.checkpoint import OperationCheckpoint
-from src.utils.locking import RunbookLock
-from src.utils.permissions import run_permissions_playbook
-from src.utils.runtime import checkpoints_root, locks_root
+from src.toolbox.docker.compose import ensure_external_volumes
+from src.toolbox.docker.health import run_runtime_health_checks
+from src.toolbox.docker.post_start import run_runtime_post_start
+from src.managers.checkpoint import OperationCheckpoint
+from src.toolbox.locking import RunbookLock
+from src.toolbox.permissions import run_permissions_playbook
+from src.toolbox.runtime import checkpoints_root, locks_root
 
 import os
 
@@ -57,7 +56,7 @@ def main():
             print("[stage:runtime] Applying post-start runtime actions")
             try:
                 run_runtime_post_start()
-            except RuntimePostStartError as err:
+            except RuntimeError as err:
                 checkpoint.mark_stage("runtime", ok=False, message=str(err))
                 checkpoint.finish(observed="Degraded", ok=False)
                 raise SystemExit(f"[stage:runtime] {err}") from err
@@ -69,7 +68,7 @@ def main():
             print("[stage:health] Waiting for runtime health checks")
             try:
                 run_runtime_health_checks()
-            except HealthCheckError as err:
+            except RuntimeError as err:
                 checkpoint.mark_stage("health", ok=False, message=str(err))
                 checkpoint.finish(observed="Degraded", ok=False)
                 raise SystemExit(f"[stage:health] {err}") from err

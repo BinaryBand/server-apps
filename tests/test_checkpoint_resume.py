@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.utils.checkpoint import OperationCheckpoint
+from src.managers.checkpoint import OperationCheckpoint
 
 from pathlib import Path
 from tempfile import TemporaryDirectory

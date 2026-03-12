@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.utils.runtime import repo_root
+from src.toolbox.runtime import repo_root
 
 import dotenv
 import os
@@ -31,12 +31,12 @@ def run_permissions_playbook(
     manifest_path: str = "infra/permissions.yml",
     dry_run: bool = False,
 ) -> None:
-    root = repo_root()
+    root: Path = repo_root()
     dotenv.load_dotenv()
 
-    manifest = root / manifest_path
-    inventory = root / "ansible" / "inventory.ini"
-    playbook = root / "ansible" / "apply-permissions.yml"
+    manifest: Path = root / manifest_path
+    inventory: Path = root / "ansible" / "inventory.ini"
+    playbook: Path = root / "ansible" / "apply-permissions.yml"
 
     if not playbook.exists():
         raise SystemExit(f"Ansible playbook not found: {playbook}")

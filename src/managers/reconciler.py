@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from src.models.state_model import ConditionStatus, StageCondition, WorkflowState
-from src.utils.docker.compose import ensure_external_volumes, missing_external_volumes
-from src.utils.docker.health import HealthCheckError, run_runtime_health_checks
-from src.utils.docker.lifecycle.runtime_post_start import run_runtime_post_start
-from src.utils.docker.post_start.errors import RuntimePostStartError
-from src.utils.permissions import run_permissions_playbook
-from src.utils.runtime import state_root
-from src.utils.state_manager import read_json_file, write_json_file_atomic
+from src.configuration.state_model import ConditionStatus, StageCondition, WorkflowState
+from src.toolbox.docker.compose import ensure_external_volumes, missing_external_volumes
+from src.toolbox.docker.health import run_runtime_health_checks
+from src.toolbox.docker.post_start import run_runtime_post_start
+from src.toolbox.permissions import run_permissions_playbook
+from src.toolbox.runtime import state_root
+from src.toolbox.state_io import read_json_file, write_json_file_atomic
 
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -120,7 +119,7 @@ def reconcile_once(*, check_only: bool = False) -> WorkflowState:
         state.runStatus = "completed"
         _persist_state(state)
         return state
-    except (RuntimeError, HealthCheckError, RuntimePostStartError) as err:
+    except RuntimeError as err:
         _upsert_condition(state, "RuntimeHealth", "false", str(err))
         state.observed = "Degraded"
         state.runStatus = "failed"

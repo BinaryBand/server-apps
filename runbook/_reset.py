@@ -1,9 +1,9 @@
-from src.utils.docker.compose import compose_cmd
-from src.utils.docker.volumes import remove_project_volumes
-from src.utils.checkpoint import OperationCheckpoint
-from src.utils.locking import RunbookLock
-from src.utils.permissions import run_permissions_playbook
-from src.utils.runtime import (
+from src.toolbox.docker.compose import compose_cmd
+from src.toolbox.docker.volumes import remove_project_volumes
+from src.managers.checkpoint import OperationCheckpoint
+from src.toolbox.locking import RunbookLock
+from src.toolbox.permissions import run_permissions_playbook
+from src.toolbox.runtime import (
     PROJECT_NAME,
     checkpoints_root,
     locks_root,
@@ -12,7 +12,9 @@ from src.utils.runtime import (
 )
 
 from argparse import ArgumentParser, Namespace
+from typing import Literal
 from pathlib import Path
+
 import subprocess
 import shutil
 
@@ -20,7 +22,9 @@ import shutil
 def remove_local_path(path: Path, *, dry_run: bool = False) -> None:
     if not path.exists():
         return
-    action = "Would remove" if dry_run else "Removing"
+    action: Literal["Would remove", "Removing"] = (
+        "Would remove" if dry_run else "Removing"
+    )
     print(f"{action}: {path}")
     if dry_run:
         return

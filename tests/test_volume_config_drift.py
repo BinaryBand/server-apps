@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from src.utils.docker.compose_storage import (
+from src.toolbox.docker.compose_storage import (
     external_alias_name_pairs,
     rendered_compose_config,
 )
-from src.utils.docker.volumes import required_external_volume_names
-from src.utils.runtime import PROJECT_NAME, repo_root
+from src.toolbox.docker.volumes import required_external_volume_names
+from src.toolbox.runtime import PROJECT_NAME, repo_root
 
 from pathlib import Path
 from unittest import TestCase, main

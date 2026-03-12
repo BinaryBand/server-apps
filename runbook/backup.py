@@ -1,23 +1,23 @@
-from src.backups.gather import gather_stage
-from src.utils.checkpoint import OperationCheckpoint
-from src.utils.docker.wrappers.restic import (
+from src.toolbox.backups.gather import gather_stage
+from src.managers.checkpoint import OperationCheckpoint
+from src.toolbox.docker.wrappers.restic import (
     ResticRunnerError,
-    has_restic_repository,
-    initialize_restic_repository,
+    has_restic_repo,
+    init_restic_repo,
     run_backup,
 )
-from src.utils.locking import RunbookLock
-from src.utils.runtime import PROJECT_NAME, checkpoints_root, locks_root, repo_root
+from src.toolbox.locking import RunbookLock
+from src.toolbox.runtime import PROJECT_NAME, checkpoints_root, locks_root, repo_root
 
 from pathlib import Path
-import os
 import sys
+import os
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(repo_root()))
 
 
-DEFAULT_RESTIC_EXCLUDES = ["/backups/restore/**"]
+DEFAULT_RESTIC_EXCLUDES: list[str] = ["/backups/restore/**"]
 DEFAULT_RESTIC_TARGET = "/backups"
 
 
@@ -54,10 +54,10 @@ def main():
             print("[stage:restic] Skipping already completed stage")
         else:
             print("[stage:restic] Checking repository state")
-            if not has_restic_repository():
+            if not has_restic_repo():
                 print("[stage:restic-init] Repository not initialized; running init")
                 try:
-                    initialize_restic_repository()
+                    init_restic_repo()
                 except ResticRunnerError as err:
                     checkpoint.mark_stage("restic", ok=False, message=str(err))
                     checkpoint.finish(observed="BackupFailed", ok=False)

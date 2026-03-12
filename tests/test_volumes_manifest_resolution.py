@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.utils.docker import volumes
-from src.utils.runtime import repo_root
+from src.toolbox.docker import volumes
+from src.toolbox.runtime import repo_root
 
 from unittest import TestCase, main
 from unittest.mock import patch
@@ -10,7 +10,7 @@ from unittest.mock import patch
 class VolumesComposeResolutionTest(TestCase):
     def test_required_external_volume_names_excludes_bind_mounts(self) -> None:
         with patch(
-            "src.utils.docker.volumes.external_alias_name_pairs",
+            "src.toolbox.docker.volumes.external_alias_name_pairs",
             return_value={
                 "cloud_jellyfin_config": "jellyfin_config",
                 "backups_data": "backups_data",
@@ -26,10 +26,10 @@ class VolumesComposeResolutionTest(TestCase):
     def test_host_bind_path_uses_manifest_default_when_env_missing(self) -> None:
         with (
             patch(
-                "src.utils.docker.volumes._logical_source",
+                "src.toolbox.docker.volumes._logical_source",
                 return_value=("bind", "ignored"),
             ),
-            patch("src.utils.docker.volumes.read_secret", return_value=None),
+            patch("src.toolbox.docker.volumes.read_secret", return_value=None),
         ):
             path = volumes.host_bind_path("minio_data")
 
@@ -39,11 +39,11 @@ class VolumesComposeResolutionTest(TestCase):
     def test_host_bind_path_uses_env_path_when_set(self) -> None:
         with (
             patch(
-                "src.utils.docker.volumes._logical_source",
+                "src.toolbox.docker.volumes._logical_source",
                 return_value=("bind", "ignored"),
             ),
             patch(
-                "src.utils.docker.volumes.read_secret", return_value="./runtime/minio"
+                "src.toolbox.docker.volumes.read_secret", return_value="./runtime/minio"
             ),
         ):
             path = volumes.host_bind_path("minio_data")
@@ -53,11 +53,11 @@ class VolumesComposeResolutionTest(TestCase):
     def test_storage_mount_source_uses_named_volume_suffixes(self) -> None:
         with (
             patch(
-                "src.utils.docker.volumes._storage_source",
+                "src.toolbox.docker.volumes._storage_source",
                 return_value="rclone_config_data",
             ),
             patch(
-                "src.utils.docker.volumes._resolve_volume_source",
+                "src.toolbox.docker.volumes._resolve_volume_source",
                 return_value="rclone_config",
             ),
         ):

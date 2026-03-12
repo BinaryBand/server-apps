@@ -6,30 +6,26 @@ import shutil
 import time
 
 
-class RunbookLockError(RuntimeError):
-    pass
-
-
 class RunbookLock:
     def __init__(self, name: str, root: Path, *, timeout_seconds: float = 0.0):
-        self._name = name
-        self._root = root
-        self._timeout_seconds = timeout_seconds
-        self._lock_dir = self._root / f"{self._name}.lock"
+        self._name: str = name
+        self._root: Path = root
+        self._timeout_seconds: float = timeout_seconds
+        self._lock_dir: Path = self._root / f"{self._name}.lock"
 
     def acquire(self) -> None:
         self._root.mkdir(parents=True, exist_ok=True)
-        deadline = time.monotonic() + self._timeout_seconds
+        deadline: float = time.monotonic() + self._timeout_seconds
 
         while True:
             try:
                 self._lock_dir.mkdir()
-                marker = self._lock_dir / "owner.txt"
+                marker: Path = self._lock_dir / "owner.txt"
                 marker.write_text(f"pid={os.getpid()}\n", encoding="utf-8")
                 return
             except FileExistsError:
                 if self._timeout_seconds <= 0 or time.monotonic() >= deadline:
-                    raise RunbookLockError(
+                    raise RuntimeError(
                         f"lock is held for group '{self._name}' ({self._lock_dir})"
                     )
                 time.sleep(0.1)

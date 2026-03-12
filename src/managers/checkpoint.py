@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.models.state_model import StageCondition, WorkflowState
-from src.utils.state_manager import read_json_file, write_json_file_atomic
+from src.configuration.state_model import StageCondition, WorkflowState
+from src.toolbox.state_io import read_json_file, write_json_file_atomic
 
 from datetime import datetime, timezone
 from pathlib import Path

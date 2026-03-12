@@ -6,8 +6,8 @@ import sys
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.utils.docker.compose import missing_external_volumes
-from src.utils.docker.health import HealthCheckError, run_runtime_health_checks
+from src.toolbox.docker.compose import missing_external_volumes
+from src.toolbox.docker.health import run_runtime_health_checks
 
 
 def main() -> None:
@@ -21,7 +21,7 @@ def main() -> None:
     print("[drift] Running runtime health checks")
     try:
         run_runtime_health_checks()
-    except HealthCheckError as err:
+    except RuntimeError as err:
         raise SystemExit(f"[drift] unhealthy: {err}") from err
 
     print("[drift] no actionable drift detected")

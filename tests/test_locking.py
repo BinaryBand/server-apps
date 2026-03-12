@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.utils.locking import RunbookLock, RunbookLockError
+from src.toolbox.locking import RunbookLock
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -15,7 +15,7 @@ class RunbookLockTest(TestCase):
 
             first.acquire()
             try:
-                with self.assertRaises(RunbookLockError):
+                with self.assertRaises(RuntimeError):
                     second.acquire()
             finally:
                 first.release()

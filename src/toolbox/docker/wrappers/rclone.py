@@ -1,5 +1,5 @@
-from src.utils.runtime import media_root
-from src.utils.secrets import read_secret
+from src.toolbox.runtime import media_root
+from src.toolbox.secrets import read_secret
 
 from subprocess import CalledProcessError, CompletedProcess
 from functools import cache

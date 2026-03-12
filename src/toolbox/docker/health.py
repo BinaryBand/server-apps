@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from src.utils.polling import PollingTimeoutError, ProbeResult, wait_until
-from src.utils.secrets import read_secret
+from src.toolbox.polling import ProbeResult, wait_until
+from src.toolbox.secrets import read_secret
 
 from collections.abc import Callable, Sequence
 from typing import TextIO
 import shlex
 import subprocess
-
-
-class HealthCheckError(RuntimeError):
-    """Raised when runtime health checks fail."""
 
 
 def _run_command(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
@@ -92,13 +88,13 @@ def wait_for_command(
             interval_seconds=interval_seconds,
             stream=stream,
         )
-    except PollingTimeoutError as err:
-        raise HealthCheckError(
+    except RuntimeError as err:
+        raise RuntimeError(
             _format_command_failure(description, command, last_result, str(err))
         ) from err
 
     if last_result is None:
-        raise HealthCheckError(f"{description} failed before the first probe ran.")
+        raise RuntimeError(f"{description} failed before the first probe ran.")
 
     return last_result
 

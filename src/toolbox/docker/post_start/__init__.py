@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.utils.docker.post_start.jellyfin import restart_jellyfin
-from src.utils.docker.post_start.minio import (
+from src.toolbox.docker.post_start.jellyfin import restart_jellyfin
+from src.toolbox.docker.post_start.minio import (
     ensure_minio_media_bucket,
     wait_for_minio_ready,
 )

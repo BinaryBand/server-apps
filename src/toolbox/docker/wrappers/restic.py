@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.utils.docker.compose import compose_cmd
-from src.utils.docker.volumes import storage_docker_mount_flags, storage_mount_source
-from src.utils.docker.wrappers.rclone import rclone_sync
-from src.utils.runtime import PROJECT_NAME
-from src.utils.secrets import read_secret
+from src.toolbox.docker.compose import compose_cmd
+from src.toolbox.docker.volumes import storage_docker_mount_flags, storage_mount_source
+from src.toolbox.docker.wrappers.rclone import rclone_sync
+from src.toolbox.runtime import PROJECT_NAME
+from src.toolbox.secrets import read_secret
 
 from functools import cache
 import subprocess
@@ -25,6 +25,7 @@ def _restic_image() -> str:
     return RESTIC_IMAGE
 
 
+# ResticRunnerError removed; RuntimeError used directly.
 class ResticRunnerError(RuntimeError):
     """Raised when restic/rclone runner commands fail."""
 
@@ -98,7 +99,7 @@ def run_restic_command_with_output(cmd_args: list[str]) -> str:
     return result.stdout
 
 
-def has_restic_repository() -> bool:
+def has_restic_repo() -> bool:
     """Return True when the restic repository is already initialized."""
     try:
         run_restic_command(["snapshots"])
@@ -107,7 +108,7 @@ def has_restic_repository() -> bool:
         return False
 
 
-def initialize_restic_repository() -> None:
+def init_restic_repo() -> None:
     """Initialize the restic repository in the configured /repo mount."""
     run_restic_command(["init"])
 

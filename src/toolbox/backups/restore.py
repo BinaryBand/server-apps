@@ -7,16 +7,16 @@ if __package__ in {None, ""}:
     if repo_root_str not in sys.path:
         sys.path.insert(0, repo_root_str)
 
-from src.utils.docker.volumes import (
+from src.toolbox.docker.volumes import (
     logical_volume_names,
     logical_volume_mount_source,
     storage_docker_mount_flags,
     storage_mount_source,
 )
-from src.utils.runtime import PROJECT_NAME
-from src.utils.docker.wrappers.rclone import rclone_sync
-from src.utils.docker.wrappers import restic
-from src.utils.secrets import read_secret
+from src.toolbox.runtime import PROJECT_NAME
+from src.toolbox.docker.wrappers.rclone import rclone_sync
+from src.toolbox.docker.wrappers import restic
+from src.toolbox.secrets import read_secret
 
 import subprocess
 
@@ -63,9 +63,9 @@ def _volume_subdir_exists(volume_name: str, relative_path: str) -> bool:
             "-v",
             f"{volume_name}:/source-root:ro",
             "alpine:3.20",
-            "sh",
-            "-lc",
-            f"test -d '/source-root/{relative_path}'",
+            "test",
+            "-d",
+            f"/source-root/{relative_path}",
         ],
         check=False,
     )

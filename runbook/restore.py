@@ -1,7 +1,7 @@
-from src.backups.restore import recent_snapshots, restore_snapshot
-from src.utils.checkpoint import OperationCheckpoint
-from src.utils.locking import RunbookLock
-from src.utils.runtime import checkpoints_root, locks_root, repo_root
+from src.toolbox.backups.restore import recent_snapshots, restore_snapshot
+from src.managers.checkpoint import OperationCheckpoint
+from src.toolbox.locking import RunbookLock
+from src.toolbox.runtime import checkpoints_root, locks_root, repo_root
 
 from argparse import ArgumentParser, Namespace
 import os

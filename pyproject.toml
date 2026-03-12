@@ -19,6 +19,9 @@ dependencies = [
     "types-requests==2.32.4.20260107",
 ]
 
+[project.optional-dependencies]
+dev = []
+
 [tool.setuptools]
 package-dir = { "" = "." }
 

@@ -6,10 +6,6 @@ from typing import TextIO
 import time
 
 
-class PollingTimeoutError(RuntimeError):
-    """Raised when a polling loop exceeds its timeout."""
-
-
 @dataclass(frozen=True)
 class ProbeResult:
     ready: bool
@@ -41,6 +37,6 @@ def wait_until(
         if now >= deadline:
             detail = f" Last status: {result.detail}." if result.detail else ""
             msg = f"Timed out while waiting for {description} after {timeout_seconds:.0f}s"
-            raise PollingTimeoutError(f"{msg}: {detail}")
+            raise RuntimeError(f"{msg}: {detail}")
 
         time.sleep(interval_seconds)

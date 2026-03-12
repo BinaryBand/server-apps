@@ -6,7 +6,7 @@ import sys
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.utils.reconciler import reconcile_once
+from src.managers.reconciler import reconcile_once
 
 from argparse import ArgumentParser
 

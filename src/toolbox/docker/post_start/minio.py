@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from src.utils.docker.health import HealthCheckError, wait_for_container_health
-from src.utils.docker.post_start.errors import RuntimePostStartError
-from src.utils.secrets import read_secret
+from src.toolbox.docker.health import wait_for_container_health
+from src.toolbox.secrets import read_secret
 
 import subprocess
 
@@ -14,10 +13,8 @@ def _require_secret(name: str, fallback_name: str | None = None) -> str:
 
     if not value:
         if fallback_name is not None:
-            raise RuntimePostStartError(
-                f"missing required secret: {name} (or {fallback_name})"
-            )
-        raise RuntimePostStartError(f"missing required secret: {name}")
+            raise RuntimeError(f"missing required secret: {name} (or {fallback_name})")
+        raise RuntimeError(f"missing required secret: {name}")
 
     return value
 
@@ -25,13 +22,10 @@ def _require_secret(name: str, fallback_name: str | None = None) -> str:
 def wait_for_minio_ready() -> None:
     try:
         wait_for_container_health(
-            "Wait for MinIO readiness",
-            container="minio",
-            timeout_seconds=60,
-            interval_seconds=2,
+            "Wait for MinIO", container="minio", timeout_seconds=60, interval_seconds=2
         )
-    except HealthCheckError as err:
-        raise RuntimePostStartError(str(err)) from err
+    except RuntimeError as err:
+        raise RuntimeError(str(err)) from err
 
 
 def _minio_alias_set_command(user: str, password: str) -> list[str]:
@@ -95,4 +89,4 @@ def ensure_minio_media_bucket() -> None:
         if "download" not in anonymous_result.stdout.lower():
             subprocess.run(_minio_set_anonymous_download_command(), check=True)
     except subprocess.CalledProcessError as err:
-        raise RuntimePostStartError("failed to ensure MinIO media bucket") from err
+        raise RuntimeError("failed to ensure MinIO media bucket") from err

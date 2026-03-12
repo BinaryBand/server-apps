@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from src.utils.docker.health import (
-    HealthCheckError,
+from src.toolbox.docker.health import (
     run_runtime_health_checks,
     wait_for_command,
 )
-from src.utils.polling import ProbeResult, wait_until
+from src.toolbox.polling import ProbeResult, wait_until
 
 from io import StringIO
 from subprocess import CompletedProcess
@@ -40,8 +39,8 @@ class WaitUntilTest(TestCase):
             stderr="container not found\n",
         )
 
-        with patch("src.utils.docker.health._run_command", return_value=failed):
-            with self.assertRaises(HealthCheckError) as err:
+        with patch("src.toolbox.docker.health._run_command", return_value=failed):
+            with self.assertRaises(RuntimeError) as err:
                 wait_for_command(
                     "Wait for Jellyfin health status",
                     ["docker", "inspect", "jellyfin"],
@@ -59,9 +58,9 @@ class WaitUntilTest(TestCase):
 class RuntimeHealthChecksTest(TestCase):
     def test_runtime_health_checks_use_expected_sequence(self) -> None:
         with (
-            patch("src.utils.docker.health.read_secret", return_value="pcloud"),
-            patch("src.utils.docker.health.wait_for_container_exec") as wait_exec,
-            patch("src.utils.docker.health.wait_for_container_health") as wait_health,
+            patch("src.toolbox.docker.health.read_secret", return_value="pcloud"),
+            patch("src.toolbox.docker.health.wait_for_container_exec") as wait_exec,
+            patch("src.toolbox.docker.health.wait_for_container_health") as wait_health,
         ):
             run_runtime_health_checks()
 

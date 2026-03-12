@@ -1,10 +1,10 @@
-from src.utils.docker.compose_storage import (
+from src.toolbox.docker.compose_storage import (
     external_alias_name_pairs,
     rendered_compose_config,
     service_volume_sources,
 )
-from src.utils.secrets import read_secret
-from src.utils.runtime import repo_root
+from src.toolbox.secrets import read_secret
+from src.toolbox.runtime import repo_root
 
 from pathlib import Path
 from typing import Optional
