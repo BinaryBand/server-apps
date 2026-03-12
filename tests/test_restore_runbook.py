@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from runbook.restore import DEFAULT_RESTORE_TARGET, main
+from src.orchestrators.restore import DEFAULT_RESTORE_TARGET, main
 
 from io import StringIO
 from unittest import TestCase, main as unittest_main
@@ -10,12 +10,12 @@ from unittest.mock import patch
 class RestoreRunbookTest(TestCase):
     def test_list_snapshots_mode_uses_listing_path(self) -> None:
         with (
-            patch("runbook.restore.ArgumentParser.parse_args") as parse_args,
+            patch("src.orchestrators.restore.ArgumentParser.parse_args") as parse_args,
             patch(
-                "runbook.restore.recent_snapshots",
+                "src.orchestrators.restore.recent_snapshots",
                 return_value="ID Time\nabc now\n",
             ) as list_snapshots,
-            patch("runbook.restore.restore_snapshot") as restore_snapshot,
+            patch("src.orchestrators.restore.restore_snapshot") as restore_snapshot,
             patch("sys.stdout", new=StringIO()) as stdout,
         ):
             parse_args.return_value.snapshot = "latest"
@@ -31,9 +31,9 @@ class RestoreRunbookTest(TestCase):
 
     def test_restore_mode_uses_default_target(self) -> None:
         with (
-            patch("runbook.restore.ArgumentParser.parse_args") as parse_args,
-            patch("runbook.restore.recent_snapshots") as list_snapshots,
-            patch("runbook.restore.restore_snapshot") as restore_snapshot,
+            patch("src.orchestrators.restore.ArgumentParser.parse_args") as parse_args,
+            patch("src.orchestrators.restore.recent_snapshots") as list_snapshots,
+            patch("src.orchestrators.restore.restore_snapshot") as restore_snapshot,
         ):
             parse_args.return_value.snapshot = "latest"
             parse_args.return_value.list_snapshots = False

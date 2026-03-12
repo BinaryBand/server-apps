@@ -1,24 +1,14 @@
-from __future__ import annotations
-
-from pathlib import Path
+import os
+import subprocess
 import sys
-
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from src.managers.reconciler import reconcile_once
-
-from argparse import ArgumentParser
-
-
-def main() -> None:
-    parser = ArgumentParser(description="Run one reconciliation pass")
-    parser.add_argument("--check-only", action="store_true")
-    args = parser.parse_args()
-
-    state = reconcile_once(check_only=args.check_only)
-    print(f"[reconcile] observed={state.observed} status={state.runStatus}")
-
+from pathlib import Path
 
 if __name__ == "__main__":
-    main()
+    root: Path = Path(__file__).resolve().parents[1]
+    orchestrator: Path = root / "src" / "orchestrators" / "reconcile.py"
+    sys.exit(
+        subprocess.run(
+            [sys.executable, str(orchestrator), *sys.argv[1:]],
+            env={**os.environ, "PYTHONPATH": str(root)},
+        ).returncode
+    )

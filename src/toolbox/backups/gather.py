@@ -22,10 +22,7 @@ def gather_stage(project: str, include_file: Path):
     )
 
     extra_args: list[str] = ["--include-from", "/filters/backup-include.txt"]
-    try:
-        rclone_sync("/data", "/backups", docker_args=docker_args, extra_args=extra_args)
-    except Exception as err:
-        raise RuntimeError(err) from err
+    rclone_sync("/data", "/backups", docker_args=docker_args, extra_args=extra_args)
 
 
 __all__ = ["gather_stage"]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from runbook.start import main
+from src.orchestrators.start import main
 
 from unittest import TestCase, main as unittest_main
 from unittest.mock import patch
@@ -19,17 +19,20 @@ class StartRunbookTest(TestCase):
 
         with (
             patch(
-                "runbook.start.ensure_external_volumes", side_effect=record("volumes")
+                "src.orchestrators.start.ensure_external_volumes",
+                side_effect=record("volumes"),
             ),
             patch(
-                "runbook.start.run_permissions_playbook",
+                "src.orchestrators.start.run_permissions_playbook",
                 side_effect=record("permissions"),
             ),
             patch(
-                "runbook.start.run_runtime_post_start", side_effect=record("runtime")
+                "src.orchestrators.start.run_runtime_post_start",
+                side_effect=record("runtime"),
             ),
             patch(
-                "runbook.start.run_runtime_health_checks", side_effect=record("health")
+                "src.orchestrators.start.run_runtime_health_checks",
+                side_effect=record("health"),
             ),
         ):
             main()

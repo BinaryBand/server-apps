@@ -69,17 +69,19 @@ def _minio_set_anonymous_download_command() -> list[str]:
 
 
 def ensure_minio_media_bucket() -> None:
-    minio_user = _require_secret("MINIO_ROOT_USER", "S3_ACCESS_KEY")
-    minio_password = _require_secret("MINIO_ROOT_PASSWORD", "S3_SECRET_KEY")
+    minio_user: str = _require_secret("MINIO_ROOT_USER", "S3_ACCESS_KEY")
+    minio_password: str = _require_secret("MINIO_ROOT_PASSWORD", "S3_SECRET_KEY")
 
     try:
         subprocess.run(_minio_alias_set_command(minio_user, minio_password), check=True)
 
-        stat_result = subprocess.run(_minio_stat_media_command(), check=False)
+        stat_result: subprocess.CompletedProcess[bytes] = subprocess.run(
+            _minio_stat_media_command(), check=False
+        )
         if stat_result.returncode != 0:
             subprocess.run(_minio_create_media_command(), check=True)
 
-        anonymous_result = subprocess.run(
+        anonymous_result: subprocess.CompletedProcess[str] = subprocess.run(
             _minio_get_anonymous_command(),
             check=False,
             capture_output=True,

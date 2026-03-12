@@ -82,10 +82,8 @@ def run_restic_command_with_output(cmd_args: list[str]) -> str:
 
 
 __all__ = [
-    "_restic_image",
-    "_restic_compose_run_command",
-    "_ensure_restic_repo_volume_exists",
+    "RESTIC_PCLOUD_REMOTE",
+    "ResticRunnerError",
     "run_restic_command",
     "run_restic_command_with_output",
-    "ResticRunnerError",
 ]

@@ -12,22 +12,24 @@ def has_restic_repo() -> bool:
     return bool(out and out.strip())
 
 
-def init_restic_repo():
-    restic_run.run_restic_command(["init"])  # may raise ResticRunnerError
+def init_restic_repo() -> None:
+    restic_run.run_restic_command(["init"])
 
 
-def run_backup(paths: list[str], repo: str | None = None) -> None:
+def run_backup(
+    paths: list[str],
+    repo: str | None = None,
+    args: list[str] | None = None,
+) -> None:
     cmd: list[str] = ["backup"] + paths
     if repo:
         cmd.extend(["--repo", repo])
+    if args:
+        cmd.extend(args)
     restic_run.run_restic_command(cmd)
 
 
-def push_restic_to_cloud(prefix: str | None = None) -> None:
-    flags: list[str] = ["--repository", "restic_repo"]
-    if prefix:
-        flags.extend(["--backup-prefix", prefix])
-
+def push_restic_to_cloud() -> None:
     rclone_sync("restic_repo", restic_run.RESTIC_PCLOUD_REMOTE)
 
 

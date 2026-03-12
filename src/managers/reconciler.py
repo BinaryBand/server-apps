@@ -9,8 +9,7 @@ from src.toolbox.core.runtime import state_root
 from src.toolbox.io.state_io import read_json_file, write_json_file_atomic
 
 from datetime import datetime, timezone
-from typing import Any as Unknown
-from typing import Literal
+from typing import Any, Literal
 from pathlib import Path
 from uuid import uuid4
 
@@ -32,7 +31,7 @@ def _new_state(desired: str) -> WorkflowState:
 
 def _load_state(desired: str) -> WorkflowState:
     path: Path = state_root() / "reconcile.json"
-    payload: Unknown = read_json_file(path)
+    payload: Any = read_json_file(path)
     if payload is None:
         return _new_state(desired)
     state: WorkflowState = WorkflowState.model_validate(payload)

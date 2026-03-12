@@ -21,11 +21,6 @@ from src.toolbox.core.secrets import read_secret
 import subprocess
 
 
-RESTIC_PCLOUD_REMOTE: str = str(
-    read_secret("RESTIC_PCLOUD_REMOTE", "pcloud:Backups/Restic")
-)
-
-
 def recent_snapshots(limit: int = 10) -> str:
     """Return a recent restic snapshot listing after refreshing the local repo."""
     pull_restic_from_cloud()
@@ -85,7 +80,7 @@ def pull_restic_from_cloud() -> None:
     docker_args += ["-e", "RCLONE_CONFIG=/config/rclone/rclone.conf"]
 
     try:
-        rclone_sync(RESTIC_PCLOUD_REMOTE, "/repo", docker_args=docker_args)
+        rclone_sync(restic.RESTIC_PCLOUD_REMOTE, "/repo", docker_args=docker_args)
     except Exception as err:
         raise RuntimeError(
             f"[pull_restic_from_cloud] restic repository sync failed: {err}"

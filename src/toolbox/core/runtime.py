@@ -14,7 +14,7 @@ def repo_root() -> Path:
 
 
 def _resolve_host_path(env_key: str, default_relative: str) -> Path:
-    value = read_secret(env_key)
+    value: str | None = read_secret(env_key)
     if value:
         return Path(value).expanduser().resolve()
     return (repo_root() / default_relative).resolve()

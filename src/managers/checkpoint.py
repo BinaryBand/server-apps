@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from typing import Any as Unknown
-from typing import Literal
-
 from src.configuration.state_model import StageCondition, WorkflowState
 from src.toolbox.io.state_io import read_json_file, write_json_file_atomic
 
 from datetime import datetime, timezone
+from typing import Any, Literal
 from pathlib import Path
 from uuid import uuid4
 
@@ -102,7 +100,7 @@ class OperationCheckpoint:
         write_json_file_atomic(self._path, state.model_dump(mode="json"))
 
     def _load(self) -> WorkflowState | None:
-        raw: Unknown = read_json_file(self._path)
+        raw: Any = read_json_file(self._path)
         if raw is None:
             return None
         return WorkflowState.model_validate(raw)
