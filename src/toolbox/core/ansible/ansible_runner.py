@@ -1,28 +1,15 @@
 from __future__ import annotations
 
-from src.toolbox.runtime import repo_root
-
-import dotenv
-import os
-import shutil
-import subprocess
-import sys
 from pathlib import Path
+import os
+import subprocess
+from .ansible_playbook import ansible_playbook_bin
+from src.toolbox.core.runtime import repo_root
+
 from typing import Literal
 
 
 MODE = Literal["bootstrap", "runtime", "reset"]
-
-
-def _ansible_playbook_bin() -> str:
-    venv_ansible_playbook = Path(sys.executable).with_name("ansible-playbook")
-    if venv_ansible_playbook.exists() and venv_ansible_playbook.is_file():
-        return str(venv_ansible_playbook)
-
-    if (ansible_playbook := shutil.which("ansible-playbook")) is not None:
-        return ansible_playbook
-
-    raise SystemExit("ansible-playbook is required. Install Ansible and try again.")
 
 
 def run_permissions_playbook(
@@ -32,7 +19,6 @@ def run_permissions_playbook(
     dry_run: bool = False,
 ) -> None:
     root: Path = repo_root()
-    dotenv.load_dotenv()
 
     manifest: Path = root / manifest_path
     inventory: Path = root / "ansible" / "inventory.ini"
@@ -42,7 +28,7 @@ def run_permissions_playbook(
         raise SystemExit(f"Ansible playbook not found: {playbook}")
 
     command = [
-        _ansible_playbook_bin(),
+        ansible_playbook_bin(),
         "-i",
         str(inventory),
         str(playbook),
@@ -67,3 +53,6 @@ def run_permissions_playbook(
         return
 
     subprocess.run(command, check=True, env=os.environ.copy(), cwd=str(repo_root()))
+
+
+__all__ = ["run_permissions_playbook"]

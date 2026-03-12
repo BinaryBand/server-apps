@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.toolbox.docker import volumes
-from src.toolbox.runtime import repo_root
+from src.toolbox.core.runtime import repo_root
 
 from unittest import TestCase, main
 from unittest.mock import patch

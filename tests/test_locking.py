@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.toolbox.locking import RunbookLock
+from src.toolbox.core.locking import RunbookLock
 
 from pathlib import Path
 from tempfile import TemporaryDirectory

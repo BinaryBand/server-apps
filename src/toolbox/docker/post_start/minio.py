@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.toolbox.docker.health import wait_for_container_health
-from src.toolbox.secrets import read_secret
+from src.toolbox.core.secrets import read_secret
 
 import subprocess
 
@@ -90,3 +90,9 @@ def ensure_minio_media_bucket() -> None:
             subprocess.run(_minio_set_anonymous_download_command(), check=True)
     except subprocess.CalledProcessError as err:
         raise RuntimeError("failed to ensure MinIO media bucket") from err
+
+
+__all__ = [
+    "wait_for_minio_ready",
+    "ensure_minio_media_bucket",
+]

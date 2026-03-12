@@ -7,8 +7,8 @@ if __package__ in {None, ""}:
 from src.toolbox.docker.compose import compose_cmd
 from src.toolbox.docker.wrappers.rclone import cleanup_media_mount
 from src.managers.checkpoint import OperationCheckpoint
-from src.toolbox.locking import RunbookLock
-from src.toolbox.runtime import checkpoints_root, locks_root
+from src.toolbox.core.locking import RunbookLock
+from src.toolbox.core.runtime import checkpoints_root, locks_root
 
 import subprocess
 

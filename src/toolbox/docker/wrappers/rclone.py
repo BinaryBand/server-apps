@@ -1,5 +1,5 @@
-from src.toolbox.runtime import media_root
-from src.toolbox.secrets import read_secret
+from src.toolbox.core.runtime import media_root
+from src.toolbox.core.secrets import read_secret
 
 from subprocess import CalledProcessError, CompletedProcess
 from functools import cache
@@ -23,7 +23,7 @@ def _normalize_list(it: Iterable[str] | None) -> list[str]:
 
 
 def _rclone_container_is_running(container_name: str = "rclone") -> bool:
-    probe = subprocess.run(
+    probe: CompletedProcess[str] = subprocess.run(
         ["docker", "inspect", "-f", "{{.State.Running}}", container_name],
         check=False,
         capture_output=True,
@@ -169,3 +169,6 @@ def cleanup_media_mount() -> None:
                 print(
                     f"Warning: unable to recreate media mount path {mount_path}: {recreate_err}"
                 )
+
+
+__all__ = ["rclone_sync", "cleanup_media_mount"]

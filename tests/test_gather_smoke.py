@@ -8,7 +8,7 @@ if __package__ in {None, ""}:
 
 from src.toolbox.backups.gather import gather_stage
 from src.toolbox.docker.volumes import logical_volume_names
-from src.toolbox.runtime import PROJECT_NAME, repo_root
+from src.toolbox.core.runtime import PROJECT_NAME, repo_root
 
 from unittest import TestCase, main
 from unittest.mock import patch

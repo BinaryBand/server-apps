@@ -27,3 +27,6 @@ def read_secret(name: str, default: str) -> str: ...
 def read_secret(name: str, default: str | None = None) -> str | None:
     _load_env_once()
     return os.getenv(name, default)
+
+
+__all__ = ["read_secret"]

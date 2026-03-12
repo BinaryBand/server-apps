@@ -8,9 +8,9 @@ from src.toolbox.docker.compose import ensure_external_volumes
 from src.toolbox.docker.health import run_runtime_health_checks
 from src.toolbox.docker.post_start import run_runtime_post_start
 from src.managers.checkpoint import OperationCheckpoint
-from src.toolbox.locking import RunbookLock
-from src.toolbox.permissions import run_permissions_playbook
-from src.toolbox.runtime import checkpoints_root, locks_root
+from src.toolbox.core.locking import RunbookLock
+from src.toolbox.core.ansible import run_permissions_playbook
+from src.toolbox.core.runtime import checkpoints_root, locks_root
 
 import os
 

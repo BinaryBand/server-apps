@@ -4,7 +4,7 @@ from src.toolbox.docker.health import (
     run_runtime_health_checks,
     wait_for_command,
 )
-from src.toolbox.polling import ProbeResult, wait_until
+from src.toolbox.core.polling import ProbeResult, wait_until
 
 from io import StringIO
 from subprocess import CompletedProcess

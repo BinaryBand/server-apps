@@ -20,11 +20,11 @@ def wait_until(
     interval_seconds: float,
     stream: TextIO | None = None,
 ) -> ProbeResult:
-    deadline = time.monotonic() + timeout_seconds
+    deadline: float = time.monotonic() + timeout_seconds
 
     while True:
-        raw_result = probe()
-        result = (
+        raw_result: ProbeResult | bool = probe()
+        result: ProbeResult = (
             raw_result
             if isinstance(raw_result, ProbeResult)
             else ProbeResult(ready=bool(raw_result))
@@ -33,10 +33,13 @@ def wait_until(
         if result.ready:
             return result
 
-        now = time.monotonic()
+        now: float = time.monotonic()
         if now >= deadline:
-            detail = f" Last status: {result.detail}." if result.detail else ""
+            detail: str = f" Last status: {result.detail}." if result.detail else ""
             msg = f"Timed out while waiting for {description} after {timeout_seconds:.0f}s"
             raise RuntimeError(f"{msg}: {detail}")
 
         time.sleep(interval_seconds)
+
+
+__all__ = ["ProbeResult", "wait_until"]

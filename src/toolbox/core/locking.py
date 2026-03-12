@@ -40,3 +40,6 @@ class RunbookLock:
 
     def __exit__(self, exc_type, exc, tb) -> None:
         self.release()
+
+
+__all__ = ["RunbookLock"]

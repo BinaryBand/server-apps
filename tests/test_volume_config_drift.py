@@ -5,7 +5,7 @@ from src.toolbox.docker.compose_storage import (
     rendered_compose_config,
 )
 from src.toolbox.docker.volumes import required_external_volume_names
-from src.toolbox.runtime import PROJECT_NAME, repo_root
+from src.toolbox.core.runtime import PROJECT_NAME, repo_root
 
 from pathlib import Path
 from unittest import TestCase, main

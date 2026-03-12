@@ -4,11 +4,14 @@ from src.configuration.state_model import ConditionStatus, StageCondition, Workf
 from src.toolbox.docker.compose import ensure_external_volumes, missing_external_volumes
 from src.toolbox.docker.health import run_runtime_health_checks
 from src.toolbox.docker.post_start import run_runtime_post_start
-from src.toolbox.permissions import run_permissions_playbook
-from src.toolbox.runtime import state_root
-from src.toolbox.state_io import read_json_file, write_json_file_atomic
+from src.toolbox.core.ansible import run_permissions_playbook
+from src.toolbox.core.runtime import state_root
+from src.toolbox.io.state_io import read_json_file, write_json_file_atomic
 
 from datetime import datetime, timezone
+from typing import Any as Unknown
+from typing import Literal
+from pathlib import Path
 from uuid import uuid4
 
 
@@ -28,76 +31,61 @@ def _new_state(desired: str) -> WorkflowState:
 
 
 def _load_state(desired: str) -> WorkflowState:
-    path = state_root() / "reconcile.json"
-    payload = read_json_file(path)
+    path: Path = state_root() / "reconcile.json"
+    payload: Unknown = read_json_file(path)
     if payload is None:
         return _new_state(desired)
-    state = WorkflowState.model_validate(payload)
+    state: WorkflowState = WorkflowState.model_validate(payload)
     state.runId = str(uuid4())
     state.idempotencyToken = str(uuid4())
     state.runStatus = "in-progress"
-    state.updatedAt = _utc_now()
+    state.updatedAt: datetime = _utc_now()
     return state
 
 
 def _upsert_condition(
-    state: WorkflowState,
-    name: str,
-    status: ConditionStatus,
-    message: str | None = None,
+    state: WorkflowState, name: str, status: ConditionStatus, message: str | None = None
 ) -> None:
-    now = _utc_now()
+    now: datetime = _utc_now()
     for idx, condition in enumerate(state.conditions):
         if condition.name != name:
             continue
         state.conditions[idx] = StageCondition(
-            name=name,
-            status=status,
-            message=message,
-            lastTransitionTime=now,
+            name=name, status=status, message=message, lastTransitionTime=now
         )
         break
     else:
         state.conditions.append(
             StageCondition(
-                name=name,
-                status=status,
-                message=message,
-                lastTransitionTime=now,
+                name=name, status=status, message=message, lastTransitionTime=now
             )
         )
-    state.lastTransitionTime = now
-    state.updatedAt = now
+    state.lastTransitionTime: datetime = now
+    state.updatedAt: datetime = now
 
 
 def _persist_state(state: WorkflowState) -> None:
-    path = state_root() / "reconcile.json"
+    path: Path = state_root() / "reconcile.json"
     write_json_file_atomic(path, state.model_dump(mode="json"))
 
 
 def reconcile_once(*, check_only: bool = False) -> WorkflowState:
-    state = _load_state("Healthy")
+    state: WorkflowState = _load_state("Healthy")
 
     try:
         if check_only:
-            missing = missing_external_volumes()
+            missing: list[str] = missing_external_volumes()
             if missing:
-                _upsert_condition(
-                    state,
-                    "VolumesReady",
-                    "false",
-                    "missing: " + ", ".join(sorted(missing)),
-                )
-                state.observed = "Degraded"
-                state.runStatus = "failed"
+                message: str = "Missing external volumes: " + ", ".join(sorted(missing))
+                _upsert_condition(state, "VolumesReady", "false", message)
+                state.observed: str = "Degraded"
+                state.runStatus: Literal["completed", "failed"] = "failed"
                 _persist_state(state)
                 return state
 
             run_runtime_health_checks()
             _upsert_condition(state, "VolumesReady", "true")
-            _upsert_condition(
-                state, "RuntimeHealth", "true", "all runtime checks passed"
-            )
+            _upsert_condition(state, "RuntimeHealth", "true", "all checks passed")
             state.observed = "Healthy"
             state.runStatus = "completed"
             _persist_state(state)

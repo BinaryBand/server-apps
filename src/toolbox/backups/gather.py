@@ -26,3 +26,6 @@ def gather_stage(project: str, include_file: Path):
         rclone_sync("/data", "/backups", docker_args=docker_args, extra_args=extra_args)
     except Exception as err:
         raise RuntimeError(err) from err
+
+
+__all__ = ["gather_stage"]

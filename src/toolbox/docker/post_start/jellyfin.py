@@ -8,3 +8,6 @@ def restart_jellyfin() -> None:
         subprocess.run(["docker", "restart", "jellyfin"], check=True)
     except subprocess.CalledProcessError as err:
         raise RuntimeError("failed to restart jellyfin") from err
+
+
+__all__ = ["restart_jellyfin"]

@@ -6,8 +6,8 @@ from src.toolbox.docker.wrappers.restic import (
     init_restic_repo,
     run_backup,
 )
-from src.toolbox.locking import RunbookLock
-from src.toolbox.runtime import PROJECT_NAME, checkpoints_root, locks_root, repo_root
+from src.toolbox.core.locking import RunbookLock
+from src.toolbox.core.runtime import PROJECT_NAME, checkpoints_root, locks_root, repo_root
 
 from pathlib import Path
 import sys
