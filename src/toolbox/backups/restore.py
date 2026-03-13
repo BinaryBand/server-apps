@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 import sys
 
 if __package__ in {None, ""}:
@@ -13,12 +14,10 @@ from src.toolbox.docker.volumes import (
     storage_docker_mount_flags,
     storage_mount_source,
 )
-from src.toolbox.core.runtime import PROJECT_NAME
+from src.toolbox.core.config import restic_pcloud_sync_enabled
+
 from src.toolbox.docker.wrappers.rclone import rclone_sync
 from src.toolbox.docker.wrappers import restic
-from src.toolbox.core.secrets import read_secret
-
-import subprocess
 
 
 def recent_snapshots(limit: int = 10) -> str:
@@ -69,26 +68,26 @@ def _volume_subdir_exists(volume_name: str, relative_path: str) -> bool:
 
 def pull_restic_from_cloud() -> None:
     """Sync restic repository from pCloud before restore."""
-    if read_secret("RESTIC_PCLOUD_SYNC", "1") in {"0", "false", "False", "no", "NO"}:
+    if not restic_pcloud_sync_enabled():
         print("Skipping restic pCloud sync (RESTIC_PCLOUD_SYNC disabled).")
         return
 
-    docker_args = storage_docker_mount_flags(PROJECT_NAME, "restic_repo", "/repo")
+    docker_args = storage_docker_mount_flags("restic_repo", "/repo")
     docker_args += storage_docker_mount_flags(
-        PROJECT_NAME, "rclone_config", "/config/rclone", read_only=True
+        "rclone_config", "/config/rclone", read_only=True
     )
     docker_args += ["-e", "RCLONE_CONFIG=/config/rclone/rclone.conf"]
 
     try:
         rclone_sync(restic.RESTIC_PCLOUD_REMOTE, "/repo", docker_args=docker_args)
-    except Exception as err:
+    except RuntimeError as err:
         raise RuntimeError(
             f"[pull_restic_from_cloud] restic repository sync failed: {err}"
         ) from err
 
 
-def _apply_restored_volumes_from_backups_volume(project: str, target: str) -> None:
-    backups_volume_name = storage_mount_source(project, "backups")
+def _apply_restored_volumes_from_backups_volume(target: str) -> None:
+    backups_volume_name = storage_mount_source("backups")
     target_prefix = ""
     if target != "/backups":
         target_prefix = target.removeprefix("/backups/").strip("/") + "/"
@@ -111,7 +110,7 @@ def _apply_restored_volumes_from_backups_volume(project: str, target: str) -> No
             print(f"Skipping {source_name}; not found in {', '.join(candidates)}.")
             continue
 
-        target_mount = logical_volume_mount_source(project, source_name)
+        target_mount = logical_volume_mount_source(source_name)
 
         print(f"Applying restored data: {source_relative_path} -> {target_mount}")
         _sync_volume_path_to_target(
@@ -140,7 +139,7 @@ def restore_snapshot(
         return
 
     if target.startswith("/backups"):
-        _apply_restored_volumes_from_backups_volume(PROJECT_NAME, target)
+        _apply_restored_volumes_from_backups_volume(target)
         return
 
     print("Restore target is outside /backups; skipping volume apply step.")

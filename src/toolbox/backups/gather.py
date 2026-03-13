@@ -4,7 +4,7 @@ from src.toolbox.docker.wrappers.rclone import rclone_sync
 from pathlib import Path
 
 
-def gather_stage(project: str, include_file: Path):
+def gather_stage(include_file: Path):
     include_file: Path = include_file.resolve()
 
     if not include_file.exists():
@@ -13,12 +13,12 @@ def gather_stage(project: str, include_file: Path):
     if not include_file.is_file():
         raise RuntimeError(f"[gather_stage] Include path is not a file: {include_file}")
 
-    docker_args = volatile.rclone_docker_volume_flags(project)
-    docker_args += volatile.storage_docker_mount_flags(project, "backups", "/backups")
+    docker_args = volatile.rclone_docker_volume_flags()
+    docker_args += volatile.storage_docker_mount_flags("backups", "/backups")
 
     docker_args += ["-v", f"{str(include_file)}:/filters/backup-include.txt:ro"]
     docker_args += volatile.storage_docker_mount_flags(
-        project, "rclone_config", "/config/rclone", read_only=True
+        "rclone_config", "/config/rclone", read_only=True
     )
 
     extra_args: list[str] = ["--include-from", "/filters/backup-include.txt"]

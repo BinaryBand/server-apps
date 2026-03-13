@@ -4,12 +4,12 @@ from src.managers.checkpoint import OperationCheckpoint
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.ansible import run_permissions_playbook
 from src.toolbox.core.runtime import (
-    PROJECT_NAME,
     checkpoints_root,
     locks_root,
     logs_root,
     media_root,
 )
+from src.toolbox.core.config import get_project_name
 
 from argparse import ArgumentParser, Namespace
 from typing import Literal
@@ -52,7 +52,7 @@ def main() -> None:
     if not args.keep_media:
         targets.append(media_root())
 
-    print(f"Project: {PROJECT_NAME}")
+    print(f"Project: {get_project_name()}")
     print("This will remove Docker runtime data and local state:")
     print(" - docker compose down --volumes --remove-orphans")
     print(" - project Docker volumes")
@@ -77,7 +77,9 @@ def main() -> None:
         subprocess.run(compose_down_cmd, check=False)
         checkpoint.mark_stage("compose-down", ok=True)
 
-        removed, failed = remove_project_volumes(PROJECT_NAME, dry_run=args.dry_run)
+        removed, failed = remove_project_volumes(
+            get_project_name(), dry_run=args.dry_run
+        )
         if args.dry_run:
             print(f"Project volumes that would be removed: {removed}, failed: {failed}")
         else:

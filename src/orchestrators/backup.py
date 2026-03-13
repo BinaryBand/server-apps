@@ -8,7 +8,6 @@ from src.toolbox.docker.wrappers.restic import (
 )
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.runtime import (
-    PROJECT_NAME,
     checkpoints_root,
     locks_root,
     repo_root,
@@ -16,7 +15,7 @@ from src.toolbox.core.runtime import (
 
 from pathlib import Path
 import sys
-import os
+from src.toolbox.core.config import runbook_resume_enabled
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(repo_root()))
@@ -27,7 +26,7 @@ DEFAULT_RESTIC_TARGET = "/backups"
 
 
 def main():
-    resume_enabled = os.getenv("RUNBOOK_RESUME", "0") in {"1", "true", "True", "yes"}
+    resume_enabled = runbook_resume_enabled()
 
     with RunbookLock("backup-restore-reset", locks_root()):
         checkpoint = OperationCheckpoint(
@@ -43,7 +42,7 @@ def main():
         else:
             try:
                 print("[stage:gather] Starting gather phase")
-                gather_stage(project=PROJECT_NAME, include_file=include_file)
+                gather_stage(include_file=include_file)
                 checkpoint.mark_stage("gather", ok=True)
             except RuntimeError as err:
                 checkpoint.mark_stage("gather", ok=False, message=str(err))

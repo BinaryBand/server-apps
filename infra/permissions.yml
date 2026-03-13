@@ -36,6 +36,12 @@ volumes:
     runtime_mode: "0777"
     recurse: true
 
+  - path: "{{ lookup('ansible.builtin.env', 'MINIO_DATA_DIR', default='./minio') }}"
+    owner: minio
+    group: minio
+    mode: "0750"
+    recurse: true
+
 reset_paths:
   - path: "{{ lookup('ansible.builtin.env', 'LOGS_DIR', default='./runtime/logs') }}"
   - path: "{{ lookup('ansible.builtin.env', 'MEDIA_DATA_PATH', default='./runtime/media') }}"

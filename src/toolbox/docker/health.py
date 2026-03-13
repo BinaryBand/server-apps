@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.toolbox.core.polling import ProbeResult, wait_until
-from src.toolbox.core.secrets import read_secret
+from src.toolbox.core.config import rclone_remote
 
 from collections.abc import Callable, Sequence
 from typing import TextIO
@@ -145,7 +145,7 @@ def wait_for_container_health(
 
 
 def run_runtime_health_checks() -> None:
-    remote = read_secret("RCLONE_REMOTE", "pcloud") or "pcloud"
+    remote = rclone_remote("pcloud")
 
     exec_checks: list[tuple[str, str, list[str], float, float]] = [
         (
@@ -201,9 +201,30 @@ def run_runtime_health_checks() -> None:
     )
 
 
+def probe_container_health(container: str) -> bool:
+    """Non-blocking single-shot probe. Returns True if running or healthy."""
+    result = subprocess.run(
+        [
+            "docker",
+            "inspect",
+            "-f",
+            "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}",
+            container,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False
+    status = result.stdout.strip()
+    return status in ("healthy", "running")
+
+
 __all__ = [
+    "probe_container_health",
+    "run_runtime_health_checks",
     "wait_for_command",
     "wait_for_container_exec",
     "wait_for_container_health",
-    "run_runtime_health_checks",
 ]

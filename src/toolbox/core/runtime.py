@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.toolbox.core.secrets import read_secret
+from src.toolbox.core.config import secret
 
 from from_root import from_root
 from pathlib import Path
@@ -14,7 +14,7 @@ def repo_root() -> Path:
 
 
 def _resolve_host_path(env_key: str, default_relative: str) -> Path:
-    value: str | None = read_secret(env_key)
+    value: str | None = secret(env_key)
     if value:
         return Path(value).expanduser().resolve()
     return (repo_root() / default_relative).resolve()
@@ -32,23 +32,16 @@ def runtime_root() -> Path:
     return (repo_root() / "runtime").resolve()
 
 
-def _resolve_runtime_dir(env_key: str, default_relative: str) -> Path:
-    value = read_secret(env_key)
-    if value:
-        return Path(value).expanduser().resolve()
-    return (repo_root() / default_relative).resolve()
-
-
 def state_root() -> Path:
-    return _resolve_runtime_dir("STATE_DIR", "runtime/state")
+    return _resolve_host_path("STATE_DIR", "runtime/state")
 
 
 def checkpoints_root() -> Path:
-    return _resolve_runtime_dir("CHECKPOINTS_DIR", "runtime/checkpoints")
+    return _resolve_host_path("CHECKPOINTS_DIR", "runtime/checkpoints")
 
 
 def locks_root() -> Path:
-    return _resolve_runtime_dir("LOCKS_DIR", "runtime/locks")
+    return _resolve_host_path("LOCKS_DIR", "runtime/locks")
 
 
 def ensure_runtime_dirs() -> None:

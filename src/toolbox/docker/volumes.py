@@ -8,11 +8,10 @@ from src.configuration.storage_manifest import (
     STORAGE_TARGETS,
     BIND_MOUNT_ENV,
 )
-from src.toolbox.core.secrets import read_secret
+import src.toolbox.core.config as config
 from src.toolbox.core.runtime import repo_root
 
 from pathlib import Path
-from typing import Optional
 import subprocess
 
 
@@ -24,15 +23,14 @@ def _resolve_volume_source(source: str) -> str:
     return external_alias_name_pairs().get(source, source)
 
 
-def _logical_source(logical_name: str) -> tuple[str, str]:
+def _logical_source(logical_name: str) -> str:
     if logical_name not in LOGICAL_VOLUME_NAMES:
         raise KeyError(f"Unknown logical volume: {logical_name}")
     if logical_name not in external_alias_name_pairs().values():
         raise RuntimeError(
             f"[volumes] Logical volume '{logical_name}' not found in compose external volumes"
         )
-    mount_type = "bind" if logical_name in BIND_MOUNT_ENV else "named"
-    return (mount_type, logical_name)
+    return logical_name
 
 
 def _storage_source(storage_key: str) -> str:
@@ -45,22 +43,12 @@ def _storage_source(storage_key: str) -> str:
     return source
 
 
-def external_volume_suffixes() -> list[str]:
-    """Return external docker volume names required by compose."""
-    return list(external_alias_name_pairs().values())
-
-
-def required_external_volume_names(project: str) -> list[str]:
+def required_external_volume_names() -> list[str]:
     """Return required external docker volume names.
 
     Names are canonical and defined directly in compose.
     """
-    return external_volume_suffixes()
-
-
-def docker_volume_name(project: str, logical_name: str) -> str:
-    """Return canonical docker volume name for a logical volume."""
-    return logical_name
+    return list(external_alias_name_pairs().values())
 
 
 def _list_docker_volumes(*args: str) -> list[str]:
@@ -118,14 +106,14 @@ def remove_project_volumes(project: str, *, dry_run: bool = False) -> tuple[int,
     return (removed, len(volumes) - removed)
 
 
-def host_bind_path(logical_name: str) -> Optional[Path]:
+def host_bind_path(logical_name: str) -> Path | None:
     """Return host bind path for logical volumes configured as bind mounts."""
     env_key = BIND_MOUNT_ENV.get(logical_name)
     if env_key is None:
         return None
 
-    raw_value = read_secret(env_key)
-    if not raw_value:
+    raw_value = config.bind_mount_value(env_key, "./minio")
+    if raw_value is None:
         raw_value = "./minio"
 
     path = Path(raw_value).expanduser()
@@ -134,48 +122,46 @@ def host_bind_path(logical_name: str) -> Optional[Path]:
     return path.resolve()
 
 
-def logical_volume_mount_source(project: str, logical_name: str) -> str:
+def logical_volume_mount_source(logical_name: str) -> str:
     """Return the host path or named volume source for a logical app volume."""
     override: Path | None = host_bind_path(logical_name)
     if override is not None:
         return str(override)
 
-    _mount_type, source = _logical_source(logical_name)
+    source: str = _logical_source(logical_name)
     return _resolve_volume_source(source)
 
 
-def storage_mount_source(project: str, storage_key: str) -> str:
+def storage_mount_source(storage_key: str) -> str:
     """Return the named docker volume backing the requested storage key."""
     source = _storage_source(storage_key)
     return _resolve_volume_source(source)
 
 
 def storage_docker_mount_flags(
-    project: str, storage_key: str, target_path: str, *, read_only: bool = False
+    storage_key: str, target_path: str, *, read_only: bool = False
 ) -> list[str]:
     """Return docker `-v` flags for a named storage volume."""
-    source = storage_mount_source(project, storage_key)
+    source = storage_mount_source(storage_key)
     mount = f"{source}:{target_path}"
     if read_only:
         mount += ":ro"
     return ["-v", mount]
 
 
-def rclone_docker_volume_flags(project: str) -> list[str]:
+def rclone_docker_volume_flags() -> list[str]:
     """Return docker run volume flags mounting all logical volumes read-only."""
     flags: list[str] = []
     for logical in logical_volume_names():
         dest = f"/data/volumes/{logical}"
-        source: str = logical_volume_mount_source(project, logical)
+        source: str = logical_volume_mount_source(logical)
         flags += ["-v", f"{source}:{dest}:ro"]
     return flags
 
 
 __all__ = [
     "logical_volume_names",
-    "external_volume_suffixes",
     "required_external_volume_names",
-    "docker_volume_name",
     "list_project_volumes",
     "remove_project_volumes",
     "host_bind_path",

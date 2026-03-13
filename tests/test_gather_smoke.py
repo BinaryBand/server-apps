@@ -8,7 +8,7 @@ if __package__ in {None, ""}:
 
 from src.toolbox.backups.gather import gather_stage
 from src.toolbox.docker.volumes import logical_volume_names
-from src.toolbox.core.runtime import PROJECT_NAME, repo_root
+from src.toolbox.core.runtime import repo_root
 
 from unittest import TestCase, main
 from unittest.mock import patch
@@ -186,12 +186,14 @@ class GatherSmokeTest(TestCase):
                     docker_args or [], f"/data/{root}"
                 )
 
-        with patch("src.toolbox.backups.gather.rclone_sync", side_effect=fake_rclone_sync):
+        with patch(
+            "src.toolbox.backups.gather.rclone_sync", side_effect=fake_rclone_sync
+        ):
             with patch(
                 "src.toolbox.backups.gather.volatile.rclone_docker_volume_flags",
                 return_value=patched_flags,
             ):
-                gather_stage(PROJECT_NAME, self.include_file)
+                gather_stage(self.include_file)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from src.configuration.compose_config import ComposeConfigModel
-from src.toolbox.core.runtime import PROJECT_NAME, repo_root
+from src.toolbox.core.runtime import repo_root
+from src.toolbox.core.config import get_project_name
 
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 import subprocess
@@ -20,7 +20,12 @@ def _compose_file_args() -> list[str]:
     root: Path = repo_root()
     env: str = dotenv.find_dotenv()
 
-    cmd: list[str] = ["--project-name", PROJECT_NAME, "--project-directory", str(root)]
+    cmd: list[str] = [
+        "--project-name",
+        get_project_name(),
+        "--project-directory",
+        str(root),
+    ]
 
     if env:
         cmd += ["--env-file", env]
@@ -31,7 +36,6 @@ def _compose_file_args() -> list[str]:
     return cmd
 
 
-@lru_cache(maxsize=1)
 def rendered_compose_config() -> dict[str, Any]:
     cmd: list[str] = [
         *DOCKER_COMPOSE_CMD,
@@ -47,7 +51,7 @@ def rendered_compose_config() -> dict[str, Any]:
 
     try:
         data = yaml.safe_load(proc.stdout)
-    except Exception as err:
+    except yaml.YAMLError as err:
         raise RuntimeError(
             f"[compose_storage] Failed to parse rendered compose YAML: {err}"
         ) from err

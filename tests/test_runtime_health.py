@@ -58,7 +58,7 @@ class WaitUntilTest(TestCase):
 class RuntimeHealthChecksTest(TestCase):
     def test_runtime_health_checks_use_expected_sequence(self) -> None:
         with (
-            patch("src.toolbox.docker.health.read_secret", return_value="pcloud"),
+            patch("src.toolbox.core.config.rclone_remote", return_value="pcloud"),
             patch("src.toolbox.docker.health.wait_for_container_exec") as wait_exec,
             patch("src.toolbox.docker.health.wait_for_container_health") as wait_health,
         ):

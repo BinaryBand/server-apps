@@ -9,8 +9,8 @@
 ## [Architectural Checklist](https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/architectural-principles)
 
 - [ ] Design for **idempotency** and handle transient failures gracefully.
-- [ ] **Observe** the every part of the system's state space closely.
-- [ ] Single Responsibility
+- [ ] Observable
+- [ ] Single Responsibility Principle
 - [ ] Separation of Concerns
 - [ ] Explicit Dependencies
 - [ ] Encapsulation

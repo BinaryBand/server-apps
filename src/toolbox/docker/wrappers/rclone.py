@@ -1,8 +1,7 @@
 from src.toolbox.core.runtime import media_root
-from src.toolbox.core.secrets import read_secret
+from src.toolbox.core.config import rclone_version
 
 from subprocess import CalledProcessError, CompletedProcess
-from functools import cache
 from typing import Iterable
 from pathlib import Path
 
@@ -12,9 +11,8 @@ import errno
 import os
 
 
-@cache
 def _rclone_image() -> str:
-    version: str = read_secret("RCLONE_VERSION", "latest")
+    version: str = rclone_version("latest")
     return f"rclone/rclone:{version}"
 
 
@@ -116,7 +114,9 @@ def rclone_sync(
         subprocess.run(cmd, check=True)
     except CalledProcessError as err:
         return_code = err.returncode
-        raise RuntimeError(f"rclone sync failed with {return_code}: {' '.join(cmd)}")
+        raise RuntimeError(
+            f"rclone sync failed with {return_code}: {' '.join(cmd)}"
+        ) from err
 
 
 def cleanup_media_mount() -> None:

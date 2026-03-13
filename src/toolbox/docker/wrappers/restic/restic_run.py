@@ -2,22 +2,17 @@ from __future__ import annotations
 
 from src.toolbox.docker.compose import compose_cmd
 from src.toolbox.docker.volumes import storage_mount_source
-from src.toolbox.core.runtime import PROJECT_NAME
-from src.toolbox.core.secrets import read_secret
+from src.toolbox.core.config import restic_pcloud_remote, restic_version
 
-from functools import cache
 import subprocess
 
 
 PROFILE = "on-demand"
-RESTIC_PCLOUD_REMOTE: str = str(
-    read_secret("RESTIC_PCLOUD_REMOTE", "pcloud:Backups/Restic")
-)
+RESTIC_PCLOUD_REMOTE: str = restic_pcloud_remote()
 
 
-@cache
 def _restic_image() -> str:
-    version: str = read_secret("RESTIC_VERSION", "latest")
+    version: str = restic_version("latest")
     return f"restic/restic:{version}"
 
 
@@ -32,7 +27,7 @@ def _restic_compose_run_command(cmd_args: list[str]) -> list[str]:
 
 def _ensure_restic_repo_volume_exists() -> None:
     """Create the external restic repository volume when it is missing."""
-    source: str = storage_mount_source(PROJECT_NAME, "restic_repo")
+    source: str = storage_mount_source("restic_repo")
 
     probe: subprocess.CompletedProcess[bytes] = subprocess.run(
         ["docker", "volume", "inspect", source],

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from src.toolbox.docker.volumes import required_external_volume_names
-from src.toolbox.core.runtime import PROJECT_NAME, repo_root
+from src.toolbox.docker.compose_storage import rendered_compose_config
+from src.toolbox.core.runtime import repo_root
+from src.toolbox.core.config import get_project_name
 
 from pathlib import Path
 import subprocess
@@ -17,14 +19,15 @@ def _compose_file_args() -> list[str]:
     root: Path = repo_root()
     env: str = dotenv.find_dotenv()
 
-    cmd = [
+    cmd: list[str] = [
         "--project-name",
-        PROJECT_NAME,
+        get_project_name(),
         "--project-directory",
         str(root),
-        "--env-file",
-        env,
     ]
+
+    if env:
+        cmd += ["--env-file", env]
 
     for file in COMPOSE_FILES:
         file_path = str(root / file)
@@ -49,16 +52,36 @@ def ensure_external_volumes() -> None:
 
 def missing_external_volumes() -> list[str]:
     missing: list[str] = []
-    for volume_name in required_external_volume_names(PROJECT_NAME):
-        probe = subprocess.run(
-            ["docker", "volume", "inspect", volume_name],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        if probe.returncode != 0:
+    for volume_name in required_external_volume_names():
+        if not probe_external_volume(volume_name):
             missing.append(volume_name)
     return missing
 
 
-__all__ = ["compose_cmd", "ensure_external_volumes", "missing_external_volumes"]
+def probe_external_volume(name: str) -> bool:
+    result = subprocess.run(
+        ["docker", "volume", "inspect", name],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return result.returncode == 0
+
+
+def stop_compose_stack() -> None:
+    subprocess.run(compose_cmd("down"), check=True)
+
+
+def compose_service_names() -> list[str]:
+    config = rendered_compose_config()
+    return list(config.get("services", {}).keys())
+
+
+__all__ = [
+    "compose_cmd",
+    "compose_service_names",
+    "ensure_external_volumes",
+    "missing_external_volumes",
+    "probe_external_volume",
+    "stop_compose_stack",
+]

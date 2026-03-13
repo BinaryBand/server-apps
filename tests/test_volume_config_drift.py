@@ -129,7 +129,7 @@ class VolumeConfigDriftTest(TestCase):
         for compose_file in compose_files:
             compose_external_names |= _collect_external_volume_names(compose_file)
 
-        python_external_names = set(required_external_volume_names(PROJECT_NAME))
+        python_external_names = set(required_external_volume_names())
         self.assertEqual(python_external_names, compose_external_names)
 
     def test_runtime_project_name_matches_rendered_compose(self) -> None:

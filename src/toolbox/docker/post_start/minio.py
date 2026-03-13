@@ -1,31 +1,13 @@
 from __future__ import annotations
 
 from src.toolbox.docker.health import wait_for_container_health
-from src.toolbox.core.secrets import read_secret
-
 import subprocess
 
 
-def _require_secret(name: str, fallback_name: str | None = None) -> str:
-    value = read_secret(name)
-    if not value and fallback_name is not None:
-        value = read_secret(fallback_name)
-
-    if not value:
-        if fallback_name is not None:
-            raise RuntimeError(f"missing required secret: {name} (or {fallback_name})")
-        raise RuntimeError(f"missing required secret: {name}")
-
-    return value
-
-
 def wait_for_minio_ready() -> None:
-    try:
-        wait_for_container_health(
-            "Wait for MinIO", container="minio", timeout_seconds=60, interval_seconds=2
-        )
-    except RuntimeError as err:
-        raise RuntimeError(str(err)) from err
+    wait_for_container_health(
+        "Wait for MinIO", container="minio", timeout_seconds=60, interval_seconds=2
+    )
 
 
 def _minio_alias_set_command(user: str, password: str) -> list[str]:
@@ -68,10 +50,12 @@ def _minio_set_anonymous_download_command() -> list[str]:
     ]
 
 
-def ensure_minio_media_bucket() -> None:
-    minio_user: str = _require_secret("MINIO_ROOT_USER", "S3_ACCESS_KEY")
-    minio_password: str = _require_secret("MINIO_ROOT_PASSWORD", "S3_SECRET_KEY")
+def ensure_minio_media_bucket(minio_user: str, minio_password: str) -> None:
+    """Ensure a media bucket exists in MinIO using provided credentials.
 
+    Credentials MUST be supplied by the caller to keep secret handling at a
+    higher level of the application.
+    """
     try:
         subprocess.run(_minio_alias_set_command(minio_user, minio_password), check=True)
 

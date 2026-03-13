@@ -17,7 +17,7 @@ class VolumesComposeResolutionTest(TestCase):
                 "rclone_config_data": "rclone_config",
             },
         ):
-            names = volumes.required_external_volume_names("cloud-apps")
+            names = volumes.required_external_volume_names()
 
         self.assertNotIn("minio_data", names)
         self.assertIn("jellyfin_config", names)
@@ -29,7 +29,7 @@ class VolumesComposeResolutionTest(TestCase):
                 "src.toolbox.docker.volumes._logical_source",
                 return_value=("bind", "ignored"),
             ),
-            patch("src.toolbox.docker.volumes.read_secret", return_value=None),
+            patch("src.toolbox.core.config.bind_mount_value", return_value=None),
         ):
             path = volumes.host_bind_path("minio_data")
 
@@ -43,7 +43,8 @@ class VolumesComposeResolutionTest(TestCase):
                 return_value=("bind", "ignored"),
             ),
             patch(
-                "src.toolbox.docker.volumes.read_secret", return_value="./runtime/minio"
+                "src.toolbox.core.config.bind_mount_value",
+                return_value="./runtime/minio",
             ),
         ):
             path = volumes.host_bind_path("minio_data")
@@ -61,7 +62,7 @@ class VolumesComposeResolutionTest(TestCase):
                 return_value="rclone_config",
             ),
         ):
-            source = volumes.storage_mount_source("test", "rclone_config")
+            source = volumes.storage_mount_source("rclone_config")
 
         self.assertEqual(source, "rclone_config")
 

@@ -2,9 +2,9 @@ from src.toolbox.backups.restore import recent_snapshots, restore_snapshot
 from src.managers.checkpoint import OperationCheckpoint
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.runtime import checkpoints_root, locks_root, repo_root
+from src.toolbox.core.config import runbook_resume_enabled
 
 from argparse import ArgumentParser, Namespace
-import os
 import sys
 
 
@@ -22,7 +22,7 @@ def main():
     parser.add_argument("--list-snapshots", action="store_true")
     parser.add_argument("--no-apply-volumes", action="store_true")
     args: Namespace = parser.parse_args()
-    resume_enabled = os.getenv("RUNBOOK_RESUME", "0") in {"1", "true", "True", "yes"}
+    resume_enabled = runbook_resume_enabled()
 
     if args.list_snapshots:
         print("[stage:list] Listing recent snapshots")

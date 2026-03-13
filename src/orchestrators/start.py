@@ -12,16 +12,11 @@ from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.ansible import run_permissions_playbook
 from src.toolbox.core.runtime import checkpoints_root, locks_root
 
-import os
+from src.toolbox.core.config import runbook_resume_enabled
 
 
 def main():
-    resume_enabled: bool = os.getenv("RUNBOOK_RESUME", "0") in {
-        "1",
-        "true",
-        "True",
-        "yes",
-    }
+    resume_enabled: bool = runbook_resume_enabled()
 
     with RunbookLock("start-stop", locks_root()):
         checkpoint = OperationCheckpoint(
@@ -37,7 +32,7 @@ def main():
             print("[stage:volumes] Ensuring external volumes exist")
             try:
                 ensure_external_volumes()
-            except Exception as err:
+            except RuntimeError as err:
                 checkpoint.mark_stage("volumes", ok=False, message=str(err))
                 checkpoint.finish(observed="Degraded", ok=False)
                 raise SystemExit(f"[stage:volumes] {err}") from err
@@ -49,7 +44,7 @@ def main():
             print("[stage:permissions] Reconciling runtime permissions")
             try:
                 run_permissions_playbook(mode="runtime")
-            except Exception as err:
+            except RuntimeError as err:
                 checkpoint.mark_stage("permissions", ok=False, message=str(err))
                 checkpoint.finish(observed="Degraded", ok=False)
                 raise SystemExit(f"[stage:permissions] {err}") from err

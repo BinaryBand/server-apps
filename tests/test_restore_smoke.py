@@ -162,9 +162,11 @@ class RestoreSmokeTest(TestCase):
             ),
             patch(
                 "src.toolbox.backups.restore.logical_volume_mount_source",
-                side_effect=lambda project, logical: f"{self.test_project}_{logical}",
+                side_effect=lambda logical: f"{self.test_project}_{logical}",
             ),
-            patch("src.toolbox.backups.restore.rclone_sync", side_effect=fake_rclone_sync),
+            patch(
+                "src.toolbox.backups.restore.rclone_sync", side_effect=fake_rclone_sync
+            ),
         ):
             restore_snapshot(target=RESTORE_TARGET)
 

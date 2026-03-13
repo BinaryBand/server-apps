@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 from src.configuration.state_model import ConditionStatus, StageCondition, WorkflowState
-from src.toolbox.docker.compose import ensure_external_volumes, missing_external_volumes
-from src.toolbox.docker.health import run_runtime_health_checks
+from src.toolbox.docker.compose import (
+    compose_service_names,
+    ensure_external_volumes,
+    probe_external_volume,
+)
+from src.toolbox.docker.health import probe_container_health, run_runtime_health_checks
 from src.toolbox.docker.post_start import run_runtime_post_start
+from src.toolbox.docker.volumes import required_external_volume_names
 from src.toolbox.core.ansible import run_permissions_playbook
 from src.toolbox.core.runtime import state_root
 from src.toolbox.io.state_io import read_json_file, write_json_file_atomic
 
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any
 from pathlib import Path
 from uuid import uuid4
 
@@ -73,25 +78,32 @@ def reconcile_once(*, check_only: bool = False) -> WorkflowState:
 
     try:
         if check_only:
-            missing: list[str] = missing_external_volumes()
-            if missing:
-                message: str = "Missing external volumes: " + ", ".join(sorted(missing))
-                _upsert_condition(state, "VolumesReady", "false", message)
-                state.observed: str = "Degraded"
-                state.runStatus: Literal["completed", "failed"] = "failed"
-                _persist_state(state)
-                return state
+            any_degraded = False
 
-            run_runtime_health_checks()
-            _upsert_condition(state, "VolumesReady", "true")
-            _upsert_condition(state, "RuntimeHealth", "true", "all checks passed")
-            state.observed = "Healthy"
-            state.runStatus = "completed"
+            for volume_name in required_external_volume_names():
+                exists = probe_external_volume(volume_name)
+                _upsert_condition(
+                    state, f"volume:{volume_name}", "true" if exists else "false"
+                )
+                if not exists:
+                    any_degraded = True
+
+            for service_name in compose_service_names():
+                healthy = probe_container_health(service_name)
+                _upsert_condition(
+                    state, f"service:{service_name}", "true" if healthy else "false"
+                )
+                if not healthy:
+                    any_degraded = True
+
+            state.observed = "Degraded" if any_degraded else "Healthy"
+            state.runStatus = "failed" if any_degraded else "completed"
             _persist_state(state)
             return state
 
         ensure_external_volumes()
-        _upsert_condition(state, "VolumesReady", "true")
+        for volume_name in required_external_volume_names():
+            _upsert_condition(state, f"volume:{volume_name}", "true")
 
         run_permissions_playbook(mode="runtime")
         _upsert_condition(state, "PermissionsApplied", "true")
@@ -100,7 +112,8 @@ def reconcile_once(*, check_only: bool = False) -> WorkflowState:
         _upsert_condition(state, "PostStartApplied", "true")
 
         run_runtime_health_checks()
-        _upsert_condition(state, "RuntimeHealth", "true", "all runtime checks passed")
+        for service_name in compose_service_names():
+            _upsert_condition(state, f"service:{service_name}", "true")
 
         state.observed = "Healthy"
         state.runStatus = "completed"
