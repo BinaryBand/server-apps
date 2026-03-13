@@ -151,6 +151,70 @@
     state: present
   when: permissions_mode_selected == 'runtime'
 
+- name: Ensure MinIO media bucket is public
+  block:
+    - name: Configure mc alias for MinIO
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - minio
+          - mc
+          - alias
+          - set
+          - myminio
+          - "http://127.0.0.1:9000"
+          - "{{ rclone_env.MINIO_ROOT_USER }}"
+          - "{{ rclone_env.MINIO_ROOT_PASSWORD }}"
+      register: minio_alias
+      retries: 6
+      delay: 5
+      until: minio_alias.rc == 0
+
+    - name: Check whether myminio/media exists
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - minio
+          - mc
+          - stat
+          - myminio/media
+      register: minio_media_stat
+      failed_when: false
+      changed_when: false
+
+    - name: Create myminio/media bucket if missing
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - minio
+          - mc
+          - mb
+          - myminio/media
+      when: minio_media_stat.rc != 0
+
+    - name: Ensure anonymous download policy on myminio/media
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - minio
+          - mc
+          - anonymous
+          - set
+          - download
+          - myminio/media
+      register: minio_anon
+      retries: 3
+      delay: 2
+      until: minio_anon.rc == 0
+  when:
+    - permissions_mode_selected == 'runtime'
+    - rclone_env.MINIO_ROOT_USER | length > 0
+    - rclone_env.MINIO_ROOT_PASSWORD | length > 0
+
 - name: Define named volume ownership rules
   ansible.builtin.set_fact:
     named_volume_ownership_rules:

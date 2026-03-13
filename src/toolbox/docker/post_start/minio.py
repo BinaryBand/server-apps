@@ -37,6 +37,17 @@ def _minio_get_anonymous_command() -> list[str]:
     return ["docker", "exec", "minio", "mc", "anonymous", "get", "myminio/media"]
 
 
+def probe_minio_media_public() -> bool:
+    """Return True if the myminio/media bucket has anonymous download access."""
+    result = subprocess.run(
+        _minio_get_anonymous_command(),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0 and "download" in result.stdout.lower()
+
+
 def _minio_set_anonymous_download_command() -> list[str]:
     return [
         "docker",
@@ -65,15 +76,10 @@ def ensure_minio_media_bucket(minio_user: str, minio_password: str) -> None:
         if stat_result.returncode != 0:
             subprocess.run(_minio_create_media_command(), check=True)
 
-        anonymous_result: subprocess.CompletedProcess[str] = subprocess.run(
-            _minio_get_anonymous_command(),
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-
-        if "download" not in anonymous_result.stdout.lower():
-            subprocess.run(_minio_set_anonymous_download_command(), check=True)
+        # Always (re)apply the anonymous download policy so the media bucket is
+        # publicly readable. Reapplying is idempotent and avoids brittle
+        # parsing of `mc anonymous get` output.
+        subprocess.run(_minio_set_anonymous_download_command(), check=True)
     except subprocess.CalledProcessError as err:
         raise RuntimeError("failed to ensure MinIO media bucket") from err
 
@@ -81,4 +87,5 @@ def ensure_minio_media_bucket(minio_user: str, minio_password: str) -> None:
 __all__ = [
     "wait_for_minio_ready",
     "ensure_minio_media_bucket",
+    "probe_minio_media_public",
 ]

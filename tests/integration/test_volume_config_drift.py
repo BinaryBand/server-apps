@@ -8,7 +8,7 @@ from src.toolbox.docker.volumes import required_external_volume_names
 from src.toolbox.core.runtime import PROJECT_NAME, repo_root
 
 from pathlib import Path
-from unittest import TestCase, main
+import pytest
 
 
 def _collect_external_volume_names(compose_path: Path) -> set[str]:
@@ -120,32 +120,30 @@ def _collect_external_alias_name_pairs(compose_path: Path) -> dict[str, str]:
     return alias_to_name
 
 
-class VolumeConfigDriftTest(TestCase):
-    def test_python_external_volume_list_matches_compose_external_names(self) -> None:
-        root = repo_root()
-        compose_files = [root / "compose" / "base.yml", root / "compose" / "dev.yml"]
+def test_python_external_volume_list_matches_compose_external_names() -> None:
+    root = repo_root()
+    compose_files = [root / "compose" / "base.yml", root / "compose" / "dev.yml"]
 
-        compose_external_names: set[str] = set()
-        for compose_file in compose_files:
-            compose_external_names |= _collect_external_volume_names(compose_file)
+    compose_external_names: set[str] = set()
+    for compose_file in compose_files:
+        compose_external_names |= _collect_external_volume_names(compose_file)
 
-        python_external_names = set(required_external_volume_names())
-        self.assertEqual(python_external_names, compose_external_names)
-
-    def test_runtime_project_name_matches_rendered_compose(self) -> None:
-        rendered_name = rendered_compose_config().get("name")
-        self.assertEqual(rendered_name, PROJECT_NAME)
-
-    def test_compose_external_aliases_match_rendered_reader(self) -> None:
-        root = repo_root()
-        compose_files = [root / "compose" / "base.yml", root / "compose" / "dev.yml"]
-
-        compose_pairs: dict[str, str] = {}
-        for compose_file in compose_files:
-            compose_pairs.update(_collect_external_alias_name_pairs(compose_file))
-
-        self.assertEqual(compose_pairs, external_alias_name_pairs())
+    python_external_names = set(required_external_volume_names())
+    assert python_external_names == compose_external_names
 
 
-if __name__ == "__main__":
-    main()
+def test_runtime_project_name_matches_rendered_compose() -> None:
+    rendered_name = rendered_compose_config().get("name")
+    assert rendered_name == PROJECT_NAME
+
+
+def test_compose_external_aliases_match_rendered_reader() -> None:
+    root = repo_root()
+    compose_files = [root / "compose" / "base.yml", root / "compose" / "dev.yml"]
+
+    compose_pairs: dict[str, str] = {}
+    for compose_file in compose_files:
+        compose_pairs.update(_collect_external_alias_name_pairs(compose_file))
+
+    assert compose_pairs == external_alias_name_pairs()
+

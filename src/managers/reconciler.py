@@ -8,6 +8,7 @@ from src.toolbox.docker.compose import (
 )
 from src.toolbox.docker.health import probe_container_health, run_runtime_health_checks
 from src.toolbox.docker.post_start import run_runtime_post_start
+from src.toolbox.docker.post_start.minio import probe_minio_media_public
 from src.toolbox.docker.volumes import required_external_volume_names
 from src.toolbox.core.ansible import run_permissions_playbook
 from src.toolbox.core.runtime import state_root
@@ -96,6 +97,11 @@ def reconcile_once(*, check_only: bool = False) -> WorkflowState:
                 if not healthy:
                     any_degraded = True
 
+            media_public = probe_minio_media_public()
+            _upsert_condition(state, "minio:media-public", "true" if media_public else "false")
+            if not media_public:
+                any_degraded = True
+
             state.observed = "Degraded" if any_degraded else "Healthy"
             state.runStatus = "failed" if any_degraded else "completed"
             _persist_state(state)
@@ -110,6 +116,7 @@ def reconcile_once(*, check_only: bool = False) -> WorkflowState:
 
         run_runtime_post_start()
         _upsert_condition(state, "PostStartApplied", "true")
+        _upsert_condition(state, "minio:media-public", "true")
 
         run_runtime_health_checks()
         for service_name in compose_service_names():
