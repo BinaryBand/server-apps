@@ -98,7 +98,9 @@ def reconcile_once(*, check_only: bool = False) -> WorkflowState:
                     any_degraded = True
 
             media_public = probe_minio_media_public()
-            _upsert_condition(state, "minio:media-public", "true" if media_public else "false")
+            _upsert_condition(
+                state, "minio:media-public", "true" if media_public else "false"
+            )
             if not media_public:
                 any_degraded = True
 

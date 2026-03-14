@@ -32,4 +32,3 @@ def test_run_runtime_post_start_executes_in_order() -> None:
         run_runtime_post_start()
 
     assert events == ["restart", "wait", "bucket"]
-

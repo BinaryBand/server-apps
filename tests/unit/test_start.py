@@ -12,6 +12,7 @@ def test_main_runs_health_checks_after_permissions_reconcile() -> None:
         def _inner(*args, **kwargs):
             events.append(event)
             return None
+
         return _inner
 
     with (

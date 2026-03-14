@@ -23,7 +23,6 @@ def assert_helpers():
     return asserts
 
 
-
 @pytest.fixture
 def state_root_tmp(monkeypatch, tmp_path: Path) -> Path:
     """Provide a temporary state root and patch the reconciler to use it.

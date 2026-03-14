@@ -24,41 +24,63 @@ def restore_env(repo_root, docker_available):
     if not docker_available:
         pytest.skip("docker is required for restore smoke tests")
 
-    probe = subprocess.run([
-        "docker",
-        "info",
-    ], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    probe = subprocess.run(
+        [
+            "docker",
+            "info",
+        ],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
     if probe.returncode != 0:
         pytest.skip("docker daemon is not available")
 
     logical_names = _logical_volume_names()
     test_project = f"smoke-restore-{uuid.uuid4().hex[:8]}"
     backups_volume = f"{test_project}-backups-source"
-    target_volumes = [f"{test_project}_{logical_name}" for logical_name in logical_names]
+    target_volumes = [
+        f"{test_project}_{logical_name}" for logical_name in logical_names
+    ]
 
-    subprocess.run(["docker", "volume", "create", backups_volume], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(
+        ["docker", "volume", "create", backups_volume],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
     for v in target_volumes:
-        subprocess.run(["docker", "volume", "create", v], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["docker", "volume", "create", v],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
     # populate backups volume
     script_lines = ["set -eu"]
     for logical_name in logical_names:
-        script_lines.extend([
-            f"mkdir -p /backups/restore/volumes/{logical_name}",
-            f"printf '%s\n' smoke > /backups/restore/volumes/{logical_name}/.smoke",
-        ])
+        script_lines.extend(
+            [
+                f"mkdir -p /backups/restore/volumes/{logical_name}",
+                f"printf '%s\n' smoke > /backups/restore/volumes/{logical_name}/.smoke",
+            ]
+        )
 
-    subprocess.run([
-        "docker",
-        "run",
-        "--rm",
-        "-v",
-        f"{backups_volume}:/backups",
-        "alpine:3.20",
-        "sh",
-        "-lc",
-        " && ".join(script_lines),
-    ], check=True)
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{backups_volume}:/backups",
+            "alpine:3.20",
+            "sh",
+            "-lc",
+            " && ".join(script_lines),
+        ],
+        check=True,
+    )
 
     yield {
         "test_project": test_project,
@@ -68,10 +90,17 @@ def restore_env(repo_root, docker_available):
     }
 
     for volume_name in [backups_volume, *target_volumes]:
-        subprocess.run(["docker", "volume", "rm", "-f", volume_name], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["docker", "volume", "rm", "-f", volume_name],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
 
-def _assert_restore_source_and_target(docker_args: list[str], source_path: str, logical_name: str) -> None:
+def _assert_restore_source_and_target(
+    docker_args: list[str], source_path: str, logical_name: str
+) -> None:
     try:
         probe = subprocess.run(
             [
@@ -107,7 +136,13 @@ def test_restore_applies_all_staged_logical_volumes(restore_env, monkeypatch) ->
     env = restore_env
     seen_logical_names: set[str] = set()
 
-    def fake_rclone_sync(source: str, destination: str, *, docker_args: list[str] | None = None, extra_args: list[str] | None = None) -> None:
+    def fake_rclone_sync(
+        source: str,
+        destination: str,
+        *,
+        docker_args: list[str] | None = None,
+        extra_args: list[str] | None = None,
+    ) -> None:
         assert destination == "/dest"
         assert docker_args is not None
         assert extra_args is None
@@ -117,13 +152,23 @@ def test_restore_applies_all_staged_logical_volumes(restore_env, monkeypatch) ->
         seen_logical_names.add(logical_name)
         _assert_restore_source_and_target(docker_args or [], source, logical_name)
 
-    pull_repo = monkeypatch.setattr("src.toolbox.backups.restore.pull_restic_from_cloud", lambda: None)
-    run_restic = monkeypatch.setattr("src.toolbox.backups.restore.restic.run_restic_command", lambda args: None)
-    monkeypatch.setattr("src.toolbox.backups.restore.storage_mount_source", lambda *a, **k: env["backups_volume"])
-    monkeypatch.setattr("src.toolbox.backups.restore.logical_volume_mount_source", lambda logical: f"{env['test_project']}_{logical}")
+    pull_repo = monkeypatch.setattr(
+        "src.toolbox.backups.restore.pull_restic_from_cloud", lambda: None
+    )
+    run_restic = monkeypatch.setattr(
+        "src.toolbox.backups.restore.restic.run_restic_command", lambda args: None
+    )
+    monkeypatch.setattr(
+        "src.toolbox.backups.restore.storage_mount_source",
+        lambda *a, **k: env["backups_volume"],
+    )
+    monkeypatch.setattr(
+        "src.toolbox.backups.restore.logical_volume_mount_source",
+        lambda logical: f"{env['test_project']}_{logical}",
+    )
     monkeypatch.setattr("src.toolbox.backups.restore.rclone_sync", fake_rclone_sync)
 
     restore_snapshot(target=RESTORE_TARGET)
 
     # simple assertions that the fake restic and pull were invoked by code paths; we used lambdas so just assert seen logical names
-    assert seen_logical_names == set(env["logical_names"]) 
+    assert seen_logical_names == set(env["logical_names"])

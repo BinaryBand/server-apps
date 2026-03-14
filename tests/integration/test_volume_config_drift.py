@@ -146,4 +146,3 @@ def test_compose_external_aliases_match_rendered_reader() -> None:
         compose_pairs.update(_collect_external_alias_name_pairs(compose_file))
 
     assert compose_pairs == external_alias_name_pairs()
-

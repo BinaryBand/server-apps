@@ -99,4 +99,3 @@ def test_runtime_health_checks_use_expected_sequence() -> None:
         timeout_seconds=60,
         interval_seconds=5,
     )
-

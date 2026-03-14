@@ -7,7 +7,9 @@ import pytest
 from src.managers.reconciler import reconcile_once
 
 
-def test_check_only_reports_degraded_when_volume_drift_exists(state_root_tmp, monkeypatch) -> None:
+def test_check_only_reports_degraded_when_volume_drift_exists(
+    state_root_tmp, monkeypatch
+) -> None:
     monkeypatch.setattr(
         "src.managers.reconciler.required_external_volume_names",
         lambda: ["rclone_config"],
@@ -16,7 +18,9 @@ def test_check_only_reports_degraded_when_volume_drift_exists(state_root_tmp, mo
         "src.managers.reconciler.probe_external_volume", lambda name: False
     )
     monkeypatch.setattr("src.managers.reconciler.compose_service_names", lambda: [])
-    monkeypatch.setattr("src.managers.reconciler.probe_minio_media_public", lambda: True)
+    monkeypatch.setattr(
+        "src.managers.reconciler.probe_minio_media_public", lambda: True
+    )
 
     state = reconcile_once(check_only=True)
 
@@ -26,7 +30,9 @@ def test_check_only_reports_degraded_when_volume_drift_exists(state_root_tmp, mo
     assert condition.status == "false"
 
 
-def test_check_only_reports_healthy_when_checks_pass(state_root_tmp, monkeypatch) -> None:
+def test_check_only_reports_healthy_when_checks_pass(
+    state_root_tmp, monkeypatch
+) -> None:
     monkeypatch.setattr(
         "src.managers.reconciler.required_external_volume_names", lambda: []
     )
@@ -40,10 +46,10 @@ def test_check_only_reports_healthy_when_checks_pass(state_root_tmp, monkeypatch
         calls.append(name)
         return True
 
+    monkeypatch.setattr("src.managers.reconciler.probe_container_health", fake_probe)
     monkeypatch.setattr(
-        "src.managers.reconciler.probe_container_health", fake_probe
+        "src.managers.reconciler.probe_minio_media_public", lambda: True
     )
-    monkeypatch.setattr("src.managers.reconciler.probe_minio_media_public", lambda: True)
 
     state = reconcile_once(check_only=True)
 
@@ -54,10 +60,16 @@ def test_check_only_reports_healthy_when_checks_pass(state_root_tmp, monkeypatch
     assert condition.status == "true"
 
 
-def test_check_only_reports_degraded_when_media_bucket_not_public(state_root_tmp, monkeypatch) -> None:
-    monkeypatch.setattr("src.managers.reconciler.required_external_volume_names", lambda: [])
+def test_check_only_reports_degraded_when_media_bucket_not_public(
+    state_root_tmp, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        "src.managers.reconciler.required_external_volume_names", lambda: []
+    )
     monkeypatch.setattr("src.managers.reconciler.compose_service_names", lambda: [])
-    monkeypatch.setattr("src.managers.reconciler.probe_minio_media_public", lambda: False)
+    monkeypatch.setattr(
+        "src.managers.reconciler.probe_minio_media_public", lambda: False
+    )
 
     state = reconcile_once(check_only=True)
 
@@ -67,10 +79,16 @@ def test_check_only_reports_degraded_when_media_bucket_not_public(state_root_tmp
     assert condition.status == "false"
 
 
-def test_check_only_records_media_public_condition_when_healthy(state_root_tmp, monkeypatch) -> None:
-    monkeypatch.setattr("src.managers.reconciler.required_external_volume_names", lambda: [])
+def test_check_only_records_media_public_condition_when_healthy(
+    state_root_tmp, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        "src.managers.reconciler.required_external_volume_names", lambda: []
+    )
     monkeypatch.setattr("src.managers.reconciler.compose_service_names", lambda: [])
-    monkeypatch.setattr("src.managers.reconciler.probe_minio_media_public", lambda: True)
+    monkeypatch.setattr(
+        "src.managers.reconciler.probe_minio_media_public", lambda: True
+    )
 
     state = reconcile_once(check_only=True)
 

@@ -43,10 +43,15 @@ def gather_env(repo_root, docker_available):
     if not docker_available:
         pytest.skip("docker is required for gather smoke tests")
 
-    probe = subprocess.run([
-        "docker",
-        "info",
-    ], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    probe = subprocess.run(
+        [
+            "docker",
+            "info",
+        ],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
     if probe.returncode != 0:
         pytest.skip("docker daemon is not available")
 
@@ -102,7 +107,9 @@ def gather_env(repo_root, docker_available):
         )
 
 
-def _assert_container_path_has_content(docker_args: list[str], container_path: str) -> None:
+def _assert_container_path_has_content(
+    docker_args: list[str], container_path: str
+) -> None:
     try:
         probe = subprocess.run(
             [
@@ -177,7 +184,8 @@ def test_gather_mounts_populated_stage_roots(gather_env, monkeypatch) -> None:
 
     monkeypatch.setattr("src.toolbox.backups.gather.rclone_sync", fake_rclone_sync)
     monkeypatch.setattr(
-        "src.toolbox.backups.gather.volatile.rclone_docker_volume_flags", lambda: patched_flags
+        "src.toolbox.backups.gather.volatile.rclone_docker_volume_flags",
+        lambda: patched_flags,
     )
 
-    gather_stage(env["include_file"]) 
+    gather_stage(env["include_file"])
