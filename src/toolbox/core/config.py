@@ -8,7 +8,7 @@ def get_project_name() -> str:
 
 
 def secret(name: str, default: str | None = None) -> str | None:
-    return read_secret(name, default) if default is not None else read_secret(name)
+    return read_secret(name, default)
 
 
 def minio_credentials() -> tuple[str, str]:

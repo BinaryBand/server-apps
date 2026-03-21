@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.configuration.state_model import ConditionStatus, StageCondition, WorkflowState
+from src.configuration.state_model import WorkflowState
 from src.toolbox.docker.compose import (
     compose_service_names,
     ensure_external_volumes,
@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from typing import Any
 from pathlib import Path
 from uuid import uuid4
+from src.toolbox.io.state_helpers import upsert_condition
 
 
 def _utc_now() -> datetime:
@@ -48,27 +49,6 @@ def _load_state(desired: str) -> WorkflowState:
     return state
 
 
-def _upsert_condition(
-    state: WorkflowState, name: str, status: ConditionStatus, message: str | None = None
-) -> None:
-    now: datetime = _utc_now()
-    for idx, condition in enumerate(state.conditions):
-        if condition.name != name:
-            continue
-        state.conditions[idx] = StageCondition(
-            name=name, status=status, message=message, lastTransitionTime=now
-        )
-        break
-    else:
-        state.conditions.append(
-            StageCondition(
-                name=name, status=status, message=message, lastTransitionTime=now
-            )
-        )
-    state.lastTransitionTime: datetime = now
-    state.updatedAt: datetime = now
-
-
 def _persist_state(state: WorkflowState) -> None:
     path: Path = state_root() / "reconcile.json"
     write_json_file_atomic(path, state.model_dump(mode="json"))
@@ -83,7 +63,7 @@ def reconcile_once(*, check_only: bool = False) -> WorkflowState:
 
             for volume_name in required_external_volume_names():
                 exists = probe_external_volume(volume_name)
-                _upsert_condition(
+                upsert_condition(
                     state, f"volume:{volume_name}", "true" if exists else "false"
                 )
                 if not exists:
@@ -91,14 +71,14 @@ def reconcile_once(*, check_only: bool = False) -> WorkflowState:
 
             for service_name in compose_service_names():
                 healthy = probe_container_health(service_name)
-                _upsert_condition(
+                upsert_condition(
                     state, f"service:{service_name}", "true" if healthy else "false"
                 )
                 if not healthy:
                     any_degraded = True
 
             media_public = probe_minio_media_public()
-            _upsert_condition(
+            upsert_condition(
                 state, "minio:media-public", "true" if media_public else "false"
             )
             if not media_public:
@@ -111,25 +91,25 @@ def reconcile_once(*, check_only: bool = False) -> WorkflowState:
 
         ensure_external_volumes()
         for volume_name in required_external_volume_names():
-            _upsert_condition(state, f"volume:{volume_name}", "true")
+            upsert_condition(state, f"volume:{volume_name}", "true")
 
         run_permissions_playbook(mode="runtime")
-        _upsert_condition(state, "PermissionsApplied", "true")
+        upsert_condition(state, "PermissionsApplied", "true")
 
         run_runtime_post_start()
-        _upsert_condition(state, "PostStartApplied", "true")
-        _upsert_condition(state, "minio:media-public", "true")
+        upsert_condition(state, "PostStartApplied", "true")
+        upsert_condition(state, "minio:media-public", "true")
 
         run_runtime_health_checks()
         for service_name in compose_service_names():
-            _upsert_condition(state, f"service:{service_name}", "true")
+            upsert_condition(state, f"service:{service_name}", "true")
 
         state.observed = "Healthy"
         state.runStatus = "completed"
         _persist_state(state)
         return state
     except RuntimeError as err:
-        _upsert_condition(state, "RuntimeHealth", "false", str(err))
+        upsert_condition(state, "RuntimeHealth", "false", str(err))
         state.observed = "Degraded"
         state.runStatus = "failed"
         _persist_state(state)

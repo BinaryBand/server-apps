@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
-import shutil
 import subprocess
 import uuid
 
@@ -152,10 +151,10 @@ def test_restore_applies_all_staged_logical_volumes(restore_env, monkeypatch) ->
         seen_logical_names.add(logical_name)
         _assert_restore_source_and_target(docker_args or [], source, logical_name)
 
-    pull_repo = monkeypatch.setattr(
+    monkeypatch.setattr(
         "src.toolbox.backups.restore.pull_restic_from_cloud", lambda: None
     )
-    run_restic = monkeypatch.setattr(
+    monkeypatch.setattr(
         "src.toolbox.backups.restore.restic.run_restic_command", lambda args: None
     )
     monkeypatch.setattr(

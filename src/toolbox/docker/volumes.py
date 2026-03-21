@@ -113,8 +113,6 @@ def host_bind_path(logical_name: str) -> Path | None:
         return None
 
     raw_value = config.bind_mount_value(env_key, "./minio")
-    if raw_value is None:
-        raw_value = "./minio"
 
     path = Path(raw_value).expanduser()
     if not path.is_absolute():

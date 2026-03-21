@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.configuration.state_model import StageCondition, WorkflowState
+from src.configuration.state_model import WorkflowState
 from src.toolbox.io.state_io import read_json_file, write_json_file_atomic
 
 from datetime import datetime, timezone
@@ -59,29 +59,12 @@ class OperationCheckpoint:
     def mark_stage(
         self, stage_name: str, *, ok: bool, message: str | None = None
     ) -> None:
+        from src.toolbox.io.state_helpers import upsert_condition
+
         state: WorkflowState = self.state
         status: Literal["true", "false"] = "true" if ok else "false"
-        now: datetime = _utc_now()
 
-        for idx, condition in enumerate(state.conditions):
-            if condition.name != stage_name:
-                continue
-            state.conditions[idx] = StageCondition(
-                name=stage_name, status=status, message=message, lastTransitionTime=now
-            )
-            break
-        else:
-            state.conditions.append(
-                StageCondition(
-                    name=stage_name,
-                    status=status,
-                    message=message,
-                    lastTransitionTime=now,
-                )
-            )
-
-        state.updatedAt = now
-        state.lastTransitionTime = now
+        upsert_condition(state, stage_name, status, message)
         self._persist()
 
     def finish(self, *, observed: str, ok: bool) -> None:

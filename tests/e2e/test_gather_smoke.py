@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
-import shutil
 import subprocess
 import uuid
 
@@ -13,7 +12,6 @@ if __package__ in {None, ""}:
 
 from src.toolbox.backups.gather import gather_stage
 from src.toolbox.docker.volumes import logical_volume_names as _logical_volume_names
-from src.toolbox.core.runtime import repo_root
 
 
 DOCKER_PROBE_TIMEOUT_SECONDS = 30

@@ -8,7 +8,6 @@ from src.toolbox.docker.volumes import required_external_volume_names
 from src.toolbox.core.runtime import PROJECT_NAME, repo_root
 
 from pathlib import Path
-import pytest
 
 
 def _collect_external_volume_names(compose_path: Path) -> set[str]:
