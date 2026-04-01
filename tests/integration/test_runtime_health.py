@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from src.toolbox.docker.health import (
+    CommandWaitSpec,
+    ContainerExecWaitSpec,
+    ContainerHealthWaitSpec,
     run_runtime_health_checks,
     wait_for_command,
 )
-from src.toolbox.core.polling import ProbeResult, wait_until
+from src.toolbox.core.polling import ProbeResult, WaitConfig, wait_until
 
 from io import StringIO
 from subprocess import CompletedProcess
@@ -23,8 +26,7 @@ def test_wait_until_returns_on_ready_probe() -> None:
     result = wait_until(
         "Wait for service",
         lambda: next(attempts),
-        timeout_seconds=1,
-        interval_seconds=0,
+        WaitConfig(timeout_seconds=1, interval_seconds=0),
         stream=StringIO(),
     )
 
@@ -42,10 +44,12 @@ def test_wait_for_command_reports_command_context() -> None:
     with patch("src.toolbox.docker.health._run_command", return_value=failed):
         with pytest.raises(RuntimeError) as err:
             wait_for_command(
-                "Wait for Jellyfin health status",
-                ["docker", "inspect", "jellyfin"],
-                timeout_seconds=0,
-                interval_seconds=0,
+                CommandWaitSpec(
+                    description="Wait for Jellyfin health status",
+                    command=["docker", "inspect", "jellyfin"],
+                    timeout_seconds=0,
+                    interval_seconds=0,
+                ),
                 stream=StringIO(),
             )
 
@@ -65,37 +69,47 @@ def test_runtime_health_checks_use_expected_sequence() -> None:
 
     assert wait_exec.call_args_list == [
         call(
-            "Wait for rclone config",
-            container="rclone",
-            exec_args=["test", "-f", "/config/rclone/rclone.conf"],
-            timeout_seconds=30,
-            interval_seconds=1,
+            ContainerExecWaitSpec(
+                description="Wait for rclone config",
+                container="rclone",
+                exec_args=["test", "-f", "/config/rclone/rclone.conf"],
+                timeout_seconds=30,
+                interval_seconds=1,
+            ),
         ),
         call(
-            "Wait for rclone access to MinIO",
-            container="rclone",
-            exec_args=["rclone", "lsd", "minio:", "--max-depth", "1"],
-            timeout_seconds=45,
-            interval_seconds=3,
+            ContainerExecWaitSpec(
+                description="Wait for rclone access to MinIO",
+                container="rclone",
+                exec_args=["rclone", "lsd", "minio:", "--max-depth", "1"],
+                timeout_seconds=45,
+                interval_seconds=3,
+            ),
         ),
         call(
-            "Wait for rclone access to pcloud",
-            container="rclone",
-            exec_args=["rclone", "lsd", "pcloud:", "--max-depth", "1"],
-            timeout_seconds=45,
-            interval_seconds=3,
+            ContainerExecWaitSpec(
+                description="Wait for rclone access to pcloud",
+                container="rclone",
+                exec_args=["rclone", "lsd", "pcloud:", "--max-depth", "1"],
+                timeout_seconds=45,
+                interval_seconds=3,
+            ),
         ),
         call(
-            "Wait for Jellyfin log write access",
-            container="jellyfin",
-            exec_args=["test", "-w", "/logs"],
-            timeout_seconds=20,
-            interval_seconds=2,
+            ContainerExecWaitSpec(
+                description="Wait for Jellyfin log write access",
+                container="jellyfin",
+                exec_args=["test", "-w", "/logs"],
+                timeout_seconds=20,
+                interval_seconds=2,
+            ),
         ),
     ]
     wait_health.assert_called_once_with(
-        "Wait for Jellyfin health status",
-        container="jellyfin",
-        timeout_seconds=60,
-        interval_seconds=5,
+        ContainerHealthWaitSpec(
+            description="Wait for Jellyfin health status",
+            container="jellyfin",
+            timeout_seconds=60,
+            interval_seconds=5,
+        )
     )

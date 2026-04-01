@@ -76,6 +76,13 @@ def _docker_run_rclone_sync_command(
     return cmd
 
 
+def _run_or_raise_rclone_sync(cmd: list[str]) -> None:
+    try:
+        subprocess.run(cmd, check=True)
+    except CalledProcessError as err:
+        raise RuntimeError(f"rclone sync failed with {err.returncode}: {' '.join(cmd)}") from err
+
+
 def _cleanup_mount_path_via_helper(mount_path: Path) -> bool:
     subprocess.run(_host_helper_command(["umount", "-l", str(mount_path)]), check=False)
     subprocess.run(_host_helper_command(["rm", "-rf", str(mount_path)]), check=False)
@@ -93,13 +100,7 @@ def rclone_sync(
     docker_args: list[str] | None = None,
     extra_args: list[str] | None = None,
 ) -> None:
-    """Run `rclone sync` inside a docker-run invocation.
-
-    - `docker_args`: raw docker-run arguments (volume flags, -e, etc.) that are
-      placed before the image name.
-    - `extra_args`: additional rclone CLI arguments appended after the base
-      `--progress` flag.
-    """
+    """Run `rclone sync` in a disposable container."""
     docker_args = _normalize_list(docker_args)
     extra_args = _normalize_list(extra_args)
 
@@ -109,14 +110,7 @@ def rclone_sync(
         docker_args=docker_args,
         extra_args=extra_args,
     )
-
-    try:
-        subprocess.run(cmd, check=True)
-    except CalledProcessError as err:
-        return_code = err.returncode
-        raise RuntimeError(
-            f"rclone sync failed with {return_code}: {' '.join(cmd)}"
-        ) from err
+    _run_or_raise_rclone_sync(cmd)
 
 
 def _try_fuse_unmount(mount_path: Path) -> None:

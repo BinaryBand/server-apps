@@ -130,7 +130,7 @@ class TestHealthChecksErrorHandling:
 
     def test_wait_for_command_handles_command_failures(self):
         """Test that wait_for_command properly handles command failures"""
-        from src.toolbox.docker.health import wait_for_command
+        from src.toolbox.docker.health import CommandWaitSpec, wait_for_command
         from subprocess import CompletedProcess
 
         failed = CompletedProcess(
@@ -143,10 +143,12 @@ class TestHealthChecksErrorHandling:
         with patch("src.toolbox.docker.health._run_command", return_value=failed):
             with pytest.raises(RuntimeError) as err:
                 wait_for_command(
-                    "Wait for container",
-                    ["docker", "inspect", "nonexistent"],
-                    timeout_seconds=1,
-                    interval_seconds=0.1,
+                    CommandWaitSpec(
+                        description="Wait for container",
+                        command=["docker", "inspect", "nonexistent"],
+                        timeout_seconds=1,
+                        interval_seconds=0.1,
+                    )
                 )
 
         assert "Wait for container failed." in str(err.value)
@@ -155,7 +157,10 @@ class TestHealthChecksErrorHandling:
 
     def test_wait_for_container_health_handles_nonexistent_container(self):
         """Test that wait_for_container_health handles nonexistent containers"""
-        from src.toolbox.docker.health import wait_for_container_health
+        from src.toolbox.docker.health import (
+            ContainerHealthWaitSpec,
+            wait_for_container_health,
+        )
 
         with patch("src.toolbox.docker.health._run_command") as mock_run:
             mock_run.return_value = Mock(
@@ -164,10 +169,12 @@ class TestHealthChecksErrorHandling:
 
             with pytest.raises(RuntimeError) as err:
                 wait_for_container_health(
-                    "Wait for nonexistent",
-                    container="nonexistent",
-                    timeout_seconds=1,
-                    interval_seconds=0.1,
+                    ContainerHealthWaitSpec(
+                        description="Wait for nonexistent",
+                        container="nonexistent",
+                        timeout_seconds=1,
+                        interval_seconds=0.1,
+                    )
                 )
 
         assert "Wait for nonexistent failed." in str(err.value)

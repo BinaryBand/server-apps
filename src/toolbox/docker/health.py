@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from src.toolbox.core.polling import ProbeResult, wait_until
+from src.toolbox.core.polling import ProbeResult, WaitConfig, wait_until
 from src.toolbox.core.config import rclone_remote
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import Any, TextIO
 import shlex
 import subprocess
@@ -32,6 +33,35 @@ _EXEC_CHECKS_BASE: tuple[tuple[str, str, list[str], float, float], ...] = (
         2,
     ),
 )
+
+
+@dataclass(frozen=True)
+class CommandWaitSpec:
+    description: str
+    command: Sequence[str]
+    timeout_seconds: float
+    interval_seconds: float
+
+
+@dataclass(frozen=True)
+class ContainerExecWaitSpec:
+    description: str
+    container: str
+    exec_args: Sequence[str]
+    timeout_seconds: float
+    interval_seconds: float
+
+
+@dataclass(frozen=True)
+class ContainerHealthWaitSpec:
+    description: str
+    container: str
+    timeout_seconds: float
+    interval_seconds: float
+
+
+CommandPredicate = Callable[[subprocess.CompletedProcess[str]], bool]
+CommandFormatter = Callable[[subprocess.CompletedProcess[str]], str]
 
 
 def _run_command(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
@@ -85,8 +115,8 @@ def _format_command_failure(
 
 def _create_command_probe(
     command: Sequence[str],
-    predicate: Callable[[subprocess.CompletedProcess[str]], bool],
-    formatter: Callable[[subprocess.CompletedProcess[str]], str],
+    predicate: CommandPredicate,
+    formatter: CommandFormatter,
 ) -> tuple[Callable[[], ProbeResult], dict[str, Any]]:
     """Create a probe function and mutable state for running commands."""
     state: dict[str, Any] = {"last_result": None}
@@ -101,68 +131,56 @@ def _create_command_probe(
     return _probe, state
 
 
-def _run_wait_loop(
-    description: str,
-    probe: Callable[[], ProbeResult],
-    *,
-    timeout_seconds: float,
-    interval_seconds: float,
-    stream: TextIO | None,
-) -> None:
+def _run_wait_loop(spec: CommandWaitSpec, probe: Callable[[], ProbeResult], stream: TextIO | None) -> None:
     wait_until(
-        description,
+        spec.description,
         probe,
-        timeout_seconds=timeout_seconds,
-        interval_seconds=interval_seconds,
+        WaitConfig(
+            timeout_seconds=spec.timeout_seconds,
+            interval_seconds=spec.interval_seconds,
+        ),
         stream=stream,
     )
 
 
 def _raise_command_failure(
-    description: str,
-    command: Sequence[str],
+    spec: CommandWaitSpec,
     state: dict[str, Any],
     err: RuntimeError,
 ) -> None:
     raise RuntimeError(
-        _format_command_failure(description, command, state["last_result"], str(err))
+        _format_command_failure(
+            spec.description,
+            spec.command,
+            state["last_result"],
+            str(err),
+        )
     ) from err
 
 
-def _require_last_result(
-    description: str, state: dict[str, Any]
-) -> subprocess.CompletedProcess[str]:
+def _require_last_result(spec: CommandWaitSpec, state: dict[str, Any]) -> subprocess.CompletedProcess[str]:
     if state["last_result"] is None:
-        raise RuntimeError(f"{description} failed before the first probe ran.")
+        raise RuntimeError(f"{spec.description} failed before the first probe ran.")
     return state["last_result"]
 
 
 def wait_for_command(
-    description: str,
-    command: Sequence[str],
+    spec: CommandWaitSpec,
     *,
-    timeout_seconds: float,
-    interval_seconds: float,
-    success_predicate: Callable[[subprocess.CompletedProcess[str]], bool] | None = None,
-    detail_formatter: Callable[[subprocess.CompletedProcess[str]], str] | None = None,
+    success_predicate: CommandPredicate | None = None,
+    detail_formatter: CommandFormatter | None = None,
     stream: TextIO | None = None,
 ) -> subprocess.CompletedProcess[str]:
     predicate = success_predicate or (lambda result: result.returncode == 0)
     formatter = detail_formatter or _default_command_detail
-    _probe, state = _create_command_probe(command, predicate, formatter)
+    _probe, state = _create_command_probe(spec.command, predicate, formatter)
 
     try:
-        _run_wait_loop(
-            description,
-            _probe,
-            timeout_seconds=timeout_seconds,
-            interval_seconds=interval_seconds,
-            stream=stream,
-        )
+        _run_wait_loop(spec, _probe, stream)
     except RuntimeError as err:
-        _raise_command_failure(description, command, state, err)
+        _raise_command_failure(spec, state, err)
 
-    return _require_last_result(description, state)
+    return _require_last_result(spec, state)
 
 
 def _healthy_status(result: subprocess.CompletedProcess[str]) -> bool:
@@ -173,42 +191,33 @@ def _health_detail(result: subprocess.CompletedProcess[str]) -> str:
     return result.stdout.strip() or _default_command_detail(result)
 
 
-def wait_for_container_exec(
-    description: str,
-    *,
-    container: str,
-    exec_args: Sequence[str],
-    timeout_seconds: float,
-    interval_seconds: float,
-) -> subprocess.CompletedProcess[str]:
-    command = ["docker", "exec", container, *list(exec_args)]
+def wait_for_container_exec(spec: ContainerExecWaitSpec) -> subprocess.CompletedProcess[str]:
+    command = ["docker", "exec", spec.container, *list(spec.exec_args)]
     return wait_for_command(
-        description,
-        command,
-        timeout_seconds=timeout_seconds,
-        interval_seconds=interval_seconds,
+        CommandWaitSpec(
+            description=spec.description,
+            command=command,
+            timeout_seconds=spec.timeout_seconds,
+            interval_seconds=spec.interval_seconds,
+        ),
     )
 
 
-def wait_for_container_health(
-    description: str,
-    *,
-    container: str,
-    timeout_seconds: float,
-    interval_seconds: float,
-) -> subprocess.CompletedProcess[str]:
+def wait_for_container_health(spec: ContainerHealthWaitSpec) -> subprocess.CompletedProcess[str]:
     command = [
         "docker",
         "inspect",
         "-f",
         "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}",
-        container,
+        spec.container,
     ]
     return wait_for_command(
-        description,
-        command,
-        timeout_seconds=timeout_seconds,
-        interval_seconds=interval_seconds,
+        CommandWaitSpec(
+            description=spec.description,
+            command=command,
+            timeout_seconds=spec.timeout_seconds,
+            interval_seconds=spec.interval_seconds,
+        ),
         success_predicate=_healthy_status,
         detail_formatter=_health_detail,
     )
@@ -231,9 +240,7 @@ def _exec_check_table() -> list[tuple[str, str, list[str], float, float]]:
     return checks
 
 
-def run_runtime_health_checks() -> None:
-    checks = _exec_check_table()
-
+def _run_exec_checks(checks: list[tuple[str, str, list[str], float, float]]) -> None:
     for (
         description,
         container,
@@ -242,19 +249,30 @@ def run_runtime_health_checks() -> None:
         interval_seconds,
     ) in checks:
         wait_for_container_exec(
-            description,
-            container=container,
-            exec_args=exec_args,
-            timeout_seconds=timeout_seconds,
-            interval_seconds=interval_seconds,
+            ContainerExecWaitSpec(
+                description=description,
+                container=container,
+                exec_args=exec_args,
+                timeout_seconds=timeout_seconds,
+                interval_seconds=interval_seconds,
+            )
         )
 
+
+def _run_jellyfin_health_check() -> None:
     wait_for_container_health(
-        "Wait for Jellyfin health status",
-        container="jellyfin",
-        timeout_seconds=60,
-        interval_seconds=5,
+        ContainerHealthWaitSpec(
+            description="Wait for Jellyfin health status",
+            container="jellyfin",
+            timeout_seconds=60,
+            interval_seconds=5,
+        )
     )
+
+
+def run_runtime_health_checks() -> None:
+    _run_exec_checks(_exec_check_table())
+    _run_jellyfin_health_check()
 
 
 def probe_minio_media_public() -> bool:

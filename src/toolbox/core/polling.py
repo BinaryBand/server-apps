@@ -12,6 +12,12 @@ class ProbeResult:
     detail: str | None = None
 
 
+@dataclass(frozen=True)
+class WaitConfig:
+    timeout_seconds: float
+    interval_seconds: float
+
+
 def _normalize_probe(raw_result: ProbeResult | bool) -> ProbeResult:
     return (
         raw_result
@@ -38,12 +44,11 @@ def _sleep_for_interval(interval_seconds: float) -> None:
 def wait_until(
     description: str,
     probe: Callable[[], ProbeResult | bool],
+    config: WaitConfig,
     *,
-    timeout_seconds: float,
-    interval_seconds: float,
     stream: TextIO | None = None,
 ) -> ProbeResult:
-    deadline: float = time.monotonic() + timeout_seconds
+    deadline: float = time.monotonic() + config.timeout_seconds
 
     while True:
         result: ProbeResult = _normalize_probe(probe())
@@ -53,10 +58,10 @@ def wait_until(
 
         if _is_timed_out(deadline):
             raise RuntimeError(
-                _timeout_message(description, timeout_seconds, result.detail)
+                _timeout_message(description, config.timeout_seconds, result.detail)
             )
 
-        _sleep_for_interval(interval_seconds)
+        _sleep_for_interval(config.interval_seconds)
 
 
-__all__ = ["ProbeResult", "wait_until"]
+__all__ = ["ProbeResult", "WaitConfig", "wait_until"]

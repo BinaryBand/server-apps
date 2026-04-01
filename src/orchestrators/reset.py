@@ -96,23 +96,36 @@ def _finish_reset(checkpoint: OperationCheckpoint, args: Namespace) -> None:
         print("Dry run complete.")
 
 
-def main() -> None:
+def _parse_args() -> Namespace:
     parser = ArgumentParser(description="Reset project storage and runtime state")
     parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
     parser.add_argument("--dry-run", action="store_true", help="Print actions only")
     parser.add_argument("--keep-media", action="store_true")
-    args: Namespace = parser.parse_args()
+    return parser.parse_args()
 
+
+def _reset_targets(args: Namespace) -> list[Path]:
     targets: list[Path] = [logs_root()]
     if not args.keep_media:
         targets.append(media_root())
+    return targets
 
+
+def _confirm_or_abort(args: Namespace, targets: list[Path]) -> bool:
     _print_reset_plan(targets, args)
+    if args.yes:
+        return True
+    if _confirm_reset():
+        return True
+    print("Aborted.")
+    return False
 
-    if not args.yes:
-        if not _confirm_reset():
-            print("Aborted.")
-            return
+
+def main() -> None:
+    args = _parse_args()
+    targets = _reset_targets(args)
+    if not _confirm_or_abort(args, targets):
+        return
 
     with RunbookLock("backup-restore-reset", locks_root()):
         checkpoint = OperationCheckpoint(
