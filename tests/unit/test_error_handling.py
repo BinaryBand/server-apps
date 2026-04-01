@@ -1,21 +1,20 @@
-------- SEARCH
+from __future__ import annotations
+
+import pytest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import Mock, patch
+
 from src.managers.reconciler import reconcile_once
-from src.toolbox.docker.health import run_runtime_health_checks
 from src.toolbox.core.ansible import run_permissions_playbook
-from src.toolbox.docker.post_start import run_runtime_post_start
-from src.toolbox.docker.post_start.minio import ensure_minio_media_bucket
 from src.toolbox.core.config import minio_credentials
-from src.toolbox.docker.volumes import ensure_external_volumes
 from src.toolbox.core.locking import RunbookLock
-=======
-from src.managers.reconciler import reconcile_once
 from src.toolbox.docker.health import run_runtime_health_checks
-from src.toolbox.core.ansible import run_permissions_playbook
 from src.toolbox.docker.post_start import run_runtime_post_start
-from src.toolbox.docker.post_start.minio import ensure_minio_media_bucket
-from src.toolbox.core.config import minio_credentials
-from src.toolbox.docker.volumes import ensure_external_volumes, probe_external_volume
-from src.toolbox.core.locking import RunbookLock
+from src.toolbox.docker.compose import ensure_external_volumes, probe_external_volume
+
+
+class TestReconcilerErrorHandling:
     """Test error handling scenarios in reconciler.py"""
     
     def test_reconcile_once_handles_runtime_error_during_health_checks(self, state_root_tmp, monkeypatch):
@@ -178,19 +177,7 @@ class TestAnsibleErrorHandling:
 
 class TestPostStartErrorHandling:
     """Test error handling in post-start operations"""
-    
-    def test_ensure_minio_media_bucket_handles_connection_failures(self):
-        """Test that MinIO connection failures are handled"""
-        from subprocess import CalledProcessError
-        
-        with patch("subprocess.run") as mock_run:
-            mock_run.side_effect = CalledProcessError(1, "mc")
-            
-            with pytest.raises(RuntimeError) as err:
-                ensure_minio_media_bucket("user", "password")
-        
-        assert "failed to ensure MinIO media bucket" in str(err.value)
-    
+
     def test_run_runtime_post_start_handles_jellyfin_restart_failure(self):
         """Test that Jellyfin restart failures are handled"""
         from subprocess import CalledProcessError

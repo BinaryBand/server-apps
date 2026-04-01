@@ -1,10 +1,6 @@
 from __future__ import annotations
 
 from src.toolbox.docker.post_start.jellyfin import restart_jellyfin
-from src.toolbox.docker.post_start.minio import (
-    ensure_minio_media_bucket,
-    wait_for_minio_ready,
-)
 
 
 def run_runtime_post_start() -> None:
@@ -13,7 +9,5 @@ def run_runtime_post_start() -> None:
 
 __all__ = [
     "restart_jellyfin",
-    "wait_for_minio_ready",
-    "ensure_minio_media_bucket",
     "run_runtime_post_start",
 ]
