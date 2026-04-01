@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.toolbox.core.config import secret
+from src.toolbox.core.secrets import secret
 
 from from_root import from_root
 from pathlib import Path

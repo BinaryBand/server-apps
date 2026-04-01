@@ -29,7 +29,11 @@ class RunbookLock:
             return False
 
     def acquire(self) -> None:
-        self._root.mkdir(parents=True, exist_ok=True)
+        try:
+            self._root.mkdir(parents=True, exist_ok=True)
+        except PermissionError as err:
+            raise RuntimeError(f"unable to create lock root: {self._root}") from err
+
         deadline: float = time.monotonic() + self._timeout_seconds
 
         while True:
@@ -38,6 +42,8 @@ class RunbookLock:
                 marker: Path = self._lock_dir / "owner.txt"
                 marker.write_text(f"pid={os.getpid()}\n", encoding="utf-8")
                 return
+            except PermissionError as err:
+                raise RuntimeError(f"unable to acquire lock: {self._lock_dir}") from err
             except FileExistsError:
                 if self._is_stale():
                     shutil.rmtree(self._lock_dir, ignore_errors=True)

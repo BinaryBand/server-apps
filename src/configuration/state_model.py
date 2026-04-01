@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Literal
 
 
-def _utc_now() -> datetime:
+def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
@@ -18,7 +18,7 @@ class StageCondition(BaseModel):
     name: str
     status: ConditionStatus = "unknown"
     message: str | None = None
-    lastTransitionTime: datetime = Field(default_factory=_utc_now)
+    lastTransitionTime: datetime = Field(default_factory=utc_now)
 
 
 class WorkflowState(BaseModel):
@@ -29,5 +29,5 @@ class WorkflowState(BaseModel):
     runStatus: RunStatus = "in-progress"
     idempotencyToken: str
     conditions: list[StageCondition] = Field(default_factory=list)
-    lastTransitionTime: datetime = Field(default_factory=_utc_now)
-    updatedAt: datetime = Field(default_factory=_utc_now)
+    lastTransitionTime: datetime = Field(default_factory=utc_now)
+    updatedAt: datetime = Field(default_factory=utc_now)

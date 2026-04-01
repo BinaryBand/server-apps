@@ -1,28 +1,20 @@
 from __future__ import annotations
 
-from src.configuration.state_model import WorkflowState
+from src.configuration.state_model import WorkflowState, utc_now
+from src.managers.pipeline import PIPELINE_STEPS
 from src.toolbox.docker.compose import (
     compose_service_names,
-    ensure_external_volumes,
     probe_external_volume,
 )
-from src.toolbox.docker.health import probe_container_health, run_runtime_health_checks
-from src.toolbox.docker.post_start import run_runtime_post_start
-from src.toolbox.docker.post_start.minio import probe_minio_media_public
+from src.toolbox.docker.health import probe_container_health, probe_minio_media_public
 from src.toolbox.docker.volumes import required_external_volume_names
-from src.toolbox.core.ansible import run_permissions_playbook
 from src.toolbox.core.runtime import state_root
 from src.toolbox.io.state_io import read_json_file, write_json_file_atomic
 
-from datetime import datetime, timezone
 from typing import Any
 from pathlib import Path
 from uuid import uuid4
 from src.toolbox.io.state_helpers import upsert_condition
-
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _new_state(desired: str) -> WorkflowState:
@@ -44,8 +36,7 @@ def _load_state(desired: str) -> WorkflowState:
     state: WorkflowState = WorkflowState.model_validate(payload)
     state.runId = str(uuid4())
     state.idempotencyToken = str(uuid4())
-    state.runStatus = "in-progress"
-    state.updatedAt: datetime = _utc_now()
+    state.updatedAt = utc_now()
     return state
 
 
@@ -54,58 +45,83 @@ def _persist_state(state: WorkflowState) -> None:
     write_json_file_atomic(path, state.model_dump(mode="json"))
 
 
+def _probe_runtime_conditions(state: WorkflowState) -> bool:
+    """Update runtime conditions from current probes and return degraded status."""
+    any_degraded = False
+
+    for volume_name in required_external_volume_names():
+        exists = probe_external_volume(volume_name)
+        upsert_condition(state, f"volume:{volume_name}", "true" if exists else "false")
+        if not exists:
+            any_degraded = True
+
+    for service_name in compose_service_names():
+        healthy = probe_container_health(service_name)
+        upsert_condition(state, f"service:{service_name}", "true" if healthy else "false")
+        if not healthy:
+            any_degraded = True
+
+    media_public = probe_minio_media_public()
+    upsert_condition(
+        state, "minio:media-public", "true" if media_public else "false"
+    )
+    if not media_public:
+        any_degraded = True
+
+    return any_degraded
+
+
+def _has_successful_full_reconcile_markers(state: WorkflowState) -> bool:
+    statuses = {condition.name: condition.status for condition in state.conditions}
+    return (
+        statuses.get("PermissionsApplied") == "true"
+        and statuses.get("PostStartApplied") == "true"
+    )
+
+
 def reconcile_once(*, check_only: bool = False) -> WorkflowState:
     state: WorkflowState = _load_state("Healthy")
 
     try:
         if check_only:
-            any_degraded = False
-
-            for volume_name in required_external_volume_names():
-                exists = probe_external_volume(volume_name)
-                upsert_condition(
-                    state, f"volume:{volume_name}", "true" if exists else "false"
-                )
-                if not exists:
-                    any_degraded = True
-
-            for service_name in compose_service_names():
-                healthy = probe_container_health(service_name)
-                upsert_condition(
-                    state, f"service:{service_name}", "true" if healthy else "false"
-                )
-                if not healthy:
-                    any_degraded = True
-
-            media_public = probe_minio_media_public()
-            upsert_condition(
-                state, "minio:media-public", "true" if media_public else "false"
-            )
-            if not media_public:
-                any_degraded = True
+            any_degraded = _probe_runtime_conditions(state)
 
             state.observed = "Degraded" if any_degraded else "Healthy"
             state.runStatus = "failed" if any_degraded else "completed"
             _persist_state(state)
             return state
 
-        ensure_external_volumes()
-        for volume_name in required_external_volume_names():
-            upsert_condition(state, f"volume:{volume_name}", "true")
+        # Full reconcile is idempotent: if the last state was healthy and probes
+        # still pass, return without replaying mutating pipeline steps.
+        if (
+            state.observed == "Healthy"
+            and state.runStatus == "completed"
+            and _has_successful_full_reconcile_markers(state)
+        ):
+            any_degraded = _probe_runtime_conditions(state)
+            state.observed = "Degraded" if any_degraded else "Healthy"
+            state.runStatus = "failed" if any_degraded else "completed"
+            _persist_state(state)
+            if not any_degraded:
+                return state
 
-        run_permissions_playbook(mode="runtime")
-        upsert_condition(state, "PermissionsApplied", "true")
+        for stage_name, step in PIPELINE_STEPS:
+            step()
+            if stage_name == "volumes":
+                for volume_name in required_external_volume_names():
+                    upsert_condition(state, f"volume:{volume_name}", "true")
+            elif stage_name == "permissions":
+                upsert_condition(state, "PermissionsApplied", "true")
+            elif stage_name == "runtime":
+                upsert_condition(state, "PostStartApplied", "true")
+                upsert_condition(state, "minio:media-public", "true")
+            elif stage_name == "health":
+                for service_name in compose_service_names():
+                    upsert_condition(state, f"service:{service_name}", "true")
 
-        run_runtime_post_start()
-        upsert_condition(state, "PostStartApplied", "true")
-        upsert_condition(state, "minio:media-public", "true")
-
-        run_runtime_health_checks()
-        for service_name in compose_service_names():
-            upsert_condition(state, f"service:{service_name}", "true")
-
-        state.observed = "Healthy"
-        state.runStatus = "completed"
+        any_degraded = _probe_runtime_conditions(state)
+        state.observed = "Degraded" if any_degraded else "Healthy"
+        state.runStatus = "failed" if any_degraded else "completed"
         _persist_state(state)
         return state
     except RuntimeError as err:
@@ -113,4 +129,4 @@ def reconcile_once(*, check_only: bool = False) -> WorkflowState:
         state.observed = "Degraded"
         state.runStatus = "failed"
         _persist_state(state)
-        raise
+        return state

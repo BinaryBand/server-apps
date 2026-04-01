@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 from src.managers.reconciler import reconcile_once
 from src.toolbox.core.ansible import run_permissions_playbook
-from src.toolbox.core.config import minio_credentials
+from src.toolbox.core.secrets import minio_credentials
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.docker.health import run_runtime_health_checks
 from src.toolbox.docker.post_start import run_runtime_post_start
@@ -22,12 +22,16 @@ class TestReconcilerErrorHandling:
         monkeypatch.setattr("src.managers.reconciler.required_external_volume_names", lambda: [])
         monkeypatch.setattr("src.managers.reconciler.compose_service_names", lambda: [])
         monkeypatch.setattr("src.managers.reconciler.probe_minio_media_public", lambda: True)
-        
+
+        monkeypatch.setattr("src.managers.pipeline.ensure_external_volumes", lambda: None)
+        monkeypatch.setattr("src.managers.pipeline.run_permissions_playbook", lambda **kwargs: None)
+        monkeypatch.setattr("src.managers.pipeline.run_runtime_post_start", lambda: None)
+
         # Mock health checks to raise RuntimeError
         def mock_run_runtime_health_checks():
             raise RuntimeError("Health check failed")
-        
-        monkeypatch.setattr("src.managers.reconciler.run_runtime_health_checks", mock_run_runtime_health_checks)
+
+        monkeypatch.setattr("src.managers.pipeline.run_runtime_health_checks", mock_run_runtime_health_checks)
         
         state = reconcile_once(check_only=False)
         
@@ -42,12 +46,14 @@ class TestReconcilerErrorHandling:
         monkeypatch.setattr("src.managers.reconciler.required_external_volume_names", lambda: [])
         monkeypatch.setattr("src.managers.reconciler.compose_service_names", lambda: [])
         monkeypatch.setattr("src.managers.reconciler.probe_minio_media_public", lambda: True)
-        
+
+        monkeypatch.setattr("src.managers.pipeline.ensure_external_volumes", lambda: None)
+
         # Mock permissions playbook to raise RuntimeError
         def mock_run_permissions_playbook(*args, **kwargs):
             raise RuntimeError("Permissions failed")
-        
-        monkeypatch.setattr("src.managers.reconciler.run_permissions_playbook", mock_run_permissions_playbook)
+
+        monkeypatch.setattr("src.managers.pipeline.run_permissions_playbook", mock_run_permissions_playbook)
         
         state = reconcile_once(check_only=False)
         
@@ -62,12 +68,15 @@ class TestReconcilerErrorHandling:
         monkeypatch.setattr("src.managers.reconciler.required_external_volume_names", lambda: [])
         monkeypatch.setattr("src.managers.reconciler.compose_service_names", lambda: [])
         monkeypatch.setattr("src.managers.reconciler.probe_minio_media_public", lambda: True)
-        
+
+        monkeypatch.setattr("src.managers.pipeline.ensure_external_volumes", lambda: None)
+        monkeypatch.setattr("src.managers.pipeline.run_permissions_playbook", lambda **kwargs: None)
+
         # Mock post-start to raise RuntimeError
         def mock_run_runtime_post_start():
             raise RuntimeError("Post-start failed")
-        
-        monkeypatch.setattr("src.managers.reconciler.run_runtime_post_start", mock_run_runtime_post_start)
+
+        monkeypatch.setattr("src.managers.pipeline.run_runtime_post_start", mock_run_runtime_post_start)
         
         state = reconcile_once(check_only=False)
         

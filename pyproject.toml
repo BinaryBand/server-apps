@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0,<8"]
+dev = ["pytest>=7.0,<8", "import-linter>=2.0"]
 
 [tool.setuptools]
 package-dir = { "" = "." }
@@ -28,3 +28,29 @@ package-dir = { "" = "." }
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["runbook*", "src*"]
+
+# --- Layer boundary enforcement (Rule 3 from ARCHITECTURE.md) ---
+# Run: PYTHONPATH=. .venv/bin/lint-imports
+[tool.importlinter]
+root_packages = ["src"]
+
+[[tool.importlinter.contracts]]
+name = "Domain must not import Infrastructure"
+type = "forbidden"
+source_modules = ["src.configuration"]
+forbidden_modules = ["src.toolbox"]
+
+# Aspirational — currently violated by src.managers.* and src.orchestrators.*
+# importing concrete toolbox adapters directly. Uncomment when Port interfaces
+# are introduced (Stage 3 of ARCHITECTURE.md migration).
+#
+# [[tool.importlinter.contracts]]
+# name = "App Services must not import Infrastructure concrete modules"
+# type = "forbidden"
+# source_modules = ["src.managers", "src.orchestrators"]
+# forbidden_modules = [
+#     "src.toolbox.docker.compose",
+#     "src.toolbox.docker.health",
+#     "src.toolbox.core.ansible",
+#     "src.toolbox.docker.post_start",
+# ]

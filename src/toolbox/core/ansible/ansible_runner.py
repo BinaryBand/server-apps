@@ -4,7 +4,7 @@ from pathlib import Path
 import os
 import subprocess
 from .ansible_playbook import ansible_playbook_bin
-from src.toolbox.core.runtime import repo_root
+import src.toolbox.core.runtime as runtime
 
 from typing import Literal
 
@@ -18,7 +18,7 @@ def run_permissions_playbook(
     manifest_path: str = "infra/permissions.yml",
     dry_run: bool = False,
 ) -> None:
-    root: Path = repo_root()
+    root: Path = runtime.repo_root()
 
     manifest: Path = root / manifest_path
     inventory: Path = root / "ansible" / "inventory.ini"
@@ -49,10 +49,16 @@ def run_permissions_playbook(
 
     if mode == "bootstrap" and os.geteuid() != 0:
         print("Bootstrap mode requires root to apply host ownership/users.")
-        subprocess.run(["sudo", *command], check=True)
-        return
+        try:
+            subprocess.run(["sudo", *command], check=True)
+            return
+        except Exception as err:
+            raise RuntimeError(f"Failed to run permissions playbook: {err}") from err
 
-    subprocess.run(command, check=True, env=os.environ.copy(), cwd=str(repo_root()))
+    try:
+        subprocess.run(command, check=True, env=os.environ.copy(), cwd=str(root))
+    except Exception as err:
+        raise RuntimeError(f"Failed to run permissions playbook: {err}") from err
 
 
 __all__ = ["run_permissions_playbook"]

@@ -41,13 +41,22 @@ def compose_cmd(*args: str) -> list[str]:
 
 
 def ensure_external_volumes() -> None:
-    for volume_name in missing_external_volumes():
-        subprocess.run(
-            ["docker", "volume", "create", volume_name],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+    try:
+        missing = missing_external_volumes()
+    except Exception as err:
+        print(f"[compose] Failed to determine missing external volumes: {err}")
+        return
+
+    for volume_name in missing:
+        try:
+            subprocess.run(
+                ["docker", "volume", "create", volume_name],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except subprocess.CalledProcessError:
+            print(f"[compose] Failed to create external volume: {volume_name}")
 
 
 def missing_external_volumes() -> list[str]:
@@ -59,12 +68,15 @@ def missing_external_volumes() -> list[str]:
 
 
 def probe_external_volume(name: str) -> bool:
-    result = subprocess.run(
-        ["docker", "volume", "inspect", name],
-        check=False,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    try:
+        result = subprocess.run(
+            ["docker", "volume", "inspect", name],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return False
     return result.returncode == 0
 
 

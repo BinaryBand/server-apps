@@ -201,6 +201,17 @@ def run_runtime_health_checks() -> None:
     )
 
 
+def probe_minio_media_public() -> bool:
+    """Return True if the myminio/media bucket has anonymous download access."""
+    result = subprocess.run(
+        ["docker", "exec", "minio", "mc", "stat", "myminio/media"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0 and "anonymous: enabled" in result.stdout.lower()
+
+
 def probe_container_health(container: str) -> bool:
     """Non-blocking single-shot probe. Returns True if running or healthy."""
     result = subprocess.run(
@@ -223,6 +234,7 @@ def probe_container_health(container: str) -> bool:
 
 __all__ = [
     "probe_container_health",
+    "probe_minio_media_public",
     "run_runtime_health_checks",
     "wait_for_command",
     "wait_for_container_exec",

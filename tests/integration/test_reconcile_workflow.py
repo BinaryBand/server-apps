@@ -6,11 +6,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from src.managers.reconciler import reconcile_once
-from src.toolbox.core.config import minio_credentials
+from src.toolbox.core.secrets import minio_credentials
 from src.toolbox.core.ansible import run_permissions_playbook
 from src.toolbox.docker.post_start import run_runtime_post_start
 from src.toolbox.docker.health import run_runtime_health_checks
-from src.toolbox.docker.volumes import ensure_external_volumes
 
 
 class TestReconcileWorkflowIntegration:
@@ -43,16 +42,16 @@ class TestReconcileWorkflowIntegration:
         mock_run_health_checks = Mock()
 
         monkeypatch.setattr(
-            "src.managers.reconciler.ensure_external_volumes", mock_ensure_volumes
+            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_permissions_playbook", mock_run_permissions
+            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_post_start", mock_run_post_start
+            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_health_checks", mock_run_health_checks
+            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
         )
 
         # Run the full workflow
@@ -105,16 +104,16 @@ class TestReconcileWorkflowIntegration:
         mock_run_health_checks = Mock()
 
         monkeypatch.setattr(
-            "src.managers.reconciler.ensure_external_volumes", mock_ensure_volumes
+            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_permissions_playbook", mock_run_permissions
+            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_post_start", mock_run_post_start
+            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_health_checks", mock_run_health_checks
+            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
         )
 
         # Run in check-only mode
@@ -170,16 +169,16 @@ class TestReconcileWorkflowIntegration:
         mock_run_health_checks = Mock()
 
         monkeypatch.setattr(
-            "src.managers.reconciler.ensure_external_volumes", mock_ensure_volumes
+            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_permissions_playbook", mock_run_permissions
+            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_post_start", mock_run_post_start
+            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_health_checks", mock_run_health_checks
+            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
         )
 
         # Run the full workflow
@@ -229,16 +228,16 @@ class TestReconcileWorkflowIntegration:
         mock_run_health_checks = Mock()
 
         monkeypatch.setattr(
-            "src.managers.reconciler.ensure_external_volumes", mock_ensure_volumes
+            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_permissions_playbook", mock_run_permissions
+            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_post_start", mock_run_post_start
+            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_health_checks", mock_run_health_checks
+            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
         )
 
         # Run the workflow twice
@@ -284,16 +283,16 @@ class TestReconcileWorkflowIntegration:
         mock_run_health_checks = Mock()
 
         monkeypatch.setattr(
-            "src.managers.reconciler.ensure_external_volumes", mock_ensure_volumes
+            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_permissions_playbook", mock_run_permissions
+            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_post_start", mock_run_post_start
+            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_health_checks", mock_run_health_checks
+            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
         )
 
         # Run check-only first
@@ -345,16 +344,16 @@ class TestReconcileWorkflowOrdering:
         mock_run_health_checks = Mock()
 
         monkeypatch.setattr(
-            "src.managers.reconciler.ensure_external_volumes", mock_ensure_volumes
+            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_permissions_playbook", mock_run_permissions
+            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_post_start", mock_run_post_start
+            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_health_checks", mock_run_health_checks
+            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
         )
 
         # Run the workflow
@@ -395,16 +394,16 @@ class TestReconcileWorkflowOrdering:
         mock_run_health_checks = Mock()
 
         monkeypatch.setattr(
-            "src.managers.reconciler.ensure_external_volumes", mock_ensure_volumes
+            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_permissions_playbook", mock_run_permissions
+            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_post_start", mock_run_post_start
+            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.run_runtime_health_checks", mock_run_health_checks
+            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
         )
 
         # Run the workflow - should fail on permissions

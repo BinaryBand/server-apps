@@ -17,19 +17,19 @@ def test_main_runs_health_checks_after_permissions_reconcile() -> None:
 
     with (
         patch(
-            "src.orchestrators.start.ensure_external_volumes",
+            "src.managers.pipeline.ensure_external_volumes",
             side_effect=record("volumes"),
         ),
         patch(
-            "src.orchestrators.start.run_permissions_playbook",
+            "src.managers.pipeline.run_permissions_playbook",
             side_effect=record("permissions"),
         ),
         patch(
-            "src.orchestrators.start.run_runtime_post_start",
+            "src.managers.pipeline.run_runtime_post_start",
             side_effect=record("runtime"),
         ),
         patch(
-            "src.orchestrators.start.run_runtime_health_checks",
+            "src.managers.pipeline.run_runtime_health_checks",
             side_effect=record("health"),
         ),
     ):

@@ -5,7 +5,7 @@ from pathlib import Path
 
 if __name__ == "__main__":
     root: Path = Path(__file__).resolve().parents[1]
-    orchestrator: Path = root / "src" / "orchestrators" / "_reset.py"
+    orchestrator: Path = root / "src" / "orchestrators" / "reset.py"
     sys.exit(
         subprocess.run(
             [sys.executable, str(orchestrator), *sys.argv[1:]],

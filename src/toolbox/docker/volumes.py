@@ -51,6 +51,20 @@ def required_external_volume_names() -> list[str]:
     return list(external_alias_name_pairs().values())
 
 
+def probe_external_volume(name: str) -> bool:
+    """Return true when the named docker volume exists."""
+    try:
+        result = subprocess.run(
+            ["docker", "volume", "inspect", name],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return False
+    return result.returncode == 0
+
+
 def _list_docker_volumes(*args: str) -> list[str]:
     cmd: list[str] = ["docker", "volume", "ls", *args, "--format", "{{.Name}}"]
     proc: subprocess.CompletedProcess[str] = subprocess.run(
@@ -159,6 +173,7 @@ def rclone_docker_volume_flags() -> list[str]:
 
 __all__ = [
     "logical_volume_names",
+    "probe_external_volume",
     "required_external_volume_names",
     "list_project_volumes",
     "remove_project_volumes",

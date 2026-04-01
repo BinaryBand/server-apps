@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-from src.configuration.state_model import WorkflowState
+from src.configuration.state_model import WorkflowState, utc_now
 from src.toolbox.io.state_io import read_json_file, write_json_file_atomic
 
-from datetime import datetime, timezone
 from typing import Any, Literal
 from pathlib import Path
 from uuid import uuid4
-
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class OperationCheckpoint:
@@ -69,7 +64,7 @@ class OperationCheckpoint:
 
     def finish(self, *, observed: str, ok: bool) -> None:
         state: WorkflowState = self.state
-        now: datetime = _utc_now()
+        now = utc_now()
         state.observed: str = observed
         state.runStatus: Literal["completed", "failed"] = (
             "completed" if ok else "failed"
