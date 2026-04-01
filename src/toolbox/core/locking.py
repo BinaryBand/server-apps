@@ -13,6 +13,21 @@ class RunbookLock:
         self._timeout_seconds: float = timeout_seconds
         self._lock_dir: Path = self._root / f"{self._name}.lock"
 
+    def _is_stale(self) -> bool:
+        marker: Path = self._lock_dir / "owner.txt"
+        try:
+            text = marker.read_text(encoding="utf-8")
+            pid = int(text.strip().removeprefix("pid="))
+        except (FileNotFoundError, ValueError):
+            return True
+        try:
+            os.kill(pid, 0)
+            return False
+        except ProcessLookupError:
+            return True
+        except PermissionError:
+            return False
+
     def acquire(self) -> None:
         self._root.mkdir(parents=True, exist_ok=True)
         deadline: float = time.monotonic() + self._timeout_seconds
@@ -24,6 +39,9 @@ class RunbookLock:
                 marker.write_text(f"pid={os.getpid()}\n", encoding="utf-8")
                 return
             except FileExistsError:
+                if self._is_stale():
+                    shutil.rmtree(self._lock_dir, ignore_errors=True)
+                    continue
                 if self._timeout_seconds <= 0 or time.monotonic() >= deadline:
                     raise RuntimeError(
                         f"lock is held for group '{self._name}' ({self._lock_dir})"

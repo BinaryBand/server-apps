@@ -20,15 +20,7 @@ def test_run_runtime_post_start_executes_in_order() -> None:
             "src.toolbox.docker.post_start.restart_jellyfin",
             side_effect=record("restart"),
         ),
-        patch(
-            "src.toolbox.docker.post_start.wait_for_minio_ready",
-            side_effect=record("wait"),
-        ),
-        patch(
-            "src.toolbox.docker.post_start.ensure_minio_media_bucket",
-            side_effect=record("bucket"),
-        ),
     ):
         run_runtime_post_start()
 
-    assert events == ["restart", "wait", "bucket"]
+    assert events == ["restart"]

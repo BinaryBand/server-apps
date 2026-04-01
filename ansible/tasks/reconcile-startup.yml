@@ -30,6 +30,10 @@
         gid: "{{ compose_minio_user.split(':')[1] | int }}"
         comment: "{{ permissions_data.users.minio.comment | default('minio') }}"
 
+- name: Derive MinIO bind path from permissions manifest
+  ansible.builtin.set_fact:
+    minio_volume_path: "{{ (((volume_entries | selectattr('owner', 'equalto', 'minio') | list | first | default({})).path) | default('')) }}"
+
 - name: Ensure declared groups exist
   become: true
   ansible.builtin.group:
@@ -86,6 +90,31 @@
     - item.path | default('') | length > 0
     - item.runtime_mode is defined
 
+- name: Normalize MinIO media bucket metadata ownership
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - -v
+      - "{{ minio_volume_path }}:/target"
+      - alpine:3.20
+      - sh
+      - -lc
+      - >-
+        test -d /target/.minio.sys/buckets/media || exit 0;
+        drift="$(find /target/.minio.sys/buckets/media \( ! -uid {{ service_identities.minio.uid | int }} -o ! -gid {{ service_identities.minio.gid | int }} \) -print -quit 2>/dev/null || true)";
+        if [ -n "$drift" ]; then
+          chown -R {{ service_identities.minio.uid | int }}:{{ service_identities.minio.gid | int }} /target/.minio.sys/buckets/media;
+          echo fixed;
+        fi
+  register: minio_metadata_fix
+  changed_when: "'fixed' in minio_metadata_fix.stdout"
+  when:
+    - permissions_mode_selected == 'runtime'
+    - minio_volume_path | length > 0
+    - minio_volume_path.startswith('/')
+
 - name: Create temporary staging directory for internal rclone config
   ansible.builtin.tempfile:
     state: directory
@@ -135,20 +164,61 @@
     path: "{{ rclone_config_staging.path }}"
     state: absent
 
-- name: Ensure old baikal container removed
-  community.docker.docker_container:
-    name: baikal
-    state: absent
+- name: Remove legacy Podman app containers if present
+  ansible.builtin.shell: |
+    set -eu
+    if ! command -v podman >/dev/null 2>&1; then
+      exit 0
+    fi
+    for name in baikal jellyfin minio rclone; do
+      if podman container exists "$name" 2>/dev/null; then
+        podman rm -f "$name" >/dev/null 2>&1 || true
+        printf '%s\n' "$name"
+      fi
+    done
+  args:
+    executable: /bin/bash
+  register: legacy_podman_cleanup
+  failed_when: false
+  changed_when: legacy_podman_cleanup.stdout | length > 0
+  when: permissions_mode_selected == 'runtime'
+
+- name: Tear down existing Docker compose stack
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - "{{ project_name_selected }}"
+      - --env-file
+      - "{{ repo_root_path }}/.env"
+      - -f
+      - "{{ repo_root_path }}/compose/base.yml"
+      - -f
+      - "{{ repo_root_path }}/compose/dev.yml"
+      - down
+      - --remove-orphans
+  register: compose_down
+  failed_when: false
+  changed_when: compose_down.rc == 0
   when: permissions_mode_selected == 'runtime'
 
 - name: Start docker compose stack
-  community.docker.docker_compose_v2:
-    project_name: "{{ project_name_selected }}"
-    project_src: "{{ repo_root_path }}"
-    files:
-      - compose/base.yml
-      - compose/dev.yml
-    state: present
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - "{{ project_name_selected }}"
+      - --env-file
+      - "{{ repo_root_path }}/.env"
+      - -f
+      - "{{ repo_root_path }}/compose/base.yml"
+      - -f
+      - "{{ repo_root_path }}/compose/dev.yml"
+      - up
+      - -d
+      - --remove-orphans
   when: permissions_mode_selected == 'runtime'
 
 - name: Ensure MinIO media bucket is public
@@ -210,6 +280,8 @@
       retries: 3
       delay: 2
       until: minio_anon.rc == 0
+      when:
+        - "minio_media_stat.rc != 0 or 'Anonymous: Enabled' not in minio_media_stat.stdout"
   when:
     - permissions_mode_selected == 'runtime'
     - rclone_env.MINIO_ROOT_USER | length > 0
