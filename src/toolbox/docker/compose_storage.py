@@ -88,14 +88,10 @@ def _extract_external_volume(alias: str, raw_cfg: Any) -> tuple[str, str] | None
 
 def external_alias_name_pairs() -> dict[str, str]:
     config = rendered_compose_config()
-    volumes = config.get("volumes")
-    if not isinstance(volumes, dict):
-        return {}
+    volumes: dict[str, Any] = config.get("volumes", {})
 
     pairs: dict[str, str] = {}
     for alias, raw_cfg in volumes.items():
-        if not isinstance(alias, str):
-            continue
         result = _extract_external_volume(alias, raw_cfg)
         if result is not None:
             pairs[result[0]] = result[1]
@@ -132,9 +128,7 @@ def _parse_volume_entry(entry: Any) -> tuple[str, str] | None:
 def _get_service_volumes(service_name: str) -> list[Any] | None:
     """Return volume list for a service, or None if not found."""
     config = rendered_compose_config()
-    services = config.get("services")
-    if not isinstance(services, dict):
-        return None
+    services: dict[str, Any] = config.get("services", {})
     service_cfg = services.get(service_name)
     if not isinstance(service_cfg, dict):
         return None

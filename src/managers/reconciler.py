@@ -51,8 +51,7 @@ def _probe_volumes(state: WorkflowState) -> bool:
     for volume_name in required_external_volume_names():
         exists = probe_external_volume(volume_name)
         upsert_condition(state, f"volume:{volume_name}", "true" if exists else "false")
-        if not exists:
-            any_degraded = True
+        any_degraded = any_degraded or not exists
     return any_degraded
 
 
@@ -64,8 +63,7 @@ def _probe_services(state: WorkflowState) -> bool:
         upsert_condition(
             state, f"service:{service_name}", "true" if healthy else "false"
         )
-        if not healthy:
-            any_degraded = True
+        any_degraded = any_degraded or not healthy
     return any_degraded
 
 
@@ -82,16 +80,18 @@ def _probe_runtime_conditions(state: WorkflowState) -> bool:
 
 def _has_successful_full_reconcile_markers(state: WorkflowState) -> bool:
     statuses = {condition.name: condition.status for condition in state.conditions}
-    return (
-        statuses.get("PermissionsApplied") == "true"
-        and statuses.get("PostStartApplied") == "true"
-    )
+    required = ("PermissionsApplied", "PostStartApplied")
+    return all(statuses.get(name) == "true" for name in required)
 
 
 def _apply_state_from_probes(state: WorkflowState, any_degraded: bool) -> None:
     """Update state from probe results and persist."""
-    state.observed = "Degraded" if any_degraded else "Healthy"
-    state.runStatus = "failed" if any_degraded else "completed"
+    observed, run_status = {
+        True: ("Degraded", "failed"),
+        False: ("Healthy", "completed"),
+    }[any_degraded]
+    state.observed = observed
+    state.runStatus = run_status
     _persist_state(state)
 
 

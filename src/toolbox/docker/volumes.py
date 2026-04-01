@@ -72,20 +72,18 @@ def _list_docker_volumes(*args: str) -> list[str]:
     )
     if proc.returncode != 0:
         return []
-    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    return list(filter(None, map(str.strip, proc.stdout.splitlines())))
 
 
 def _fallback_configured_volumes() -> set[str]:
     """Return configured volume names from compose config and external aliases."""
     configured: set[str] = set(external_alias_name_pairs().values())
 
-    compose_volumes = rendered_compose_config().get("volumes")
-    if isinstance(compose_volumes, dict):
-        for raw_cfg in compose_volumes.values():
-            if isinstance(raw_cfg, dict):
-                volume_name = raw_cfg.get("name")
-                if isinstance(volume_name, str) and volume_name:
-                    configured.add(volume_name)
+    compose_volumes = rendered_compose_config().get("volumes", {})
+    for raw_cfg in compose_volumes.values():
+        volume_name = raw_cfg.get("name", "")
+        if volume_name:
+            configured.add(volume_name)
 
     return configured
 
