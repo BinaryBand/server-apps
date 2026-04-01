@@ -1,15 +1,8 @@
 from __future__ import annotations
 
-import pytest
-from unittest.mock import Mock, patch, call
-from pathlib import Path
-from tempfile import TemporaryDirectory
+from unittest.mock import Mock
 
 from src.managers.reconciler import reconcile_once
-from src.toolbox.core.secrets import minio_credentials
-from src.toolbox.core.ansible import run_permissions_playbook
-from src.toolbox.docker.post_start import run_runtime_post_start
-from src.toolbox.docker.health import run_runtime_health_checks
 
 
 class TestReconcileWorkflowIntegration:
@@ -358,14 +351,6 @@ class TestReconcileWorkflowOrdering:
 
         # Run the workflow
         reconcile_once(check_only=False)
-
-        # Verify call order
-        mock_calls = [
-            call.ensure_external_volumes(),
-            call.run_permissions_playbook(mode="runtime"),
-            call.run_runtime_post_start(),
-            call.run_runtime_health_checks(),
-        ]
 
         mock_ensure_volumes.assert_called_once()
         mock_run_permissions.assert_called_once_with(mode="runtime")

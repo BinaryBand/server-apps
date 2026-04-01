@@ -12,6 +12,15 @@ from typing import Literal
 MODE = Literal["bootstrap", "runtime", "reset"]
 
 
+def _run_as_sudo(command: list[str]) -> None:
+    try:
+        subprocess.run(["sudo", *command], check=True)
+    except Exception as err:
+        raise RuntimeError(
+            f"Failed to run permissions playbook via sudo: {err}"
+        ) from err
+
+
 def _build_playbook_command(
     mode: MODE, manifest: Path, inventory: Path, playbook: Path, dry_run: bool
 ) -> list[str]:

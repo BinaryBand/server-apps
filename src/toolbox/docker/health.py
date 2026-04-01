@@ -4,9 +4,34 @@ from src.toolbox.core.polling import ProbeResult, wait_until
 from src.toolbox.core.config import rclone_remote
 
 from collections.abc import Callable, Sequence
-from typing import TextIO
+from typing import Any, TextIO
 import shlex
 import subprocess
+
+
+_EXEC_CHECKS_BASE: tuple[tuple[str, str, list[str], float, float], ...] = (
+    (
+        "Wait for rclone config",
+        "rclone",
+        ["test", "-f", "/config/rclone/rclone.conf"],
+        30,
+        1,
+    ),
+    (
+        "Wait for rclone access to MinIO",
+        "rclone",
+        ["rclone", "lsd", "minio:", "--max-depth", "1"],
+        45,
+        3,
+    ),
+    (
+        "Wait for Jellyfin log write access",
+        "jellyfin",
+        ["test", "-w", "/logs"],
+        20,
+        2,
+    ),
+)
 
 
 def _run_command(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
@@ -100,7 +125,9 @@ def wait_for_command(
         )
     except RuntimeError as err:
         raise RuntimeError(
-            _format_command_failure(description, command, state["last_result"], str(err))
+            _format_command_failure(
+                description, command, state["last_result"], str(err)
+            )
         ) from err
 
     if state["last_result"] is None:
@@ -157,21 +184,9 @@ def wait_for_container_health(
 def _exec_check_table() -> list[tuple[str, str, list[str], float, float]]:
     """Return the table of container exec health checks."""
     remote = rclone_remote("pcloud")
-    return [
-        (
-            "Wait for rclone config",
-            "rclone",
-            ["test", "-f", "/config/rclone/rclone.conf"],
-            30,
-            1,
-        ),
-        (
-            "Wait for rclone access to MinIO",
-            "rclone",
-            ["rclone", "lsd", "minio:", "--max-depth", "1"],
-            45,
-            3,
-        ),
+    checks = list(_EXEC_CHECKS_BASE)
+    checks.insert(
+        2,
         (
             f"Wait for rclone access to {remote}",
             "rclone",
@@ -179,14 +194,8 @@ def _exec_check_table() -> list[tuple[str, str, list[str], float, float]]:
             45,
             3,
         ),
-        (
-            "Wait for Jellyfin log write access",
-            "jellyfin",
-            ["test", "-w", "/logs"],
-            20,
-            2,
-        ),
-    ]
+    )
+    return checks
 
 
 def run_runtime_health_checks() -> None:

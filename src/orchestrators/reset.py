@@ -57,15 +57,15 @@ def _confirm_reset() -> bool:
     return proceed == "y"
 
 
-def _run_reset_pipeline(checkpoint: OperationCheckpoint, targets: list[Path], args: Namespace) -> None:
+def _run_reset_pipeline(
+    checkpoint: OperationCheckpoint, targets: list[Path], args: Namespace
+) -> None:
     """Execute the reset pipeline stages."""
     compose_down_cmd = compose_cmd("down", "--volumes", "--remove-orphans")
     subprocess.run(compose_down_cmd, check=False)
     checkpoint.mark_stage("compose-down", ok=True)
 
-    removed, failed = remove_project_volumes(
-        get_project_name(), dry_run=args.dry_run
-    )
+    removed, failed = remove_project_volumes(get_project_name(), dry_run=args.dry_run)
     if args.dry_run:
         print(f"Project volumes that would be removed: {removed}, failed: {failed}")
     else:

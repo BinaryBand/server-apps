@@ -61,7 +61,9 @@ def _probe_services(state: WorkflowState) -> bool:
     any_degraded = False
     for service_name in compose_service_names():
         healthy = probe_container_health(service_name)
-        upsert_condition(state, f"service:{service_name}", "true" if healthy else "false")
+        upsert_condition(
+            state, f"service:{service_name}", "true" if healthy else "false"
+        )
         if not healthy:
             any_degraded = True
     return any_degraded
@@ -73,9 +75,7 @@ def _probe_runtime_conditions(state: WorkflowState) -> bool:
     services_degraded = _probe_services(state)
 
     media_public = probe_minio_media_public()
-    upsert_condition(
-        state, "minio:media-public", "true" if media_public else "false"
-    )
+    upsert_condition(state, "minio:media-public", "true" if media_public else "false")
 
     return volumes_degraded or services_degraded or not media_public
 
@@ -106,17 +106,18 @@ def _is_already_healthy(state: WorkflowState) -> bool:
 
 def _mark_stage_conditions(state: WorkflowState, stage_name: str) -> None:
     """Mark conditions after a pipeline stage executes."""
-    if stage_name == "volumes":
-        for volume_name in required_external_volume_names():
-            upsert_condition(state, f"volume:{volume_name}", "true")
-    elif stage_name == "permissions":
-        upsert_condition(state, "PermissionsApplied", "true")
-    elif stage_name == "runtime":
-        upsert_condition(state, "PostStartApplied", "true")
-        upsert_condition(state, "minio:media-public", "true")
-    elif stage_name == "health":
-        for service_name in compose_service_names():
-            upsert_condition(state, f"service:{service_name}", "true")
+    builders: dict[str, Any] = {
+        "volumes": lambda: [
+            f"volume:{name}" for name in required_external_volume_names()
+        ],
+        "permissions": lambda: ["PermissionsApplied"],
+        "runtime": lambda: ["PostStartApplied", "minio:media-public"],
+        "health": lambda: [f"service:{name}" for name in compose_service_names()],
+    }
+    names = builders.get(stage_name, lambda: [])()
+
+    for name in names:
+        upsert_condition(state, name, "true")
 
 
 def _run_pipeline_stages(state: WorkflowState) -> None:

@@ -151,9 +151,7 @@ def _handle_stale_mount(mount_path: Path) -> bool:
         return True
     except OSError as err:
         if err.errno != errno.EEXIST:
-            print(
-                f"Warning: unable to recreate media mount path {mount_path}: {err}"
-            )
+            print(f"Warning: unable to recreate media mount path {mount_path}: {err}")
         return False
 
 

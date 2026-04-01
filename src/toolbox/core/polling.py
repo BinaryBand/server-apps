@@ -20,7 +20,9 @@ def _normalize_probe(raw_result: ProbeResult | bool) -> ProbeResult:
     )
 
 
-def _timeout_message(description: str, timeout_seconds: float, detail: str | None) -> str:
+def _timeout_message(
+    description: str, timeout_seconds: float, detail: str | None
+) -> str:
     detail_str: str = f" Last status: {detail}." if detail else ""
     return f"Timed out while waiting for {description} after {timeout_seconds:.0f}s{detail_str}"
 
@@ -43,7 +45,9 @@ def wait_until(
 
         now: float = time.monotonic()
         if now >= deadline:
-            raise RuntimeError(_timeout_message(description, timeout_seconds, result.detail))
+            raise RuntimeError(
+                _timeout_message(description, timeout_seconds, result.detail)
+            )
 
         time.sleep(interval_seconds)
 

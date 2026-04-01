@@ -129,26 +129,28 @@ def _parse_volume_entry(entry: Any) -> tuple[str, str] | None:
     return None
 
 
-def service_volume_sources(service_name: str) -> dict[str, str]:
+def _get_service_volumes(service_name: str) -> list[Any] | None:
+    """Return volume list for a service, or None if not found."""
     config = rendered_compose_config()
     services = config.get("services")
     if not isinstance(services, dict):
-        return {}
-
+        return None
     service_cfg = services.get(service_name)
     if not isinstance(service_cfg, dict):
-        return {}
-
+        return None
     volumes = service_cfg.get("volumes")
-    if not isinstance(volumes, list):
-        return {}
+    return volumes if isinstance(volumes, list) else None
 
+
+def service_volume_sources(service_name: str) -> dict[str, str]:
+    volumes = _get_service_volumes(service_name)
+    if volumes is None:
+        return {}
     sources_by_target: dict[str, str] = {}
     for entry in volumes:
         result = _parse_volume_entry(entry)
         if result is not None:
             sources_by_target[result[0]] = result[1]
-
     return sources_by_target
 
 

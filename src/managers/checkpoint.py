@@ -46,7 +46,9 @@ class OperationCheckpoint:
         if state.runStatus != "in-progress":
             return False
 
-        return any(c.name == stage_name and c.status == "true" for c in state.conditions)
+        return any(
+            c.name == stage_name and c.status == "true" for c in state.conditions
+        )
 
     def mark_stage(
         self, stage_name: str, *, ok: bool, message: str | None = None
@@ -62,12 +64,10 @@ class OperationCheckpoint:
     def finish(self, *, observed: str, ok: bool) -> None:
         state: WorkflowState = self.state
         now = utc_now()
-        state.observed: str = observed
-        state.runStatus: Literal["completed", "failed"] = (
-            "completed" if ok else "failed"
-        )
-        state.updatedAt: datetime = now
-        state.lastTransitionTime: datetime = now
+        state.observed = observed
+        state.runStatus = "completed" if ok else "failed"
+        state.updatedAt = now
+        state.lastTransitionTime = now
         self._persist()
 
     def _persist(self) -> None:
