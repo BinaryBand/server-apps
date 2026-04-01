@@ -123,10 +123,17 @@ repos:
         pass_filenames: false
 
       - id: lizard
-        name: Lizard complexity check
+        name: Lizard complexity check (ceiling: 5)
         entry: .venv/bin/lizard
         language: system
         args: ["src/", "-C", "5", "-L", "25", "-a", "4"]
+        pass_filenames: false
+
+      - id: vulture
+        name: Vulture dead code check
+        entry: .venv/bin/vulture
+        language: system
+        args: ["src", "runbook", "--min-confidence", "80"]
         pass_filenames: false
 
       - id: import-linter
@@ -241,6 +248,7 @@ Every rule is paired with its enforcement tier. Rules marked **review** have no 
 | No type errors | Automated | Pyright (`strict`) |
 | No lint violations | Automated | Ruff |
 | No mutable globals | Automated | Pyright (`strict`) |
+| Dead code confidence < 80 not allowed | Automated | Vulture |
 | No silent exception swallowing | Automated | Ruff (`B001`, `S110`) |
 | No shell scripts — Python only | Automated | Ruff + pre-commit |
 | Service contract consistent | Automated | `src.utils.validate_contract` — pre-push hook |
