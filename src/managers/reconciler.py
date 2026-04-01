@@ -47,24 +47,24 @@ def _persist_state(state: WorkflowState) -> None:
 
 def _probe_volumes(state: WorkflowState) -> bool:
     """Probe external volumes and return degraded status."""
-    any_degraded = False
+    statuses: list[bool] = []
     for volume_name in required_external_volume_names():
         exists = probe_external_volume(volume_name)
         upsert_condition(state, f"volume:{volume_name}", "true" if exists else "false")
-        any_degraded = any_degraded or not exists
-    return any_degraded
+        statuses.append(exists)
+    return not all(statuses)
 
 
 def _probe_services(state: WorkflowState) -> bool:
     """Probe container health and return degraded status."""
-    any_degraded = False
+    statuses: list[bool] = []
     for service_name in compose_service_names():
         healthy = probe_container_health(service_name)
         upsert_condition(
             state, f"service:{service_name}", "true" if healthy else "false"
         )
-        any_degraded = any_degraded or not healthy
-    return any_degraded
+        statuses.append(healthy)
+    return not all(statuses)
 
 
 def _probe_runtime_conditions(state: WorkflowState) -> bool:
@@ -75,7 +75,7 @@ def _probe_runtime_conditions(state: WorkflowState) -> bool:
     media_public = probe_minio_media_public()
     upsert_condition(state, "minio:media-public", "true" if media_public else "false")
 
-    return volumes_degraded or services_degraded or not media_public
+    return any((volumes_degraded, services_degraded, not media_public))
 
 
 def _has_successful_full_reconcile_markers(state: WorkflowState) -> bool:
@@ -97,11 +97,12 @@ def _apply_state_from_probes(state: WorkflowState, any_degraded: bool) -> None:
 
 def _is_already_healthy(state: WorkflowState) -> bool:
     """Check if state indicates prior healthy completion."""
-    return (
-        state.observed == "Healthy"
-        and state.runStatus == "completed"
-        and _has_successful_full_reconcile_markers(state)
+    checks = (
+        state.observed == "Healthy",
+        state.runStatus == "completed",
+        _has_successful_full_reconcile_markers(state),
     )
+    return all(checks)
 
 
 def _mark_stage_conditions(state: WorkflowState, stage_name: str) -> None:
@@ -127,31 +128,42 @@ def _run_pipeline_stages(state: WorkflowState) -> None:
         _mark_stage_conditions(state, stage_name)
 
 
+def _refresh_from_probes(state: WorkflowState) -> bool:
+    any_degraded = _probe_runtime_conditions(state)
+    _apply_state_from_probes(state, any_degraded)
+    return any_degraded
+
+
+def _reconcile_check_only(state: WorkflowState) -> WorkflowState:
+    _refresh_from_probes(state)
+    return state
+
+
+def _reconcile_full(state: WorkflowState) -> WorkflowState:
+    # Full reconcile is idempotent: if the last state was healthy and probes
+    # still pass, return without replaying mutating pipeline steps.
+    if _is_already_healthy(state) and not _refresh_from_probes(state):
+        return state
+
+    _run_pipeline_stages(state)
+    _refresh_from_probes(state)
+    return state
+
+
+def _apply_runtime_failure(state: WorkflowState, err: RuntimeError) -> WorkflowState:
+    upsert_condition(state, "RuntimeHealth", "false", str(err))
+    state.observed = "Degraded"
+    state.runStatus = "failed"
+    _persist_state(state)
+    return state
+
+
 def reconcile_once(*, check_only: bool = False) -> WorkflowState:
     state: WorkflowState = _load_state("Healthy")
 
     try:
         if check_only:
-            any_degraded = _probe_runtime_conditions(state)
-            _apply_state_from_probes(state, any_degraded)
-            return state
-
-        # Full reconcile is idempotent: if the last state was healthy and probes
-        # still pass, return without replaying mutating pipeline steps.
-        if _is_already_healthy(state):
-            any_degraded = _probe_runtime_conditions(state)
-            _apply_state_from_probes(state, any_degraded)
-            if not any_degraded:
-                return state
-
-        _run_pipeline_stages(state)
-
-        any_degraded = _probe_runtime_conditions(state)
-        _apply_state_from_probes(state, any_degraded)
-        return state
+            return _reconcile_check_only(state)
+        return _reconcile_full(state)
     except RuntimeError as err:
-        upsert_condition(state, "RuntimeHealth", "false", str(err))
-        state.observed = "Degraded"
-        state.runStatus = "failed"
-        _persist_state(state)
-        return state
+        return _apply_runtime_failure(state, err)

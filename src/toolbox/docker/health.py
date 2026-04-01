@@ -101,6 +101,42 @@ def _create_command_probe(
     return _probe, state
 
 
+def _run_wait_loop(
+    description: str,
+    probe: Callable[[], ProbeResult],
+    *,
+    timeout_seconds: float,
+    interval_seconds: float,
+    stream: TextIO | None,
+) -> None:
+    wait_until(
+        description,
+        probe,
+        timeout_seconds=timeout_seconds,
+        interval_seconds=interval_seconds,
+        stream=stream,
+    )
+
+
+def _raise_command_failure(
+    description: str,
+    command: Sequence[str],
+    state: dict[str, Any],
+    err: RuntimeError,
+) -> None:
+    raise RuntimeError(
+        _format_command_failure(description, command, state["last_result"], str(err))
+    ) from err
+
+
+def _require_last_result(
+    description: str, state: dict[str, Any]
+) -> subprocess.CompletedProcess[str]:
+    if state["last_result"] is None:
+        raise RuntimeError(f"{description} failed before the first probe ran.")
+    return state["last_result"]
+
+
 def wait_for_command(
     description: str,
     command: Sequence[str],
@@ -116,7 +152,7 @@ def wait_for_command(
     _probe, state = _create_command_probe(command, predicate, formatter)
 
     try:
-        wait_until(
+        _run_wait_loop(
             description,
             _probe,
             timeout_seconds=timeout_seconds,
@@ -124,16 +160,17 @@ def wait_for_command(
             stream=stream,
         )
     except RuntimeError as err:
-        raise RuntimeError(
-            _format_command_failure(
-                description, command, state["last_result"], str(err)
-            )
-        ) from err
+        _raise_command_failure(description, command, state, err)
 
-    if state["last_result"] is None:
-        raise RuntimeError(f"{description} failed before the first probe ran.")
+    return _require_last_result(description, state)
 
-    return state["last_result"]
+
+def _healthy_status(result: subprocess.CompletedProcess[str]) -> bool:
+    return result.returncode == 0 and result.stdout.strip() == "healthy"
+
+
+def _health_detail(result: subprocess.CompletedProcess[str]) -> str:
+    return result.stdout.strip() or _default_command_detail(result)
 
 
 def wait_for_container_exec(
@@ -172,12 +209,8 @@ def wait_for_container_health(
         command,
         timeout_seconds=timeout_seconds,
         interval_seconds=interval_seconds,
-        success_predicate=lambda result: (
-            result.returncode == 0 and result.stdout.strip() == "healthy"
-        ),
-        detail_formatter=lambda result: (
-            result.stdout.strip() or _default_command_detail(result)
-        ),
+        success_predicate=_healthy_status,
+        detail_formatter=_health_detail,
     )
 
 

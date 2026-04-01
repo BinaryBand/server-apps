@@ -27,6 +27,14 @@ def _timeout_message(
     return f"Timed out while waiting for {description} after {timeout_seconds:.0f}s{detail_str}"
 
 
+def _is_timed_out(deadline: float) -> bool:
+    return time.monotonic() >= deadline
+
+
+def _sleep_for_interval(interval_seconds: float) -> None:
+    time.sleep(interval_seconds)
+
+
 def wait_until(
     description: str,
     probe: Callable[[], ProbeResult | bool],
@@ -43,13 +51,12 @@ def wait_until(
         if result.ready:
             return result
 
-        now: float = time.monotonic()
-        if now >= deadline:
+        if _is_timed_out(deadline):
             raise RuntimeError(
                 _timeout_message(description, timeout_seconds, result.detail)
             )
 
-        time.sleep(interval_seconds)
+        _sleep_for_interval(interval_seconds)
 
 
 __all__ = ["ProbeResult", "wait_until"]
