@@ -58,6 +58,24 @@ def _format_command_failure(
     return "\n".join(lines)
 
 
+def _create_command_probe(
+    command: Sequence[str],
+    predicate: Callable[[subprocess.CompletedProcess[str]], bool],
+    formatter: Callable[[subprocess.CompletedProcess[str]], str],
+) -> tuple[Callable[[], ProbeResult], dict[str, Any]]:
+    """Create a probe function and mutable state for running commands."""
+    state: dict[str, Any] = {"last_result": None}
+
+    def _probe() -> ProbeResult:
+        state["last_result"] = _run_command(command)
+        return ProbeResult(
+            ready=predicate(state["last_result"]),
+            detail=formatter(state["last_result"]),
+        )
+
+    return _probe, state
+
+
 def wait_for_command(
     description: str,
     command: Sequence[str],
@@ -70,15 +88,7 @@ def wait_for_command(
 ) -> subprocess.CompletedProcess[str]:
     predicate = success_predicate or (lambda result: result.returncode == 0)
     formatter = detail_formatter or _default_command_detail
-    last_result: subprocess.CompletedProcess[str] | None = None
-
-    def _probe() -> ProbeResult:
-        nonlocal last_result
-        last_result = _run_command(command)
-        return ProbeResult(
-            ready=predicate(last_result),
-            detail=formatter(last_result),
-        )
+    _probe, state = _create_command_probe(command, predicate, formatter)
 
     try:
         wait_until(
@@ -90,13 +100,13 @@ def wait_for_command(
         )
     except RuntimeError as err:
         raise RuntimeError(
-            _format_command_failure(description, command, last_result, str(err))
+            _format_command_failure(description, command, state["last_result"], str(err))
         ) from err
 
-    if last_result is None:
+    if state["last_result"] is None:
         raise RuntimeError(f"{description} failed before the first probe ran.")
 
-    return last_result
+    return state["last_result"]
 
 
 def wait_for_container_exec(
@@ -144,10 +154,10 @@ def wait_for_container_health(
     )
 
 
-def run_runtime_health_checks() -> None:
+def _exec_check_table() -> list[tuple[str, str, list[str], float, float]]:
+    """Return the table of container exec health checks."""
     remote = rclone_remote("pcloud")
-
-    exec_checks: list[tuple[str, str, list[str], float, float]] = [
+    return [
         (
             "Wait for rclone config",
             "rclone",
@@ -178,13 +188,17 @@ def run_runtime_health_checks() -> None:
         ),
     ]
 
+
+def run_runtime_health_checks() -> None:
+    checks = _exec_check_table()
+
     for (
         description,
         container,
         exec_args,
         timeout_seconds,
         interval_seconds,
-    ) in exec_checks:
+    ) in checks:
         wait_for_container_exec(
             description,
             container=container,

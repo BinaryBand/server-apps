@@ -75,14 +75,8 @@ def _list_docker_volumes(*args: str) -> list[str]:
     return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
 
-def list_project_volumes(project: str) -> list[str]:
-    """List compose-managed volumes for this stack."""
-    volumes: list[str] = _list_docker_volumes(
-        "--filter", f"label=com.docker.compose.project={project}"
-    )
-    if volumes:
-        return volumes
-
+def _fallback_configured_volumes() -> set[str]:
+    """Return configured volume names from compose config and external aliases."""
     configured: set[str] = set(external_alias_name_pairs().values())
 
     compose_volumes = rendered_compose_config().get("volumes")
@@ -93,6 +87,18 @@ def list_project_volumes(project: str) -> list[str]:
                 if isinstance(volume_name, str) and volume_name:
                     configured.add(volume_name)
 
+    return configured
+
+
+def list_project_volumes(project: str) -> list[str]:
+    """List compose-managed volumes for this stack."""
+    volumes: list[str] = _list_docker_volumes(
+        "--filter", f"label=com.docker.compose.project={project}"
+    )
+    if volumes:
+        return volumes
+
+    configured = _fallback_configured_volumes()
     existing = set(_list_docker_volumes())
     return sorted(name for name in configured if name in existing)
 

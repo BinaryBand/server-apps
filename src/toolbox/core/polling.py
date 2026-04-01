@@ -12,6 +12,19 @@ class ProbeResult:
     detail: str | None = None
 
 
+def _normalize_probe(raw_result: ProbeResult | bool) -> ProbeResult:
+    return (
+        raw_result
+        if isinstance(raw_result, ProbeResult)
+        else ProbeResult(ready=bool(raw_result))
+    )
+
+
+def _timeout_message(description: str, timeout_seconds: float, detail: str | None) -> str:
+    detail_str: str = f" Last status: {detail}." if detail else ""
+    return f"Timed out while waiting for {description} after {timeout_seconds:.0f}s{detail_str}"
+
+
 def wait_until(
     description: str,
     probe: Callable[[], ProbeResult | bool],
@@ -23,21 +36,14 @@ def wait_until(
     deadline: float = time.monotonic() + timeout_seconds
 
     while True:
-        raw_result: ProbeResult | bool = probe()
-        result: ProbeResult = (
-            raw_result
-            if isinstance(raw_result, ProbeResult)
-            else ProbeResult(ready=bool(raw_result))
-        )
+        result: ProbeResult = _normalize_probe(probe())
 
         if result.ready:
             return result
 
         now: float = time.monotonic()
         if now >= deadline:
-            detail: str = f" Last status: {result.detail}." if result.detail else ""
-            msg = f"Timed out while waiting for {description} after {timeout_seconds:.0f}s"
-            raise RuntimeError(f"{msg}: {detail}")
+            raise RuntimeError(_timeout_message(description, timeout_seconds, result.detail))
 
         time.sleep(interval_seconds)
 

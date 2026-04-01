@@ -36,7 +36,8 @@ def _compose_file_args() -> list[str]:
     return cmd
 
 
-def rendered_compose_config() -> dict[str, Any]:
+def _run_compose_config_cmd() -> str:
+    """Run docker-compose config command and return rendered YAML."""
     cmd: list[str] = [
         *DOCKER_COMPOSE_CMD,
         *_compose_file_args(),
@@ -48,9 +49,14 @@ def rendered_compose_config() -> dict[str, Any]:
         raise RuntimeError(
             f"[compose_storage] Failed to render: {' '.join(cmd)}\n{proc.stderr.strip()}"
         )
+    return proc.stdout
+
+
+def rendered_compose_config() -> dict[str, Any]:
+    yaml_str = _run_compose_config_cmd()
 
     try:
-        data = yaml.safe_load(proc.stdout)
+        data = yaml.safe_load(yaml_str)
     except yaml.YAMLError as err:
         raise RuntimeError(
             f"[compose_storage] Failed to parse rendered compose YAML: {err}"
@@ -69,6 +75,17 @@ def rendered_compose_config() -> dict[str, Any]:
     return model.model_dump(mode="python")
 
 
+def _extract_external_volume(alias: str, raw_cfg: Any) -> tuple[str, str] | None:
+    """Extract external volume alias-name pair or None."""
+    if not isinstance(raw_cfg, dict) or raw_cfg.get("external") is not True:
+        return None
+
+    volume_name = raw_cfg.get("name")
+    if isinstance(volume_name, str) and volume_name:
+        return (alias, volume_name)
+    return None
+
+
 def external_alias_name_pairs() -> dict[str, str]:
     config = rendered_compose_config()
     volumes = config.get("volumes")
@@ -77,17 +94,39 @@ def external_alias_name_pairs() -> dict[str, str]:
 
     pairs: dict[str, str] = {}
     for alias, raw_cfg in volumes.items():
-        if not isinstance(alias, str) or not isinstance(raw_cfg, dict):
+        if not isinstance(alias, str):
             continue
-
-        if raw_cfg.get("external") is not True:
-            continue
-
-        volume_name = raw_cfg.get("name")
-        if isinstance(volume_name, str) and volume_name:
-            pairs[alias] = volume_name
+        result = _extract_external_volume(alias, raw_cfg)
+        if result is not None:
+            pairs[result[0]] = result[1]
 
     return pairs
+
+
+def _parse_dict_volume_entry(entry: dict) -> tuple[str, str] | None:
+    """Extract target and source from dict-form volume config."""
+    source = entry.get("source")
+    target = entry.get("target")
+    if isinstance(source, str) and isinstance(target, str):
+        return (target, source)
+    return None
+
+
+def _parse_string_volume_entry(entry: str) -> tuple[str, str] | None:
+    """Parse colon-separated source:target string."""
+    parts = entry.split(":")
+    if len(parts) >= 2 and parts[0] and parts[1]:
+        return (parts[1], parts[0])
+    return None
+
+
+def _parse_volume_entry(entry: Any) -> tuple[str, str] | None:
+    """Parse a volume entry (dict or string) and return (target, source) or None."""
+    if isinstance(entry, dict):
+        return _parse_dict_volume_entry(entry)
+    if isinstance(entry, str):
+        return _parse_string_volume_entry(entry)
+    return None
 
 
 def service_volume_sources(service_name: str) -> dict[str, str]:
@@ -106,17 +145,9 @@ def service_volume_sources(service_name: str) -> dict[str, str]:
 
     sources_by_target: dict[str, str] = {}
     for entry in volumes:
-        if isinstance(entry, dict):
-            source = entry.get("source")
-            target = entry.get("target")
-            if isinstance(source, str) and isinstance(target, str):
-                sources_by_target[target] = source
-            continue
-
-        if isinstance(entry, str):
-            parts = entry.split(":")
-            if len(parts) >= 2 and parts[0] and parts[1]:
-                sources_by_target[parts[1]] = parts[0]
+        result = _parse_volume_entry(entry)
+        if result is not None:
+            sources_by_target[result[0]] = result[1]
 
     return sources_by_target
 

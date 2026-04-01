@@ -12,6 +12,31 @@ from typing import Literal
 MODE = Literal["bootstrap", "runtime", "reset"]
 
 
+def _build_playbook_command(
+    mode: MODE, manifest: Path, inventory: Path, playbook: Path, dry_run: bool
+) -> list[str]:
+    """Build ansible-playbook command."""
+    command = [
+        ansible_playbook_bin(),
+        "-i",
+        str(inventory),
+        str(playbook),
+        "-e",
+        f"manifest_path={manifest}",
+        "-e",
+        f"repo_root={playbook.parent.parent}",
+        "-e",
+        f"permissions_mode={mode}",
+        "-e",
+        f"reset_uid={os.getuid()}",
+        "-e",
+        f"reset_gid={os.getgid()}",
+    ]
+    if dry_run:
+        command.append("--check")
+    return command
+
+
 def run_permissions_playbook(
     *,
     mode: MODE,
@@ -27,33 +52,12 @@ def run_permissions_playbook(
     if not playbook.exists():
         raise SystemExit(f"Ansible playbook not found: {playbook}")
 
-    command = [
-        ansible_playbook_bin(),
-        "-i",
-        str(inventory),
-        str(playbook),
-        "-e",
-        f"manifest_path={manifest}",
-        "-e",
-        f"repo_root={root}",
-        "-e",
-        f"permissions_mode={mode}",
-        "-e",
-        f"reset_uid={os.getuid()}",
-        "-e",
-        f"reset_gid={os.getgid()}",
-    ]
-
-    if dry_run:
-        command.append("--check")
+    command = _build_playbook_command(mode, manifest, inventory, playbook, dry_run)
 
     if mode == "bootstrap" and os.geteuid() != 0:
         print("Bootstrap mode requires root to apply host ownership/users.")
-        try:
-            subprocess.run(["sudo", *command], check=True)
-            return
-        except Exception as err:
-            raise RuntimeError(f"Failed to run permissions playbook: {err}") from err
+        _run_as_sudo(command)
+        return
 
     try:
         subprocess.run(command, check=True, env=os.environ.copy(), cwd=str(root))

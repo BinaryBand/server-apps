@@ -86,6 +86,24 @@ def pull_restic_from_cloud() -> None:
         ) from err
 
 
+def _find_source_path(
+    backups_volume_name: str, source_name: str, target_prefix: str
+) -> str | None:
+    """Find source path for a logical volume in backup volume candidates."""
+    candidates = [
+        f"{target_prefix}volumes/{source_name}",
+        f"{target_prefix}backups/volumes/{source_name}",
+    ]
+    return next(
+        (
+            candidate
+            for candidate in candidates
+            if _volume_subdir_exists(backups_volume_name, candidate)
+        ),
+        None,
+    )
+
+
 def _apply_restored_volumes_from_backups_volume(target: str) -> None:
     backups_volume_name = storage_mount_source("backups")
     target_prefix = ""
@@ -93,21 +111,12 @@ def _apply_restored_volumes_from_backups_volume(target: str) -> None:
         target_prefix = target.removeprefix("/backups/").strip("/") + "/"
 
     for source_name in logical_volume_names():
-        candidates = [
-            f"{target_prefix}volumes/{source_name}",
-            f"{target_prefix}backups/volumes/{source_name}",
-        ]
-        source_relative_path = next(
-            (
-                candidate
-                for candidate in candidates
-                if _volume_subdir_exists(backups_volume_name, candidate)
-            ),
-            None,
+        source_relative_path = _find_source_path(
+            backups_volume_name, source_name, target_prefix
         )
 
         if source_relative_path is None:
-            print(f"Skipping {source_name}; not found in {', '.join(candidates)}.")
+            print(f"Skipping {source_name}; not found in backups.")
             continue
 
         target_mount = logical_volume_mount_source(source_name)

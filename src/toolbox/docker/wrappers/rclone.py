@@ -119,14 +119,8 @@ def rclone_sync(
         ) from err
 
 
-def cleanup_media_mount() -> None:
-    """Tear down the host-side rclone media mount and recreate the mountpoint.
-
-    This is intentionally tolerant: stop flows should keep going even when the
-    mount is already gone or the unmount helper returns a non-zero status.
-    """
-    mount_path: Path = media_root() / "pcloud" / "Media"
-
+def _try_fuse_unmount(mount_path: Path) -> None:
+    """Attempt to unmount rclone and host-level FUSE mounts."""
     if _rclone_container_is_running():
         fuse_result = subprocess.run(
             _docker_exec_rclone_command(["fusermount", "-uz", "/media/pcloud/Media"]),
@@ -143,8 +137,28 @@ def cleanup_media_mount() -> None:
 
     subprocess.run(["umount", "-l", str(mount_path)], check=False)
 
-    mount_path.parent.mkdir(parents=True, exist_ok=True)
 
+def _handle_stale_mount(mount_path: Path) -> bool:
+    """Handle stale FUSE mountpoint recovery. Return True if successful."""
+    if os.path.lexists(mount_path):
+        try:
+            os.rmdir(mount_path)
+        except OSError:
+            shutil.rmtree(mount_path, ignore_errors=True)
+
+    try:
+        mount_path.mkdir(parents=True, exist_ok=True)
+        return True
+    except OSError as err:
+        if err.errno != errno.EEXIST:
+            print(
+                f"Warning: unable to recreate media mount path {mount_path}: {err}"
+            )
+        return False
+
+
+def _recreate_mount_dir(mount_path: Path) -> None:
+    """Recreate mount directory, recovering from stale FUSE mounts if needed."""
     try:
         mount_path.mkdir(parents=True, exist_ok=True)
     except OSError as err:
@@ -154,21 +168,20 @@ def cleanup_media_mount() -> None:
         if _cleanup_mount_path_via_helper(mount_path):
             return
 
-        # A stale FUSE mountpoint can remain as a broken directory entry even
-        # after unmount attempts. Remove that exact path and recreate it.
-        if os.path.lexists(mount_path):
-            try:
-                os.rmdir(mount_path)
-            except OSError:
-                shutil.rmtree(mount_path, ignore_errors=True)
+        _handle_stale_mount(mount_path)
 
-        try:
-            mount_path.mkdir(parents=True, exist_ok=True)
-        except OSError as recreate_err:
-            if recreate_err.errno != errno.EEXIST:
-                print(
-                    f"Warning: unable to recreate media mount path {mount_path}: {recreate_err}"
-                )
+
+def cleanup_media_mount() -> None:
+    """Tear down the host-side rclone media mount and recreate the mountpoint.
+
+    This is intentionally tolerant: stop flows should keep going even when the
+    mount is already gone or the unmount helper returns a non-zero status.
+    """
+    mount_path: Path = media_root() / "pcloud" / "Media"
+
+    _try_fuse_unmount(mount_path)
+    mount_path.parent.mkdir(parents=True, exist_ok=True)
+    _recreate_mount_dir(mount_path)
 
 
 __all__ = ["rclone_sync", "cleanup_media_mount"]

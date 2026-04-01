@@ -46,10 +46,7 @@ class OperationCheckpoint:
         if state.runStatus != "in-progress":
             return False
 
-        for condition in state.conditions:
-            if condition.name == stage_name and condition.status == "true":
-                return True
-        return False
+        return any(c.name == stage_name and c.status == "true" for c in state.conditions)
 
     def mark_stage(
         self, stage_name: str, *, ok: bool, message: str | None = None
