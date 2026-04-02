@@ -84,9 +84,21 @@ def stop_compose_stack() -> None:
     subprocess.run(compose_cmd("down"), check=True)
 
 
+def _is_runtime_service(service_cfg: object) -> bool:
+    if not isinstance(service_cfg, dict):
+        return False
+    profiles = service_cfg.get("profiles")
+    return not isinstance(profiles, list)
+
+
 def compose_service_names() -> list[str]:
     config = rendered_compose_config()
-    return list(config.get("services", {}).keys())
+    services = config.get("services", {})
+    return [
+        name
+        for name, service_cfg in services.items()
+        if _is_runtime_service(service_cfg)
+    ]
 
 
 __all__ = [

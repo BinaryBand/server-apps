@@ -203,6 +203,26 @@
   changed_when: compose_down.rc == 0
   when: permissions_mode_selected == 'runtime'
 
+- name: Normalize MinIO data path ownership for runtime
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - -v
+      - "{{ minio_volume_path }}:/target"
+      - alpine:3.20
+      - sh
+      - -lc
+      - >-
+        mkdir -p /target &&
+        chown -R {{ service_identities.minio.uid | int }}:{{ service_identities.minio.gid | int }} /target &&
+        chmod -R u+rwX /target
+  when:
+    - permissions_mode_selected == 'runtime'
+    - minio_volume_path | length > 0
+    - minio_volume_path.startswith('/')
+
 - name: Start docker compose stack
   ansible.builtin.command:
     argv:
@@ -223,6 +243,20 @@
 
 - name: Ensure MinIO media bucket is public
   block:
+    - name: Wait for MinIO API readiness
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - minio
+          - sh
+          - -lc
+          - "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null"
+      register: minio_ready
+      retries: 24
+      delay: 5
+      until: minio_ready.rc == 0
+
     - name: Configure mc alias for MinIO
       ansible.builtin.command:
         argv:
