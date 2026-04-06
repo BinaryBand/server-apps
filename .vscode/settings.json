@@ -39,6 +39,5 @@
   },
   "python.testing.pytestArgs": ["tests"],
   "python.testing.unittestEnabled": false,
-  "python.testing.pytestEnabled": true,
-  "task.allowAutomaticTasks": "on"
+  "python.testing.pytestEnabled": true
 }
