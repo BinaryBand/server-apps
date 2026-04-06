@@ -176,4 +176,36 @@ def cleanup_media_mount() -> None:
     _recreate_mount_dir(mount_path)
 
 
-__all__ = ["rclone_sync", "cleanup_media_mount"]
+def install_rclone_conf(local_conf_path: str | Path, volume_name: str = "rclone_config") -> None:
+    """Install a prepared `rclone.conf` file into the named Docker volume.
+
+    This uses a small alpine container to copy the provided file into
+    `/config/rclone/rclone.conf` inside the volume and sets permissions to 0600.
+    """
+    if shutil.which("docker") is None:
+        raise RuntimeError("docker is required to install rclone.conf into a Docker volume")
+
+    local_conf = Path(local_conf_path)
+    if not local_conf.exists():
+        raise FileNotFoundError(f"Local rclone.conf not found: {local_conf}")
+
+    parent = str(local_conf.resolve().parent)
+    name = local_conf.name
+    cmd = [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{volume_name}:/config/rclone",
+        "-v",
+        f"{parent}:/staging",
+        "alpine:3.20",
+        "sh",
+        "-c",
+        f"cp /staging/{name} /config/rclone/rclone.conf && chmod 600 /config/rclone/rclone.conf",
+    ]
+
+    subprocess.run(cmd, check=True)
+
+
+__all__ = ["rclone_sync", "cleanup_media_mount", "install_rclone_conf"]

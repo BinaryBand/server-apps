@@ -1,0 +1,44 @@
+{
+  "cSpell.words": [
+    "dockerfiles",
+    "dotenv",
+    "healthcheck",
+    "jellyfin",
+    "mountpoint",
+    "pcloud",
+    "pgid",
+    "puid",
+    "rclone",
+    "restic",
+    "rprivate",
+    "setuptools"
+  ],
+  "files.exclude": {
+    "**/.pytest_cache": true,
+    "**/__pycache__": true,
+    "**/.ruff_cache": true,
+    "**/*.egg-info": true,
+    "**/build": true,
+    "**/.venv": true
+  },
+  "search.exclude": {
+    "**/.pytest_cache": true,
+    "**/__pycache__": true,
+    "**/.ruff_cache": true,
+    "**/*.egg-info": true,
+    "**/build": true,
+    "**/.venv": true
+  },
+  "files.watcherExclude": {
+    "**/.pytest_cache/**": true,
+    "**/__pycache__/**": true,
+    "**/.ruff_cache/**": true,
+    "**/*.egg-info": true,
+    "**/build": true,
+    "**/.venv": true
+  },
+  "python.testing.pytestArgs": ["tests"],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "task.allowAutomaticTasks": "on"
+}

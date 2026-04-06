@@ -1,0 +1,132 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Watch: Quality Auto",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python ${workspaceFolder}/.help/quality_watch.py",
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "presentation": {
+        "reveal": "never",
+        "panel": "dedicated"
+      },
+      "problemMatcher": [
+        {
+          "owner": "lizard",
+          "severity": "error",
+          "fileLocation": [
+            "relative",
+            "${workspaceFolder}"
+          ],
+          "pattern": {
+            "regexp": "^(.+):(\\d+):\\s+warning:\\s+(.+)$",
+            "file": 1,
+            "line": 2,
+            "message": 3
+          },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": "^::LIZARD_BEGIN::$",
+            "endsPattern": "^::LIZARD_END::$"
+          }
+        },
+        {
+          "owner": "vulture",
+          "severity": "warning",
+          "fileLocation": [
+            "relative",
+            "${workspaceFolder}"
+          ],
+          "pattern": {
+            "regexp": "^(.+):(\\d+):\\s+(.+)$",
+            "file": 1,
+            "line": 2,
+            "message": 3
+          },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": "^::VULTURE_BEGIN::$",
+            "endsPattern": "^::VULTURE_END::$"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Check: Lizard Complexity",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python -m lizard src runbook -C 5 -L 25 -a 4 -w",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "lizard",
+        "severity": "error",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": {
+          "regexp": "^(.+):(\\d+):\\s+warning:\\s+(.+)$",
+          "file": 1,
+          "line": 2,
+          "message": 3
+        }
+      }
+    },
+    {
+      "label": "Check: Lizard File Complexity",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python ${workspaceFolder}/.help/lizard_file_gate.py src runbook --max-file-ccn-sum 35 --max-file-avg-ccn 4.5 --max-file-high-risk-funcs 2 --high-risk-ccn 6",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Check: Vulture Dead Code",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python -m vulture src runbook --min-confidence 80",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "vulture",
+        "severity": "error",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": {
+          "regexp": "^(.+):(\\d+):\\s+(.+)$",
+          "file": 1,
+          "line": 2,
+          "message": 3
+        }
+      }
+    },
+    {
+      "label": "Validate: Python Gate",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Check: Lizard Complexity",
+        "Check: Lizard File Complexity",
+        "Check: Vulture Dead Code"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    }
+  ]
+}

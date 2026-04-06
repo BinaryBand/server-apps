@@ -62,3 +62,13 @@ Rows are traversal states (`T0` to `T5`) plus failure exits (`F1` to `F3`).
 | `F3` | ✓ | ✓ | ✓ | ✓ | ✗ | runtime verification failed from `T4` |
 
 > State names are defined in section 1 labels (for example, `T0 - Starting`, `F1 - FailedPermissions`).
+
+## pCloud authentication
+
+If you use pCloud as a remote, obtain and install an rclone token with the helper:
+
+```bash
+python runbook/authorize_rclone.py --install-volume
+```
+
+See [docs/pcloud-auth.md](docs/pcloud-auth.md) for interactive and headless instructions and security notes.
