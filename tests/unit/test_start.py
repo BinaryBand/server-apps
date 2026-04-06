@@ -29,10 +29,14 @@ def test_main_runs_health_checks_after_permissions_reconcile() -> None:
             side_effect=record("runtime"),
         ),
         patch(
+            "src.managers.pipeline.sync_media",
+            side_effect=record("media-sync"),
+        ),
+        patch(
             "src.managers.pipeline.run_runtime_health_checks",
             side_effect=record("health"),
         ),
     ):
         main()
 
-    assert events == ["volumes", "permissions", "runtime", "health"]
+    assert events == ["volumes", "permissions", "runtime", "media-sync", "health"]
