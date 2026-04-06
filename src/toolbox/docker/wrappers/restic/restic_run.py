@@ -5,6 +5,9 @@ from src.toolbox.docker.volumes import storage_mount_source
 from src.toolbox.core.config import restic_pcloud_remote, restic_version
 
 import subprocess
+import logging
+
+log = logging.getLogger(__name__)
 
 
 PROFILE = "on-demand"
@@ -39,7 +42,7 @@ def _ensure_restic_repo_volume_exists() -> None:
         return
 
     cmd: list[str] = ["docker", "volume", "create", source]
-    print("Running:", " ".join(cmd))
+    log.info("Running: %s", " ".join(cmd))
     try:
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as err:
@@ -50,7 +53,7 @@ def run_restic_command(cmd_args: list[str]) -> None:
     _ensure_restic_repo_volume_exists()
     cmd: list[str] = _restic_compose_run_command(cmd_args)
 
-    print("Running:", " ".join(cmd))
+    log.info("Running: %s", " ".join(cmd))
     try:
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as err:
@@ -63,7 +66,7 @@ def run_restic_command_with_output(cmd_args: list[str]) -> str:
     _ensure_restic_repo_volume_exists()
     cmd: list[str] = _restic_compose_run_command(cmd_args)
 
-    print("Running:", " ".join(cmd))
+    log.info("Running: %s", " ".join(cmd))
     try:
         result: subprocess.CompletedProcess[str] = subprocess.run(
             cmd, check=True, capture_output=True, text=True
