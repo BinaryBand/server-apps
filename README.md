@@ -12,9 +12,23 @@
 | `restic_repo_data` | — | ✗ | ✗ | ✗ | ✗ | R/W |
 | `backups_data` | — | ✗ | ✗ | ✗ | ✗ | R/W |
 | `rclone_config` | — | ✗ | ✗ | ✗ | R/— | ✗ |
-| `MEDIA_DATA_PATH` (`/media`) | Host path | ✗ | R/— | ✗ | R/W | ✗ |
+| `media_source_data` (`/media` in rclone) | Docker volume | ✗ | ✗ | ✗ | R/W | ✗ |
+| `media_read_data` (`/media` in jellyfin) | Docker tmpfs volume (in-memory) | ✗ | R/— | ✗ | ✗ | ✗ |
 | `LOGS_DIR` (`/logs`) | Host path | R/W | R/W | R/W | R/W | ✗ |
 | `MINIO_DATA_DIR` (`/data`) | Host path | ✗ | ✗ | R/W | ✗ | ✗ |
+
+## 1.1 Media Sync
+
+Media replication now runs automatically during startup. The pipeline syncs
+from the rclone-mounted source volume to the in-memory reader volume used by
+Jellyfin.
+
+```bash
+./.venv/bin/python runbook/start.py
+```
+
+`media_read_data` is configured as tmpfs, so synced files are virtual/in-memory
+and are not persisted to host disk.
 
 ## 2. Startup process
 

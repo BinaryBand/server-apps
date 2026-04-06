@@ -1,14 +1,9 @@
-from src.toolbox.core.runtime import media_root
 from src.toolbox.core.config import rclone_version
 
 from subprocess import CalledProcessError, CompletedProcess
 from typing import Iterable
-from pathlib import Path
 
 import subprocess
-import shutil
-import errno
-import os
 
 
 def _rclone_image() -> str:
@@ -28,26 +23,6 @@ def _rclone_container_is_running(container_name: str = "rclone") -> bool:
         text=True,
     )
     return probe.returncode == 0 and probe.stdout.strip() == "true"
-
-
-def _host_helper_command(command_args: list[str]) -> list[str]:
-    return [
-        "docker",
-        "run",
-        "--rm",
-        "--privileged",
-        "--pid=host",
-        "-v",
-        "/:/host",
-        "alpine:3.20",
-        "chroot",
-        "/host",
-        "nsenter",
-        "-t",
-        "1",
-        "-m",
-        *command_args,
-    ]
 
 
 def _docker_exec_rclone_command(command_args: list[str]) -> list[str]:
@@ -83,16 +58,6 @@ def _run_or_raise_rclone_sync(cmd: list[str]) -> None:
         raise RuntimeError(f"rclone sync failed with {err.returncode}: {' '.join(cmd)}") from err
 
 
-def _cleanup_mount_path_via_helper(mount_path: Path) -> bool:
-    subprocess.run(_host_helper_command(["umount", "-l", str(mount_path)]), check=False)
-    subprocess.run(_host_helper_command(["rm", "-rf", str(mount_path)]), check=False)
-    result: CompletedProcess[bytes] = subprocess.run(
-        _host_helper_command(["mkdir", "-p", str(mount_path)]),
-        check=False,
-    )
-    return result.returncode == 0
-
-
 def rclone_sync(
     source: str,
     destination: str,
@@ -113,8 +78,8 @@ def rclone_sync(
     _run_or_raise_rclone_sync(cmd)
 
 
-def _try_fuse_unmount(mount_path: Path) -> None:
-    """Attempt to unmount rclone and host-level FUSE mounts."""
+def _try_fuse_unmount() -> None:
+    """Attempt to unmount rclone FUSE mount inside the rclone container."""
     if _rclone_container_is_running():
         fuse_result = subprocess.run(
             _docker_exec_rclone_command(["fusermount", "-uz", "/media/pcloud/Media"]),
@@ -126,54 +91,14 @@ def _try_fuse_unmount(mount_path: Path) -> None:
                 check=False,
             )
 
-    if shutil.which("fusermount") is not None:
-        subprocess.run(["fusermount", "-uz", str(mount_path)], check=False)
-
-    subprocess.run(["umount", "-l", str(mount_path)], check=False)
-
-
-def _handle_stale_mount(mount_path: Path) -> bool:
-    """Handle stale FUSE mountpoint recovery. Return True if successful."""
-    if os.path.lexists(mount_path):
-        try:
-            os.rmdir(mount_path)
-        except OSError:
-            shutil.rmtree(mount_path, ignore_errors=True)
-
-    try:
-        mount_path.mkdir(parents=True, exist_ok=True)
-        return True
-    except OSError as err:
-        if err.errno != errno.EEXIST:
-            print(f"Warning: unable to recreate media mount path {mount_path}: {err}")
-        return False
-
-
-def _recreate_mount_dir(mount_path: Path) -> None:
-    """Recreate mount directory, recovering from stale FUSE mounts if needed."""
-    try:
-        mount_path.mkdir(parents=True, exist_ok=True)
-    except OSError as err:
-        if err.errno not in {errno.EEXIST, errno.ENOTCONN}:
-            raise
-
-        if _cleanup_mount_path_via_helper(mount_path):
-            return
-
-        _handle_stale_mount(mount_path)
-
 
 def cleanup_media_mount() -> None:
-    """Tear down the host-side rclone media mount and recreate the mountpoint.
+    """Tear down the in-container rclone media mount.
 
     This is intentionally tolerant: stop flows should keep going even when the
-    mount is already gone or the unmount helper returns a non-zero status.
+    mount is already gone or unmount returns a non-zero status.
     """
-    mount_path: Path = media_root() / "pcloud" / "Media"
-
-    _try_fuse_unmount(mount_path)
-    mount_path.parent.mkdir(parents=True, exist_ok=True)
-    _recreate_mount_dir(mount_path)
+    _try_fuse_unmount()
 
 
 __all__ = ["rclone_sync", "cleanup_media_mount"]

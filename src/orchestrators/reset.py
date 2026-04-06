@@ -7,7 +7,6 @@ from src.toolbox.core.runtime import (
     checkpoints_root,
     locks_root,
     logs_root,
-    media_root,
 )
 from src.toolbox.core.config import get_project_name
 
@@ -87,8 +86,6 @@ def _run_reset_pipeline(
 def _finish_reset(checkpoint: OperationCheckpoint, args: Namespace) -> None:
     """Finish reset and mark completion status."""
     if not args.dry_run:
-        if args.keep_media:
-            media_root().mkdir(parents=True, exist_ok=True)
         checkpoint.finish(observed="ResetCompleted", ok=True)
         print("Clean slate reset complete.")
     else:
@@ -100,15 +97,16 @@ def _parse_args() -> Namespace:
     parser = ArgumentParser(description="Reset project storage and runtime state")
     parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
     parser.add_argument("--dry-run", action="store_true", help="Print actions only")
-    parser.add_argument("--keep-media", action="store_true")
+    parser.add_argument(
+        "--keep-media",
+        action="store_true",
+        help="Deprecated no-op; media now lives in Docker volumes",
+    )
     return parser.parse_args()
 
 
 def _reset_targets(args: Namespace) -> list[Path]:
-    targets: list[Path] = [logs_root()]
-    if not args.keep_media:
-        targets.append(media_root())
-    return targets
+    return [logs_root()]
 
 
 def _confirm_or_abort(args: Namespace, targets: list[Path]) -> bool:

@@ -24,6 +24,8 @@ STORAGE_TARGETS: dict[str, tuple[str, str]] = {
     "backups": ("restic", "/backups"),
     "restic_repo": ("restic", "/repo"),
     "rclone_config": ("rclone", "/config/rclone"),
+    "media_source": ("rclone", "/media"),
+    "media_read": ("jellyfin", "/media"),
 }
 
 BIND_MOUNT_ENV: dict[str, str] = {

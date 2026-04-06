@@ -17,18 +17,6 @@ users:
     comment: "MinIO service account (system user)"
 
 volumes:
-  - path: "{{ lookup('ansible.builtin.env', 'MEDIA_DATA_PATH', default='./runtime/media') }}"
-    owner: jellyfin
-    group: rclone
-    mode: "0755"
-    recurse: true
-
-  - path: "{{ lookup('ansible.builtin.env', 'MEDIA_DATA_PATH', default='./runtime/media') }}/pcloud/Media"
-    owner: rclone
-    group: rclone
-    mode: "0755"
-    recurse: true
-
   - path: "{{ lookup('ansible.builtin.env', 'LOGS_DIR', default='./runtime/logs') }}"
     owner: jellyfin
     group: jellyfin
@@ -44,4 +32,3 @@ volumes:
 
 reset_paths:
   - path: "{{ lookup('ansible.builtin.env', 'LOGS_DIR', default='./runtime/logs') }}"
-  - path: "{{ lookup('ansible.builtin.env', 'MEDIA_DATA_PATH', default='./runtime/media') }}"

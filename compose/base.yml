@@ -39,7 +39,7 @@ services:
       - jellyfin_cache_data:/var/cache/jellyfin
       - cloud_jellyfin_config:/etc/jellyfin
       - cloud_jellyfin_data:/var/lib/jellyfin
-      - /media
+      - media_read_data:/media:ro
       - /logs
     ports:
       - "8096:8096"
@@ -85,8 +85,9 @@ services:
       - MEDIA_GID=5572
       - RCLONE_CONFIG=/config/rclone/rclone.conf
     command: >-
-      mount "${RCLONE_REMOTE:-pcloud}:Media" /media/pcloud/Media
+      mount "${RCLONE_REMOTE:-pcloud}:Media" /media
       --allow-other
+      --allow-non-empty
       --vfs-cache-mode writes
       --vfs-cache-max-size 5G
       --vfs-cache-max-age 12h
@@ -97,7 +98,7 @@ services:
       --log-file /logs/media.log
       --log-level DEBUG
     volumes:
-      - /media
+      - media_source_data:/media
       - /config/rclone
       - /logs
     restart: unless-stopped
@@ -136,3 +137,13 @@ volumes:
   backups_data:
     name: "backups_data"
     external: true
+  media_source_data:
+    name: "media_source_data"
+    external: true
+  media_read_data:
+    name: "media_read_data"
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=8g,uid=8096,gid=5572,mode=0755"

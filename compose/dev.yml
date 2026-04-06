@@ -7,12 +7,6 @@ services:
 
   jellyfin:
     volumes:
-      - type: bind
-        source: ${MEDIA_DATA_PATH:-./runtime/media}
-        target: /media
-        read_only: true
-        bind:
-          propagation: rslave
       - ${LOGS_DIR:-./runtime/logs}:/logs
 
   minio:
@@ -23,11 +17,6 @@ services:
     devices:
       - /dev/fuse:/dev/fuse
     volumes:
-      - type: bind
-        source: ${MEDIA_DATA_PATH:-./runtime/media}
-        target: /media
-        bind:
-          propagation: rshared
       - rclone_config_data:/config/rclone:ro
       - ${LOGS_DIR:-./runtime/logs}:/logs
 volumes:
