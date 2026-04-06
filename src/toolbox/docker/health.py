@@ -14,10 +14,6 @@ from .health_utils import (
     _run_command,
     _default_command_detail,
     _format_command_failure,
-    _create_command_probe,
-    _run_wait_loop,
-    _raise_command_failure,
-    _require_last_result,
 )
 
 
@@ -87,14 +83,39 @@ def wait_for_command(
 ) -> subprocess.CompletedProcess[str]:
     predicate = success_predicate or (lambda result: result.returncode == 0)
     formatter = detail_formatter or _default_command_detail
-    _probe, state = _create_command_probe(spec.command, predicate, formatter)
+    state: dict[str, Any] = {"last_result": None}
+
+    def _probe() -> ProbeResult:
+        state["last_result"] = _run_command(spec.command)
+        result: subprocess.CompletedProcess[str] = state["last_result"]
+        return ProbeResult(
+            ready=predicate(result),
+            detail=formatter(result),
+        )
 
     try:
-        _run_wait_loop(spec, _probe, stream)
+        wait_until(
+            spec.description,
+            _probe,
+            WaitConfig(
+                timeout_seconds=spec.timeout_seconds,
+                interval_seconds=spec.interval_seconds,
+            ),
+            stream=stream,
+        )
     except RuntimeError as err:
-        _raise_command_failure(spec, state, err)
+        raise RuntimeError(
+            _format_command_failure(
+                spec.description,
+                spec.command,
+                state["last_result"],
+                str(err),
+            )
+        ) from err
 
-    return _require_last_result(spec, state)
+    if state["last_result"] is None:
+        raise RuntimeError(f"{spec.description} failed before the first probe ran.")
+    return state["last_result"]
 
 
 def _healthy_status(result: subprocess.CompletedProcess[str]) -> bool:

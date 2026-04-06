@@ -137,8 +137,6 @@
       Missing env vars required for rclone config rendering.
       Ensure PCLOUD_ACCESS_TOKEN, PCLOUD_EXPIRY, and MINIO_ROOT_USER/MINIO_ROOT_PASSWORD
       (or S3_ACCESS_KEY/S3_SECRET_KEY aliases) are exported.
-      If you do not have a pCloud token, run `python runbook/authorize_rclone.py --install-volume`
-      on a workstation to obtain and install a token into the rclone Docker volume.
 
 - name: Render rclone config from template
   ansible.builtin.template:
