@@ -220,4 +220,4 @@ __marimo__/
 .local
 .logs
 /runtime/
-.vscode/
+.vscode/cloud_apps.egg-info/

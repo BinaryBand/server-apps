@@ -9,6 +9,17 @@ from typing import Any, TextIO
 import shlex
 import subprocess
 
+# helpers moved to a smaller module to keep this file focused
+from .health_utils import (
+    _run_command,
+    _default_command_detail,
+    _format_command_failure,
+    _create_command_probe,
+    _run_wait_loop,
+    _raise_command_failure,
+    _require_last_result,
+)
+
 
 _EXEC_CHECKS_BASE: tuple[tuple[str, str, list[str], float, float], ...] = (
     (
@@ -64,104 +75,7 @@ CommandPredicate = Callable[[subprocess.CompletedProcess[str]], bool]
 CommandFormatter = Callable[[subprocess.CompletedProcess[str]], str]
 
 
-def _run_command(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        list(command),
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-
-
-def _default_command_detail(result: subprocess.CompletedProcess[str]) -> str:
-    if result.returncode == 0:
-        stdout = result.stdout.strip()
-        return stdout or "ready"
-
-    stderr = result.stderr.strip()
-    if stderr:
-        return stderr.splitlines()[0]
-
-    stdout = result.stdout.strip()
-    if stdout:
-        return stdout.splitlines()[0]
-
-    return f"exit {result.returncode}"
-
-
-def _format_command_failure(
-    description: str,
-    command: Sequence[str],
-    last_result: subprocess.CompletedProcess[str] | None,
-    reason: str,
-) -> str:
-    lines = [
-        f"{description} failed.",
-        f"Command: {shlex.join(list(command))}",
-        reason,
-    ]
-
-    if last_result is not None:
-        lines.append(f"Return code: {last_result.returncode}")
-        stdout = last_result.stdout.strip()
-        stderr = last_result.stderr.strip()
-        if stdout:
-            lines.append(f"stdout:\n{stdout}")
-        if stderr:
-            lines.append(f"stderr:\n{stderr}")
-
-    return "\n".join(lines)
-
-
-def _create_command_probe(
-    command: Sequence[str],
-    predicate: CommandPredicate,
-    formatter: CommandFormatter,
-) -> tuple[Callable[[], ProbeResult], dict[str, Any]]:
-    """Create a probe function and mutable state for running commands."""
-    state: dict[str, Any] = {"last_result": None}
-
-    def _probe() -> ProbeResult:
-        state["last_result"] = _run_command(command)
-        return ProbeResult(
-            ready=predicate(state["last_result"]),
-            detail=formatter(state["last_result"]),
-        )
-
-    return _probe, state
-
-
-def _run_wait_loop(spec: CommandWaitSpec, probe: Callable[[], ProbeResult], stream: TextIO | None) -> None:
-    wait_until(
-        spec.description,
-        probe,
-        WaitConfig(
-            timeout_seconds=spec.timeout_seconds,
-            interval_seconds=spec.interval_seconds,
-        ),
-        stream=stream,
-    )
-
-
-def _raise_command_failure(
-    spec: CommandWaitSpec,
-    state: dict[str, Any],
-    err: RuntimeError,
-) -> None:
-    raise RuntimeError(
-        _format_command_failure(
-            spec.description,
-            spec.command,
-            state["last_result"],
-            str(err),
-        )
-    ) from err
-
-
-def _require_last_result(spec: CommandWaitSpec, state: dict[str, Any]) -> subprocess.CompletedProcess[str]:
-    if state["last_result"] is None:
-        raise RuntimeError(f"{spec.description} failed before the first probe ran.")
-    return state["last_result"]
+# helper implementations moved to src/toolbox/docker/health_utils.py
 
 
 def wait_for_command(
