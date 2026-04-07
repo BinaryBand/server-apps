@@ -39,7 +39,7 @@ services:
       - jellyfin_cache_data:/var/cache/jellyfin
       - cloud_jellyfin_config:/etc/jellyfin
       - cloud_jellyfin_data:/var/lib/jellyfin
-      - media_read_data:/media:ro
+      - media_source_data:/media:ro
       - /logs
     ports:
       - "8096:8096"
@@ -140,10 +140,3 @@ volumes:
   media_source_data:
     name: "media_source_data"
     external: true
-  media_read_data:
-    name: "media_read_data"
-    driver: local
-    driver_opts:
-      type: tmpfs
-      device: tmpfs
-      o: "size=8g,uid=8096,gid=5572,mode=0755"

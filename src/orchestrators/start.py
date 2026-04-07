@@ -8,6 +8,7 @@ from src.managers.checkpoint import OperationCheckpoint
 from src.managers.pipeline import PIPELINE_STEPS
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.runtime import checkpoints_root, locks_root
+from src.toolbox.docker.health import ensure_docker_daemon_access
 
 from src.toolbox.core.config import runbook_resume_enabled
 
@@ -43,6 +44,11 @@ def main() -> None:
     resume_enabled = runbook_resume_enabled()
 
     with RunbookLock("start-stop", locks_root()):
+        try:
+            ensure_docker_daemon_access()
+        except RuntimeError as err:
+            raise SystemExit(f"[preflight] {err}") from err
+
         checkpoint = _start_checkpoint(resume_enabled=resume_enabled)
 
         print("Initializing apps...")

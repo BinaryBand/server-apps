@@ -67,6 +67,20 @@ def _run_playbook(command: list[str], *, cwd: Path) -> None:
     subprocess.run(command, check=True, env=os.environ.copy(), cwd=str(cwd))
 
 
+def _format_runtime_failure_hint(err: Exception, *, mode: MODE) -> str:
+    if mode != "runtime":
+        return str(err)
+
+    lowered = str(err).lower()
+    if "permission denied" in lowered and "docker.sock" in lowered:
+        return (
+            f"{err}. Runtime mode requires Docker daemon access for compose/docker tasks. "
+            "Grant current user access to /var/run/docker.sock (for example via docker group), "
+            "start a new shell/session, then retry start/reconcile."
+        )
+    return str(err)
+
+
 def _run_or_escalate(command: list[str], *, mode: MODE) -> None:
     if mode == "bootstrap" and os.geteuid() != 0:
         print("Bootstrap mode requires root to apply host ownership/users.")
@@ -78,7 +92,7 @@ def _run_or_escalate(command: list[str], *, mode: MODE) -> None:
 def run_permissions_playbook(
     *,
     mode: MODE,
-    manifest_path: str = "infra/permissions.yml",
+    manifest_path: str = "ansible/permissions.yml",
     dry_run: bool = False,
 ) -> None:
     paths = _resolve_playbook_paths(manifest_path)
@@ -90,7 +104,8 @@ def run_permissions_playbook(
     try:
         _run_or_escalate(command, mode=mode)
     except Exception as err:
-        raise RuntimeError(f"Failed to run permissions playbook: {err}") from err
+        hint = _format_runtime_failure_hint(err, mode=mode)
+        raise RuntimeError(f"Failed to run permissions playbook: {hint}") from err
 
 
 __all__ = ["run_permissions_playbook"]

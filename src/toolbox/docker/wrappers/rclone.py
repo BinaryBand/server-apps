@@ -6,6 +6,9 @@ from typing import Iterable
 import subprocess
 
 
+_MEDIA_MOUNT_PATH = "/media/pcloud/Media"
+
+
 def _rclone_image() -> str:
     version: str = rclone_version("latest")
     return f"rclone/rclone:{version}"
@@ -27,6 +30,30 @@ def _rclone_container_is_running(container_name: str = "rclone") -> bool:
 
 def _docker_exec_rclone_command(command_args: list[str]) -> list[str]:
     return ["docker", "exec", "rclone", *command_args]
+
+
+def _docker_exec_ok(command_args: list[str], *, text: bool = False) -> CompletedProcess[str]:
+    return subprocess.run(
+        _docker_exec_rclone_command(command_args),
+        check=False,
+        capture_output=True,
+        text=text,
+    )
+
+
+def _mount_path_exists() -> bool:
+    probe = _docker_exec_ok(["test", "-d", _MEDIA_MOUNT_PATH])
+    return probe.returncode == 0
+
+
+def _mount_is_active() -> bool:
+    probe = _docker_exec_ok(["cat", "/proc/self/mountinfo"], text=True)
+    return probe.returncode == 0 and _MEDIA_MOUNT_PATH in probe.stdout
+
+
+def _command_exists(command: str) -> bool:
+    probe = _docker_exec_ok(["sh", "-lc", f"command -v {command} >/dev/null 2>&1"])
+    return probe.returncode == 0
 
 
 def _docker_run_rclone_sync_command(
@@ -80,16 +107,20 @@ def rclone_sync(
 
 def _try_fuse_unmount() -> None:
     """Attempt to unmount rclone FUSE mount inside the rclone container."""
-    if _rclone_container_is_running():
-        fuse_result = subprocess.run(
-            _docker_exec_rclone_command(["fusermount", "-uz", "/media/pcloud/Media"]),
-            check=False,
-        )
-        if fuse_result.returncode != 0:
-            subprocess.run(
-                _docker_exec_rclone_command(["umount", "-l", "/media/pcloud/Media"]),
-                check=False,
-            )
+    if not _rclone_container_is_running():
+        return
+    if not _mount_path_exists():
+        return
+    if not _mount_is_active():
+        return
+
+    if _command_exists("fusermount"):
+        fuse_result = _docker_exec_ok(["fusermount", "-uz", _MEDIA_MOUNT_PATH])
+        if fuse_result.returncode == 0:
+            return
+
+    if _command_exists("umount"):
+        _docker_exec_ok(["umount", "-l", _MEDIA_MOUNT_PATH])
 
 
 def cleanup_media_mount() -> None:

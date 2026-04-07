@@ -13,22 +13,26 @@
 | `backups_data` | — | ✗ | ✗ | ✗ | ✗ | R/W |
 | `rclone_config` | — | ✗ | ✗ | ✗ | R/— | ✗ |
 | `media_source_data` (`/media` in rclone) | Docker volume | ✗ | ✗ | ✗ | R/W | ✗ |
-| `media_read_data` (`/media` in jellyfin) | Docker tmpfs volume (in-memory) | ✗ | R/— | ✗ | ✗ | ✗ |
+| `media_source_data` (`/media` in jellyfin) | Docker volume (rclone mount source) | ✗ | R/— | ✗ | ✗ | ✗ |
 | `LOGS_DIR` (`/logs`) | Host path | R/W | R/W | R/W | R/W | ✗ |
 | `MINIO_DATA_DIR` (`/data`) | Host path | ✗ | ✗ | R/W | ✗ | ✗ |
 
-## 1.1 Media Sync
+## 1.1 Media Mount
 
-Media replication now runs automatically during startup. The pipeline syncs
-from the rclone-mounted source volume to the in-memory reader volume used by
-Jellyfin.
+Media is served through the rclone mount directly. Startup does not copy pCloud
+media into a second local reader volume.
 
 ```bash
 ./.venv/bin/python runbook/start.py
 ```
 
-`media_read_data` is configured as tmpfs, so synced files are virtual/in-memory
-and are not persisted to host disk.
+The `media-sync` startup step is a compatibility no-op in mount-only mode.
+
+## 1.2 Runtime Prerequisite
+
+`runbook/start.py` and `runbook/reconcile.py` runtime flow require Docker daemon
+access from the current shell user. Ensure `docker info` succeeds before running
+the runbooks.
 
 ## 2. Startup process
 

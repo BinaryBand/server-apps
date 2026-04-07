@@ -10,10 +10,9 @@ from collections.abc import Callable
 
 
 def run_media_sync() -> None:
-    """Best-effort media refresh from rclone mount to read volume.
+    """Compatibility hook for legacy media sync behavior.
 
-    This must not block startup in environments where the remote mount is
-    unavailable or still warming up.
+    In mount-only mode this is a no-op and must not block startup.
     """
     try:
         sync_media(dry_run=False, delete=False)

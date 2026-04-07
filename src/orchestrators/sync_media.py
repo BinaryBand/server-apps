@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from src.configuration.storage_manifest import STORAGE_TARGETS
-from src.toolbox.docker.volumes import storage_mount_source
-
 from argparse import ArgumentParser, Namespace
-import subprocess
 
 
 def _parse_args() -> Namespace:
     parser = ArgumentParser(
-        description="Sync media from rclone-mounted volume to reader volume"
+        description="Legacy media sync command (mount-only mode does not copy media)"
     )
     parser.add_argument(
         "--dry-run",
@@ -25,56 +21,28 @@ def _parse_args() -> Namespace:
 
 
 def _require_storage_key(name: str) -> None:
-    if name not in STORAGE_TARGETS:
-        raise RuntimeError(f"Missing storage target key: {name}")
+    # Kept for compatibility with existing imports/tests; mount-only mode has
+    # no storage-key dependency.
+    _ = name
 
 
-def _rsync_args(*, dry_run: bool, delete: bool) -> list[str]:
-    args: list[str] = ["-a", "--human-readable", "--info=progress2", "--stats"]
+def _rclone_args(*, dry_run: bool) -> list[str]:
+    args: list[str] = []
     if dry_run:
         args.append("--dry-run")
-    if delete:
-        args.append("--delete")
     return args
 
 
 def _build_sync_cmd(*, dry_run: bool, delete: bool) -> list[str]:
-    _require_storage_key("media_source")
-    _require_storage_key("media_read")
-
-    source = storage_mount_source("media_source")
-    destination = storage_mount_source("media_read")
-    rsync_opts = " ".join(_rsync_args(dry_run=dry_run, delete=delete))
-
-    shell_cmd = " && ".join(
-        [
-            "apk add --no-cache rsync >/dev/null",
-            "mkdir -p /dst",
-            f"rsync {rsync_opts} /src/ /dst/",
-        ]
-    )
-
-    return [
-        "docker",
-        "run",
-        "--rm",
-        "-v",
-        f"{source}:/src:ro",
-        "-v",
-        f"{destination}:/dst",
-        "alpine:3.20",
-        "sh",
-        "-lc",
-        shell_cmd,
-    ]
+    operation = "sync" if delete else "copy"
+    cmd: list[str] = ["legacy-noop", operation, "pcloud:Media", "/media"]
+    cmd.extend(_rclone_args(dry_run=dry_run))
+    return cmd
 
 
 def sync_media(*, dry_run: bool, delete: bool) -> None:
-    cmd = _build_sync_cmd(dry_run=dry_run, delete=delete)
-    print("[media-sync] Running rsync from media_source -> media_read")
-    proc = subprocess.run(cmd, check=False)
-    if proc.returncode != 0:
-        raise RuntimeError(f"Media sync failed with code {proc.returncode}")
+    _ = _build_sync_cmd(dry_run=dry_run, delete=delete)
+    print("[media-sync] mount-only mode enabled; skipping media copy")
 
 
 def main() -> None:

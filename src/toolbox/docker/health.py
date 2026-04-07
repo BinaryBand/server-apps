@@ -6,7 +6,6 @@ from src.toolbox.core.config import rclone_remote
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, TextIO
-import shlex
 import subprocess
 
 # helpers moved to a smaller module to keep this file focused
@@ -72,6 +71,39 @@ CommandFormatter = Callable[[subprocess.CompletedProcess[str]], str]
 
 
 # helper implementations moved to src/toolbox/docker/health_utils.py
+
+
+def _docker_socket_permission_denied(stderr: str) -> bool:
+    lowered = stderr.lower()
+    return "permission denied" in lowered and "docker.sock" in lowered
+
+
+def ensure_docker_daemon_access() -> None:
+    """Fail fast when Docker daemon access is unavailable for runtime orchestration."""
+    result = subprocess.run(
+        ["docker", "info"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return
+
+    stderr = (result.stderr or "").strip()
+    detail = stderr or "docker info failed"
+    if _docker_socket_permission_denied(stderr):
+        raise RuntimeError(
+            "Docker daemon access denied for current user. "
+            "Grant access to /var/run/docker.sock (for example via docker group membership) "
+            "and start a fresh shell/session before retrying. "
+            f"Details: {detail}"
+        )
+
+    raise RuntimeError(
+        "Docker daemon is not reachable from this shell. "
+        "Ensure the Docker service is running and the current context/socket is valid. "
+        f"Details: {detail}"
+    )
 
 
 def wait_for_command(
@@ -242,6 +274,7 @@ def probe_container_health(container: str) -> bool:
 
 
 __all__ = [
+    "ensure_docker_daemon_access",
     "probe_container_health",
     "probe_minio_media_public",
     "run_runtime_health_checks",

@@ -195,6 +195,25 @@ class TestHealthChecksErrorHandling:
 
         assert "Service unavailable" in str(err.value)
 
+    def test_preflight_reports_docker_socket_permission_denied(self):
+        """Test docker preflight surfaces permission guidance for docker.sock denial"""
+        from subprocess import CompletedProcess
+        from src.toolbox.docker.health import ensure_docker_daemon_access
+
+        denied = CompletedProcess(
+            ["docker", "info"],
+            returncode=1,
+            stdout="",
+            stderr="permission denied while trying to connect to the docker API at unix:///var/run/docker.sock",
+        )
+
+        with patch("subprocess.run", return_value=denied):
+            with pytest.raises(RuntimeError) as err:
+                ensure_docker_daemon_access()
+
+        assert "Docker daemon access denied" in str(err.value)
+        assert "/var/run/docker.sock" in str(err.value)
+
 
 class TestAnsibleErrorHandling:
     """Test error handling in Ansible operations"""
@@ -230,6 +249,30 @@ class TestAnsibleErrorHandling:
                 run_permissions_playbook(mode="runtime")
 
         assert "Ansible failed" in str(err.value)
+
+    def test_run_permissions_playbook_runtime_adds_docker_socket_hint(
+        self, monkeypatch
+    ):
+        """Test runtime mode wraps docker.sock permission failures with remediation"""
+
+        def mock_exists(self):
+            return True
+
+        monkeypatch.setattr("pathlib.Path.exists", mock_exists)
+        monkeypatch.setattr("os.getuid", lambda: 1000)
+        monkeypatch.setattr("os.getgid", lambda: 1000)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = Exception(
+                "permission denied while trying to connect to the docker API at unix:///var/run/docker.sock"
+            )
+
+            with pytest.raises(RuntimeError) as err:
+                run_permissions_playbook(mode="runtime")
+
+        message = str(err.value)
+        assert "Failed to run permissions playbook" in message
+        assert "Runtime mode requires Docker daemon access" in message
 
 
 class TestPostStartErrorHandling:
