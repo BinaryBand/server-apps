@@ -52,4 +52,8 @@ Path resolution defaults are implemented in `src/toolbox/core/runtime.py` and ca
 - `src/workflows/`: workflow checkpoint and stage execution layer.
 - `src/orchestrators/`: command-level orchestration entrypoints.
 - `src/reconciler/`: reconciliation domain and adapters.
-- `src/toolbox/`: infrastructure adapters pending further concern-based breakup.
+- `src/permissions/`: permission execution boundary; delegates host mutation to Ansible playbooks.
+- `src/storage/`: compose and volume topology facade used by workflows/reconciler.
+- `src/observability/`: runtime health and probe facade used by workflows/reconciler.
+- `src/backup/`: backup/restore facade for snapshot orchestration and restic bridge.
+- `src/toolbox/`: implementation backend retained for compatibility during migration.

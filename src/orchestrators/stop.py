@@ -4,7 +4,7 @@ import sys
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.toolbox.docker.compose import stop_compose_stack
+from src.storage.compose import stop_compose_stack
 from src.toolbox.docker.wrappers.rclone import cleanup_media_mount
 from src.workflows.workflow_runner import (
     StagePolicy,

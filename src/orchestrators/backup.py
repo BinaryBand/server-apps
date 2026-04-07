@@ -1,4 +1,4 @@
-from src.toolbox.backups.gather import gather_stage
+from src.backup.gather import gather_stage
 from src.workflows.checkpoint import OperationCheckpoint
 from src.workflows.workflow_runner import (
     StagePolicy,
@@ -6,7 +6,7 @@ from src.workflows.workflow_runner import (
     run_checkpoint_stage,
     start_checkpoint,
 )
-from src.toolbox.docker.wrappers.restic import (
+from src.backup.restic import (
     ResticRunnerError,
     has_restic_repo,
     init_restic_repo,

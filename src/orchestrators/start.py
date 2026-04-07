@@ -8,7 +8,7 @@ from src.workflows.pipeline import PIPELINE_STEPS
 from src.workflows.workflow_runner import run_checkpoint_stages, start_checkpoint
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.runtime import checkpoints_root, locks_root
-from src.toolbox.docker.health import ensure_docker_daemon_access
+from src.observability.health import ensure_docker_daemon_access
 
 from src.toolbox.core.config import runbook_resume_enabled
 

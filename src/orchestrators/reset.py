@@ -1,8 +1,8 @@
-from src.toolbox.docker.compose import compose_cmd
-from src.toolbox.docker.volumes import remove_project_volumes
+from src.storage.compose import compose_cmd
+from src.storage.volumes import remove_project_volumes
 from src.workflows.checkpoint import OperationCheckpoint
 from src.toolbox.core.locking import RunbookLock
-from src.toolbox.core.ansible import run_permissions_playbook
+from src.permissions.ansible import run_permissions_playbook
 from src.toolbox.core.runtime import (
     checkpoints_root,
     locks_root,
