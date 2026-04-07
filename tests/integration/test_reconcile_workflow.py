@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
-from src.managers.reconciler import reconcile_once
+from src.reconciler.core import reconcile_once
 
 
 class TestReconcileWorkflowIntegration:
@@ -12,20 +12,20 @@ class TestReconcileWorkflowIntegration:
         """Test the complete reconcile_once workflow with successful operations"""
         # Mock all external dependencies to succeed
         monkeypatch.setattr(
-            "src.managers.reconciler.required_external_volume_names",
+            "src.reconciler.observer.runtime_observer.required_external_volume_names",
             lambda: ["test_volume"],
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.compose_service_names", lambda: ["test_service"]
+            "src.reconciler.observer.runtime_observer.compose_service_names", lambda: ["test_service"]
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_external_volume", lambda name: True
+            "src.reconciler.observer.runtime_observer.probe_external_volume", lambda name: True
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_container_health", lambda name: True
+            "src.reconciler.observer.runtime_observer.probe_container_health", lambda name: True
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_minio_media_public", lambda: True
+            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
         )
 
         # Mock the actual operations
@@ -74,20 +74,20 @@ class TestReconcileWorkflowIntegration:
     def test_full_reconcile_workflow_with_check_only(self, state_root_tmp, monkeypatch):
         """Test the reconcile_once workflow in check-only mode"""
         monkeypatch.setattr(
-            "src.managers.reconciler.required_external_volume_names",
+            "src.reconciler.observer.runtime_observer.required_external_volume_names",
             lambda: ["test_volume"],
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.compose_service_names", lambda: ["test_service"]
+            "src.reconciler.observer.runtime_observer.compose_service_names", lambda: ["test_service"]
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_external_volume", lambda name: True
+            "src.reconciler.observer.runtime_observer.probe_external_volume", lambda name: True
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_container_health", lambda name: True
+            "src.reconciler.observer.runtime_observer.probe_container_health", lambda name: True
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_minio_media_public", lambda: True
+            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
         )
 
         # Mock the actual operations to ensure they are NOT called in check-only mode
@@ -136,23 +136,23 @@ class TestReconcileWorkflowIntegration:
     ):
         """Test the reconcile_once workflow with some degraded components"""
         monkeypatch.setattr(
-            "src.managers.reconciler.required_external_volume_names",
+            "src.reconciler.observer.runtime_observer.required_external_volume_names",
             lambda: ["good_volume", "bad_volume"],
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.compose_service_names",
+            "src.reconciler.observer.runtime_observer.compose_service_names",
             lambda: ["good_service", "bad_service"],
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_external_volume",
+            "src.reconciler.observer.runtime_observer.probe_external_volume",
             lambda name: name == "good_volume",
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_container_health",
+            "src.reconciler.observer.runtime_observer.probe_container_health",
             lambda name: name == "good_service",
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_minio_media_public", lambda: False
+            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: False
         )
 
         # Mock the actual operations
@@ -198,20 +198,20 @@ class TestReconcileWorkflowIntegration:
     def test_reconcile_workflow_idempotency(self, state_root_tmp, monkeypatch):
         """Test that running reconcile_once multiple times is idempotent"""
         monkeypatch.setattr(
-            "src.managers.reconciler.required_external_volume_names",
+            "src.reconciler.observer.runtime_observer.required_external_volume_names",
             lambda: ["test_volume"],
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.compose_service_names", lambda: ["test_service"]
+            "src.reconciler.observer.runtime_observer.compose_service_names", lambda: ["test_service"]
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_external_volume", lambda name: True
+            "src.reconciler.observer.runtime_observer.probe_external_volume", lambda name: True
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_container_health", lambda name: True
+            "src.reconciler.observer.runtime_observer.probe_container_health", lambda name: True
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_minio_media_public", lambda: True
+            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
         )
 
         # Mock the actual operations
@@ -253,20 +253,20 @@ class TestReconcileWorkflowIntegration:
     ):
         """Test switching between check-only and full reconcile"""
         monkeypatch.setattr(
-            "src.managers.reconciler.required_external_volume_names",
+            "src.reconciler.observer.runtime_observer.required_external_volume_names",
             lambda: ["test_volume"],
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.compose_service_names", lambda: ["test_service"]
+            "src.reconciler.observer.runtime_observer.compose_service_names", lambda: ["test_service"]
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_external_volume", lambda name: True
+            "src.reconciler.observer.runtime_observer.probe_external_volume", lambda name: True
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_container_health", lambda name: True
+            "src.reconciler.observer.runtime_observer.probe_container_health", lambda name: True
         )
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_minio_media_public", lambda: True
+            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
         )
 
         # Mock the actual operations
@@ -323,11 +323,11 @@ class TestReconcileWorkflowOrdering:
     def test_reconcile_workflow_operation_order(self, state_root_tmp, monkeypatch):
         """Test that operations are called in the correct order"""
         monkeypatch.setattr(
-            "src.managers.reconciler.required_external_volume_names", lambda: []
+            "src.reconciler.observer.runtime_observer.required_external_volume_names", lambda: []
         )
-        monkeypatch.setattr("src.managers.reconciler.compose_service_names", lambda: [])
+        monkeypatch.setattr("src.reconciler.observer.runtime_observer.compose_service_names", lambda: [])
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_minio_media_public", lambda: True
+            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
         )
 
         # Create mocks to track call order
@@ -365,11 +365,11 @@ class TestReconcileWorkflowOrdering:
     ):
         """Test that subsequent operations are skipped when one fails"""
         monkeypatch.setattr(
-            "src.managers.reconciler.required_external_volume_names", lambda: []
+            "src.reconciler.observer.runtime_observer.required_external_volume_names", lambda: []
         )
-        monkeypatch.setattr("src.managers.reconciler.compose_service_names", lambda: [])
+        monkeypatch.setattr("src.reconciler.observer.runtime_observer.compose_service_names", lambda: [])
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_minio_media_public", lambda: True
+            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
         )
 
         # Create mocks

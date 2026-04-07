@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
-from src.managers.reconciler import reconcile_once
+from src.reconciler.core import reconcile_once
 from src.toolbox.core.ansible import run_permissions_playbook
 from src.toolbox.core.secrets import minio_credentials
 from src.toolbox.core.locking import RunbookLock
@@ -22,11 +22,11 @@ class TestReconcilerErrorHandling:
     ):
         """Test that RuntimeError during health checks is properly handled"""
         monkeypatch.setattr(
-            "src.managers.reconciler.required_external_volume_names", lambda: []
+            "src.reconciler.observer.runtime_observer.required_external_volume_names", lambda: []
         )
-        monkeypatch.setattr("src.managers.reconciler.compose_service_names", lambda: [])
+        monkeypatch.setattr("src.reconciler.observer.runtime_observer.compose_service_names", lambda: [])
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_minio_media_public", lambda: True
+            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
         )
 
         monkeypatch.setattr(
@@ -61,11 +61,11 @@ class TestReconcilerErrorHandling:
     ):
         """Test that RuntimeError during permissions playbook is properly handled"""
         monkeypatch.setattr(
-            "src.managers.reconciler.required_external_volume_names", lambda: []
+            "src.reconciler.observer.runtime_observer.required_external_volume_names", lambda: []
         )
-        monkeypatch.setattr("src.managers.reconciler.compose_service_names", lambda: [])
+        monkeypatch.setattr("src.reconciler.observer.runtime_observer.compose_service_names", lambda: [])
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_minio_media_public", lambda: True
+            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
         )
 
         monkeypatch.setattr(
@@ -94,11 +94,11 @@ class TestReconcilerErrorHandling:
     ):
         """Test that RuntimeError during post-start is properly handled"""
         monkeypatch.setattr(
-            "src.managers.reconciler.required_external_volume_names", lambda: []
+            "src.reconciler.observer.runtime_observer.required_external_volume_names", lambda: []
         )
-        monkeypatch.setattr("src.managers.reconciler.compose_service_names", lambda: [])
+        monkeypatch.setattr("src.reconciler.observer.runtime_observer.compose_service_names", lambda: [])
         monkeypatch.setattr(
-            "src.managers.reconciler.probe_minio_media_public", lambda: True
+            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
         )
 
         monkeypatch.setattr(

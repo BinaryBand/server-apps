@@ -27,6 +27,16 @@ graph TB
 
 > 🔌 **Ports and adapters:** like USB-C — your laptop declares the port shape; it doesn't care if a charger or monitor is plugged in. Inner layers declare port shapes. Outer layers plug in. Inner layers never reach outward directly (Rule 4).
 
+## Current Reconciler Module Map
+
+- `src/reconciler/core.py` — orchestration entrypoint for one reconciliation pass.
+- `src/reconciler/domain/state_machine.py` — legal transition rules for reconciler state.
+- `src/reconciler/observer/runtime_observer.py` — read-only probes for volumes, services, and MinIO media visibility.
+- `src/reconciler/adapters/state_store.py` — persisted reconcile state load/save.
+- `src/reconciler/adapters/pipeline_actions.py` — runtime action adapter that executes pipeline stages and marks conditions.
+
+This split keeps reconciliation concerns in one module and separates transition logic, observation, and adapters into distinct owners.
+
 ## Step 1 — Who Owns What?
 
 | Responsibility | Layer | Owner |
