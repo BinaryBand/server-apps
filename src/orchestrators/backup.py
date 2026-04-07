@@ -1,6 +1,6 @@
 from src.toolbox.backups.gather import gather_stage
-from src.managers.checkpoint import OperationCheckpoint
-from src.managers.workflow_runner import (
+from src.workflows.checkpoint import OperationCheckpoint
+from src.workflows.workflow_runner import (
     StagePolicy,
     fail_checkpoint_stage,
     run_checkpoint_stage,

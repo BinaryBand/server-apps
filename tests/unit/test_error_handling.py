@@ -39,14 +39,14 @@ class TestReconcilerErrorHandling:
 
         if failing_stage == "run_permissions_playbook":
             monkeypatch.setattr(
-                "src.managers.pipeline.run_permissions_playbook",
+                "src.workflows.pipeline.run_permissions_playbook",
                 lambda *args, **kwargs: (_ for _ in ()).throw(
                     RuntimeError(expected_message)
                 ),
             )
         else:
             monkeypatch.setattr(
-                f"src.managers.pipeline.{failing_stage}",
+                f"src.workflows.pipeline.{failing_stage}",
                 lambda: (_ for _ in ()).throw(RuntimeError(expected_message)),
             )
 

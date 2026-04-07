@@ -4,8 +4,8 @@ import sys
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.managers.pipeline import PIPELINE_STEPS
-from src.managers.workflow_runner import run_checkpoint_stages, start_checkpoint
+from src.workflows.pipeline import PIPELINE_STEPS
+from src.workflows.workflow_runner import run_checkpoint_stages, start_checkpoint
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.runtime import checkpoints_root, locks_root
 from src.toolbox.docker.health import ensure_docker_daemon_access

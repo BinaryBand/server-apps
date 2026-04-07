@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from src.configuration.state_model import WorkflowState
-from src.managers.pipeline import PIPELINE_STEPS
+from src.workflows.pipeline import PIPELINE_STEPS
 from src.toolbox.docker.compose import compose_service_names
 from src.toolbox.docker.volumes import required_external_volume_names
 from src.toolbox.io.state_helpers import upsert_condition

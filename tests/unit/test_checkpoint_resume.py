@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from src.managers.checkpoint import OperationCheckpoint
+from src.workflows.checkpoint import OperationCheckpoint
 
 
 def test_resume_skips_completed_stage() -> None:

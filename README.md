@@ -1,5 +1,11 @@
 # Project Specification
 
+## 0. Repository Map
+
+- Infrastructure and scaffold ownership map: `docs/REPO_STRUCTURE.md`
+- Python architecture and boundary rules: `docs/ARCHITECTURE.md`
+- Contributor setup and quality gates: `docs/CONTRIBUTING.md`
+
 ## 1. Permissions chart
 
 | Storage | Owner (source) | baikal | jellyfin | minio | rclone | restic |

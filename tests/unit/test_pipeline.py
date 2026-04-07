@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.managers.pipeline import PIPELINE_STEPS
+from src.workflows.pipeline import PIPELINE_STEPS
 
 
 def test_pipeline_step_order_excludes_media_sync() -> None:

@@ -1,5 +1,9 @@
 from src.toolbox.backups.restore import recent_snapshots, restore_snapshot
-from src.managers.workflow_runner import StagePolicy, run_checkpoint_stage, start_checkpoint
+from src.workflows.workflow_runner import (
+    StagePolicy,
+    run_checkpoint_stage,
+    start_checkpoint,
+)
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.runtime import checkpoints_root, locks_root, repo_root
 from src.toolbox.core.config import runbook_resume_enabled

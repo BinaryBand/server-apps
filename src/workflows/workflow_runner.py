@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.managers.checkpoint import OperationCheckpoint
+from src.workflows.checkpoint import OperationCheckpoint
 
 
 @dataclass(frozen=True)
