@@ -9,7 +9,7 @@ from src.reconciler.core import reconcile_once
 from src.toolbox.core.ansible import run_permissions_playbook
 from src.toolbox.core.secrets import minio_credentials
 from src.toolbox.core.locking import RunbookLock
-from src.toolbox.docker.health import run_runtime_health_checks
+from src.observability.health import run_runtime_health_checks
 from src.toolbox.docker.post_start import run_runtime_post_start
 from src.toolbox.docker.compose import ensure_external_volumes
 from tests.support.reconciler_helpers import patch_reconciler_observer, patch_runtime_pipeline
@@ -64,7 +64,7 @@ class TestHealthChecksErrorHandling:
 
     def test_wait_for_command_handles_command_failures(self):
         """Test that wait_for_command properly handles command failures"""
-        from src.toolbox.docker.health import CommandWaitSpec, wait_for_command
+        from src.observability.health import CommandWaitSpec, wait_for_command
         from subprocess import CompletedProcess
 
         failed = CompletedProcess(
@@ -74,7 +74,7 @@ class TestHealthChecksErrorHandling:
             stderr="container not found\n",
         )
 
-        with patch("src.toolbox.docker.health._run_command", return_value=failed):
+        with patch("src.observability.health._run_command", return_value=failed):
             with pytest.raises(RuntimeError) as err:
                 wait_for_command(
                     CommandWaitSpec(
@@ -91,12 +91,12 @@ class TestHealthChecksErrorHandling:
 
     def test_wait_for_container_health_handles_nonexistent_container(self):
         """Test that wait_for_container_health handles nonexistent containers"""
-        from src.toolbox.docker.health import (
+        from src.observability.health import (
             ContainerHealthWaitSpec,
             wait_for_container_health,
         )
 
-        with patch("src.toolbox.docker.health._run_command") as mock_run:
+        with patch("src.observability.health._run_command") as mock_run:
             mock_run.return_value = Mock(
                 returncode=1, stdout="", stderr="No such container: nonexistent\n"
             )
@@ -117,7 +117,7 @@ class TestHealthChecksErrorHandling:
         """Test that run_runtime_health_checks handles multiple service failures"""
         with patch("src.toolbox.core.config.rclone_remote", return_value="pcloud"):
             with patch(
-                "src.toolbox.docker.health.wait_for_container_exec"
+                "src.observability.health.wait_for_container_exec"
             ) as mock_exec:
                 mock_exec.side_effect = RuntimeError("Service unavailable")
 
@@ -129,7 +129,7 @@ class TestHealthChecksErrorHandling:
     def test_preflight_reports_docker_socket_permission_denied(self):
         """Test docker preflight surfaces permission guidance for docker.sock denial"""
         from subprocess import CompletedProcess
-        from src.toolbox.docker.health import ensure_docker_daemon_access
+        from src.observability.health import ensure_docker_daemon_access
 
         denied = CompletedProcess(
             ["docker", "info"],

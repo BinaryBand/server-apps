@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.toolbox.docker.health import (
+from src.observability.health import (
     CommandWaitSpec,
     ContainerExecWaitSpec,
     ContainerHealthWaitSpec,
@@ -41,7 +41,7 @@ def test_wait_for_command_reports_command_context() -> None:
         stderr="container not found\n",
     )
 
-    with patch("src.toolbox.docker.health._run_command", return_value=failed):
+    with patch("src.observability.health._run_command", return_value=failed):
         with pytest.raises(RuntimeError) as err:
             wait_for_command(
                 CommandWaitSpec(
@@ -62,8 +62,8 @@ def test_wait_for_command_reports_command_context() -> None:
 def test_runtime_health_checks_use_expected_sequence() -> None:
     with (
         patch("src.toolbox.core.config.rclone_remote", return_value="pcloud"),
-        patch("src.toolbox.docker.health.wait_for_container_exec") as wait_exec,
-        patch("src.toolbox.docker.health.wait_for_container_health") as wait_health,
+        patch("src.observability.health.wait_for_container_exec") as wait_exec,
+        patch("src.observability.health.wait_for_container_health") as wait_health,
     ):
         run_runtime_health_checks()
 
