@@ -66,3 +66,38 @@ def test_minio_restore_scopes_to_requested_path() -> None:
     cmd = captured[0]
     assert "pcloud:/Backups/Minio/media/podcasts/morbid" in cmd
     assert "minio:media/podcasts/morbid" in cmd
+
+
+def test_minio_restore_applies_include_exclude_filters() -> None:
+    mod = _load_minio_restore_module()
+
+    captured: list = []
+
+    def fake_run(cmd, **kwargs):
+        captured.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0)
+
+    with (
+        patch("subprocess.run", side_effect=fake_run),
+        patch.object(
+            sys,
+            "argv",
+            [
+                "minio_restore.py",
+                "--include",
+                "/media/podcasts",
+                "--exclude",
+                "/media/podcasts/morbid",
+                "--exclude",
+                "/media/podcasts/necronomipod",
+            ],
+        ),
+    ):
+        mod.main()
+
+    cmd = captured[0]
+    assert "--include" in cmd
+    assert "media/podcasts/**" in cmd
+    assert "--exclude" in cmd
+    assert "media/podcasts/morbid/**" in cmd
+    assert "media/podcasts/necronomipod/**" in cmd

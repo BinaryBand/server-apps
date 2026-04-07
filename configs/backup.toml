@@ -1,0 +1,37 @@
+[batch]
+# Paths staged locally and snapshotted by restic (versioned, deduplicated).
+# Roots are relative to /data inside the gather container.
+include = [
+  "volumes/jellyfin_config/**",
+  "volumes/jellyfin_data/data/**",
+  # Explicit SQLite coverage (live DB + companions + exported snapshots)
+  "volumes/jellyfin_data/data/**/*.db",
+  "volumes/jellyfin_data/data/**/*.sqlite",
+  "volumes/jellyfin_data/data/**/*.sqlite3",
+  "volumes/jellyfin_data/data/**/*.db-wal",
+  "volumes/jellyfin_data/data/**/*.db-shm",
+  "volumes/jellyfin_data/data/db-snapshots/**",
+  "volumes/jellyfin_data/plugins/**",
+  # Baikal: CalDAV/CardDAV config and data
+  "volumes/baikal_config/**",
+  "volumes/baikal_data/**",
+  # MinIO config/identity + bucket metadata only (excludes object data)
+  "volumes/minio_data/.minio.sys/config/**",
+  "volumes/minio_data/.minio.sys/buckets/*/.metadata.bin/**",
+  "volumes/minio_data/.minio.sys/pool.bin",
+]
+exclude = [
+  # Volatile MinIO internals — never back up
+  "volumes/minio_data/.minio.sys/tmp/**",
+  "volumes/minio_data/.minio.sys/multipart/**",
+]
+
+[[stream]]
+# MinIO object data — synced directly to pCloud without local staging.
+# Too large for local staging; streamed via S3 API.
+# To enable chunking for objects >2 GB, change destination to:
+#   pcloud_chunker:Backups/Minio
+# (and update minio_restore.py to match)
+name = "minio-objects"
+source = "minio:"
+destination = "pcloud:Backups/Minio"

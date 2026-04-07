@@ -1,4 +1,7 @@
 from src.backup.gather import gather_stage
+from src.backup.stream_sync import stream_sync_stage
+from src.adapters.rclone.stream_sync import RcloneStreamSync
+from src.configuration.backup_config import BackupConfig
 from src.workflows.checkpoint import OperationCheckpoint
 from src.workflows.workflow_runner import (
     StagePolicy,
@@ -85,13 +88,11 @@ def _run_restic_stage(checkpoint: OperationCheckpoint, restic_args: list[str]) -
     _run_restic_backup(checkpoint, restic_args)
 
 
-def _run_backup_stages(checkpoint: OperationCheckpoint) -> None:
-    root: Path = repo_root()
-    include_file: Path = root / "configs" / "backup-include.txt"
+def _run_backup_stages(checkpoint: OperationCheckpoint, config: BackupConfig) -> None:
     run_checkpoint_stage(
         checkpoint,
         "gather",
-        lambda: gather_stage(include_file=include_file),
+        lambda: gather_stage(config.batch.include, config.batch.exclude),
         StagePolicy(
             observed_on_failure="BackupFailed",
             run_message="[stage:gather] Starting gather phase",
@@ -99,9 +100,23 @@ def _run_backup_stages(checkpoint: OperationCheckpoint) -> None:
     )
     _run_restic_stage(checkpoint, _build_restic_args())
 
+    for source in config.stream:
+        adapter = RcloneStreamSync(source=source.source, destination=source.destination)
+        run_checkpoint_stage(
+            checkpoint,
+            f"stream-{source.name}",
+            lambda a=adapter, n=source.name: stream_sync_stage(a, n),
+            StagePolicy(
+                observed_on_failure="BackupFailed",
+                run_message=f"[stage:stream-{source.name}] Syncing {source.source} to {source.destination}",
+            ),
+        )
+
 
 def main():
     resume_enabled = runbook_resume_enabled()
+    root: Path = repo_root()
+    config = BackupConfig.from_toml(root / "configs" / "backup.toml")
 
     with RunbookLock("backup-restore-reset", locks_root()):
         checkpoint = start_checkpoint(
@@ -110,7 +125,7 @@ def main():
             root=checkpoints_root(),
             resume=resume_enabled,
         )
-        _run_backup_stages(checkpoint)
+        _run_backup_stages(checkpoint, config)
 
         checkpoint.finish(observed="BackupCompleted", ok=True)
         print("[stage:complete] Backup pipeline completed")
