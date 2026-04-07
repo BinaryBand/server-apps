@@ -30,10 +30,6 @@ def test_main_runs_health_checks_after_permissions_reconcile() -> None:
             side_effect=record("runtime"),
         ),
         patch(
-            "src.managers.pipeline.sync_media",
-            side_effect=record("media-sync"),
-        ),
-        patch(
             "src.managers.pipeline.run_runtime_health_checks",
             side_effect=record("health"),
         ),
@@ -48,7 +44,7 @@ def test_main_runs_health_checks_after_permissions_reconcile() -> None:
     ):
         main()
 
-    assert events == ["volumes", "permissions", "runtime", "media-sync", "health"]
+    assert events == ["volumes", "permissions", "runtime", "health"]
 
 
 def test_main_fails_fast_when_docker_preflight_fails() -> None:

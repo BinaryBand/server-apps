@@ -15,7 +15,7 @@ services:
     volumes:
       - cloud_baikal_config:/var/www/baikal/config
       - cloud_baikal_data:/var/www/baikal/Specific
-      - ../configs/baikal-apache.conf:/etc/apache2/sites-available/000-default.conf:ro
+      - ./configs/baikal-apache.conf:/etc/apache2/sites-available/000-default.conf:ro
 
   jellyfin:
     container_name: jellyfin
@@ -39,7 +39,12 @@ services:
       - jellyfin_cache_data:/var/cache/jellyfin
       - cloud_jellyfin_config:/etc/jellyfin
       - cloud_jellyfin_data:/var/lib/jellyfin
-      - media_source_data:/media:ro
+      - type: bind
+        source: ${MEDIA_MOUNT_DIR:-./runtime/media}
+        target: /media
+        read_only: true
+        bind:
+          propagation: rslave
       - /logs
     ports:
       - "8096:8096"
@@ -98,7 +103,11 @@ services:
       --log-file /logs/media.log
       --log-level DEBUG
     volumes:
-      - media_source_data:/media
+      - type: bind
+        source: ${MEDIA_MOUNT_DIR:-./runtime/media}
+        target: /media
+        bind:
+          propagation: rshared
       - /config/rclone
       - /logs
     restart: unless-stopped
@@ -136,7 +145,4 @@ volumes:
     external: true
   backups_data:
     name: "backups_data"
-    external: true
-  media_source_data:
-    name: "media_source_data"
     external: true

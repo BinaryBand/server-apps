@@ -104,6 +104,19 @@ def test_runtime_health_checks_use_expected_sequence() -> None:
                 interval_seconds=2,
             ),
         ),
+        call(
+            ContainerExecWaitSpec(
+                description="Wait for Jellyfin media read-only access",
+                container="jellyfin",
+                exec_args=[
+                    "sh",
+                    "-lc",
+                    'grep -q " /media " /proc/self/mountinfo && test -r /media && ! test -w /media && ls /media >/dev/null',
+                ],
+                timeout_seconds=30,
+                interval_seconds=3,
+            ),
+        ),
     ]
     wait_health.assert_called_once_with(
         ContainerHealthWaitSpec(

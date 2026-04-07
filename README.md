@@ -12,8 +12,8 @@
 | `restic_repo_data` | — | ✗ | ✗ | ✗ | ✗ | R/W |
 | `backups_data` | — | ✗ | ✗ | ✗ | ✗ | R/W |
 | `rclone_config` | — | ✗ | ✗ | ✗ | R/— | ✗ |
-| `media_source_data` (`/media` in rclone) | Docker volume | ✗ | ✗ | ✗ | R/W | ✗ |
-| `media_source_data` (`/media` in jellyfin) | Docker volume (rclone mount source) | ✗ | R/— | ✗ | ✗ | ✗ |
+| `MEDIA_MOUNT_DIR` (`/media` in rclone) | Host bind path (default `./runtime/media`) | ✗ | ✗ | ✗ | R/W | ✗ |
+| `MEDIA_MOUNT_DIR` (`/media` in jellyfin) | Same host bind path (read-only, propagation enabled) | ✗ | R/— | ✗ | ✗ | ✗ |
 | `LOGS_DIR` (`/logs`) | Host path | R/W | R/W | R/W | R/W | ✗ |
 | `MINIO_DATA_DIR` (`/data`) | Host path | ✗ | ✗ | R/W | ✗ | ✗ |
 
@@ -22,11 +22,15 @@
 Media is served through the rclone mount directly. Startup does not copy pCloud
 media into a second local reader volume.
 
+The host-side mountpoint lives under the repository runtime tree at
+`./runtime/media` by default. Runtime artifacts should live under `./runtime`,
+not under `./compose/runtime`.
+
 ```bash
 ./.venv/bin/python runbook/start.py
 ```
 
-The `media-sync` startup step is a compatibility no-op in mount-only mode.
+Startup does not include a media copy/sync stage.
 
 ## 1.2 Runtime Prerequisite
 

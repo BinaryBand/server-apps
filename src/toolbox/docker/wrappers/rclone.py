@@ -6,7 +6,7 @@ from typing import Iterable
 import subprocess
 
 
-_MEDIA_MOUNT_PATH = "/media/pcloud/Media"
+_MEDIA_MOUNT_PATH = "/media"
 
 
 def _rclone_image() -> str:

@@ -190,6 +190,8 @@
       - compose
       - --project-name
       - "{{ project_name_selected }}"
+      - --project-directory
+      - "{{ repo_root_path }}"
       - --env-file
       - "{{ repo_root_path }}/.env"
       - -f
@@ -230,6 +232,8 @@
       - compose
       - --project-name
       - "{{ project_name_selected }}"
+      - --project-directory
+      - "{{ repo_root_path }}"
       - --env-file
       - "{{ repo_root_path }}/.env"
       - -f
@@ -239,6 +243,26 @@
       - up
       - -d
       - --remove-orphans
+  when: permissions_mode_selected == 'runtime'
+
+- name: Assert Jellyfin can read mounted media path
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - jellyfin
+      - sh
+      - -lc
+      - >-
+        grep -q " /media " /proc/self/mountinfo &&
+        test -r /media &&
+        ! test -w /media &&
+        ls /media >/dev/null
+  register: jellyfin_media_access
+  retries: 12
+  delay: 5
+  until: jellyfin_media_access.rc == 0
+  changed_when: false
   when: permissions_mode_selected == 'runtime'
 
 - name: Ensure MinIO media bucket is public

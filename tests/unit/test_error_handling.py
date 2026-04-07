@@ -38,7 +38,6 @@ class TestReconcilerErrorHandling:
         monkeypatch.setattr(
             "src.managers.pipeline.run_runtime_post_start", lambda: None
         )
-        monkeypatch.setattr("src.managers.pipeline.sync_media", lambda **kwargs: None)
 
         # Mock health checks to raise RuntimeError
         def mock_run_runtime_health_checks():
@@ -72,7 +71,6 @@ class TestReconcilerErrorHandling:
         monkeypatch.setattr(
             "src.managers.pipeline.ensure_external_volumes", lambda: None
         )
-        monkeypatch.setattr("src.managers.pipeline.sync_media", lambda **kwargs: None)
 
         # Mock permissions playbook to raise RuntimeError
         def mock_run_permissions_playbook(*args, **kwargs):
@@ -109,7 +107,6 @@ class TestReconcilerErrorHandling:
         monkeypatch.setattr(
             "src.managers.pipeline.run_permissions_playbook", lambda **kwargs: None
         )
-        monkeypatch.setattr("src.managers.pipeline.sync_media", lambda **kwargs: None)
 
         # Mock post-start to raise RuntimeError
         def mock_run_runtime_post_start():

@@ -38,6 +38,17 @@ _EXEC_CHECKS_BASE: tuple[tuple[str, str, list[str], float, float], ...] = (
         20,
         2,
     ),
+    (
+        "Wait for Jellyfin media read-only access",
+        "jellyfin",
+        [
+            "sh",
+            "-lc",
+            'grep -q " /media " /proc/self/mountinfo && test -r /media && ! test -w /media && ls /media >/dev/null',
+        ],
+        30,
+        3,
+    ),
 )
 
 
