@@ -1,13 +1,6 @@
 from __future__ import annotations
 
-import subprocess
-
-
-def restart_jellyfin() -> None:
-    try:
-        subprocess.run(["docker", "restart", "jellyfin"], check=True)
-    except subprocess.CalledProcessError as err:
-        raise RuntimeError("failed to restart jellyfin") from err
-
+# Shim — canonical implementation moved to src.observability.post_start
+from src.observability.post_start import restart_jellyfin
 
 __all__ = ["restart_jellyfin"]

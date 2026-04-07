@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.toolbox.docker.post_start import run_runtime_post_start
+from src.observability.post_start import run_runtime_post_start
 
 from unittest.mock import patch
 
@@ -17,7 +17,7 @@ def test_run_runtime_post_start_executes_in_order() -> None:
 
     with (
         patch(
-            "src.toolbox.docker.post_start.restart_jellyfin",
+            "src.observability.post_start.restart_jellyfin",
             side_effect=record("restart"),
         ),
     ):
