@@ -181,6 +181,64 @@ class TestAnsibleErrorHandling:
 
         assert "Ansible failed" in str(err.value)
 
+    def test_run_permissions_playbook_runtime_passes_correct_mode_extra_var(
+        self, monkeypatch
+    ):
+        """Test that runtime mode passes permissions_mode=runtime to ansible-playbook"""
+        from pathlib import Path
+
+        captured_cmd: list[list[str]] = []
+
+        def mock_exists(self):
+            return True
+
+        monkeypatch.setattr("pathlib.Path.exists", mock_exists)
+        monkeypatch.setattr("os.getuid", lambda: 1000)
+        monkeypatch.setattr("os.getgid", lambda: 1000)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = None
+            run_permissions_playbook(mode="runtime")
+            captured_cmd.append(mock_run.call_args[0][0])
+
+        cmd = captured_cmd[0]
+        assert "-e" in cmd
+        mode_idx = next(
+            i
+            for i, v in enumerate(cmd)
+            if v == "-e" and i + 1 < len(cmd) and "permissions_mode" in cmd[i + 1]
+        )
+        assert cmd[mode_idx + 1] == "permissions_mode=runtime"
+
+    def test_run_permissions_playbook_runtime_service_owned_dir_failure_wraps_error(
+        self, monkeypatch
+    ):
+        """Test that EPERM errors from service-owned directories produce useful RuntimeError.
+
+        Before the storage role fix (mode: omit in runtime), ansible would fail trying
+        to chmod directories owned by service users (e.g., minio, jellyfin). This test
+        documents that such errors are surfaced as RuntimeError with the original message.
+        """
+        from subprocess import CalledProcessError
+
+        def mock_exists(self):
+            return True
+
+        monkeypatch.setattr("pathlib.Path.exists", mock_exists)
+        monkeypatch.setattr("os.getuid", lambda: 1000)
+        monkeypatch.setattr("os.getgid", lambda: 1000)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = CalledProcessError(
+                2,
+                "ansible-playbook",
+                stderr="Operation not permitted: /media/owen/Passport/minio",
+            )
+            with pytest.raises(RuntimeError) as err:
+                run_permissions_playbook(mode="runtime")
+
+        assert "Failed to run permissions playbook" in str(err.value)
+
     def test_run_permissions_playbook_runtime_adds_docker_socket_hint(
         self, monkeypatch
     ):

@@ -180,9 +180,11 @@ def test_gather_mounts_populated_stage_roots(gather_env, monkeypatch) -> None:
         for root in env["stage_roots"]:
             _assert_container_path_has_content(docker_args or [], f"/data/{root}")
 
-    monkeypatch.setattr("src.toolbox.backups.gather.rclone_sync", fake_rclone_sync)
     monkeypatch.setattr(
-        "src.toolbox.backups.gather.volatile.rclone_docker_volume_flags",
+        "src.toolbox.docker.wrappers.rclone.rclone_sync", fake_rclone_sync
+    )
+    monkeypatch.setattr(
+        "src.storage.volumes.rclone_docker_volume_flags",
         lambda: patched_flags,
     )
 

@@ -63,3 +63,33 @@ def test_main_fails_fast_when_docker_preflight_fails() -> None:
             raise AssertionError("Expected SystemExit")
         except SystemExit as err:
             assert "[preflight] docker unavailable" in str(err)
+
+
+def test_main_handles_permission_errors_during_workflow() -> None:
+    """Test that permission errors during workflow stages are caught and reported"""
+    with (
+        patch(
+            "src.orchestrators.start.RunbookLock",
+            return_value=nullcontext(),
+        ),
+        patch(
+            "src.orchestrators.start.ensure_docker_daemon_access",
+            return_value=None,
+        ),
+        patch(
+            "src.workflows.pipeline.ensure_external_volumes",
+            return_value=None,
+        ),
+        patch(
+            "src.workflows.pipeline.run_permissions_playbook",
+            side_effect=RuntimeError(
+                "Failed to run permissions playbook: "
+                "Operation not permitted: /media/owen/Passport/minio"
+            ),
+        ),
+    ):
+        try:
+            main()
+            raise AssertionError("Expected SystemExit")
+        except SystemExit as err:
+            assert "Permission" in str(err) or "Operation not permitted" in str(err)

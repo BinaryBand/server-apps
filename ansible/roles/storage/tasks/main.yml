@@ -5,7 +5,7 @@
 - name: Ensure volume directories exist
   ansible.builtin.file:
     path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
-    mode: "{{ item.mode | default('0755') }}"
+    mode: "{{ item.mode | default('0755') if apply_privileged else omit }}"
     state: directory
   loop: "{{ volume_entries }}"
   when: item.path | default('') | length > 0

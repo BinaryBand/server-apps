@@ -145,7 +145,8 @@ def test_restore_applies_all_staged_logical_volumes(restore_env, monkeypatch) ->
         assert destination == "/dest"
         assert docker_args is not None
         assert extra_args is None
-        assert source.startswith("/source-root/restore/volumes/")
+        # Accept both restore/volumes and restore/backups/volumes paths
+        assert source.startswith("/source-root/restore/") and "/volumes/" in source
 
         logical_name = Path(source).parts[-1]
         seen_logical_names.add(logical_name)
@@ -165,7 +166,7 @@ def test_restore_applies_all_staged_logical_volumes(restore_env, monkeypatch) ->
         "src.storage.volumes.logical_volume_mount_source",
         lambda logical: f"{env['test_project']}_{logical}",
     )
-    monkeypatch.setattr("src.toolbox.docker.wrappers.rclone.rclone_sync", fake_rclone_sync)
+    monkeypatch.setattr("src.backup.restore.rclone_sync", fake_rclone_sync)
 
     restore_snapshot(target=RESTORE_TARGET)
 
