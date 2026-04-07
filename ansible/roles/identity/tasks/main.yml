@@ -1,0 +1,39 @@
+---
+# Loads compose base and derives service identity facts used by downstream roles.
+# Expects: repo_root_path, permissions_data
+
+- name: Load compose base configuration for identity drift checks
+  ansible.builtin.include_vars:
+    file: "{{ repo_root_path }}/compose/base.yml"
+    name: compose_base
+
+- name: Derive service identities from compose base configuration
+  ansible.builtin.set_fact:
+    compose_jellyfin_user: "{{ (((compose_base.services | default({})).jellyfin | default({})).user | default('')) }}"
+    compose_baikal_user: "{{ (((compose_base.services | default({})).baikal | default({})).user | default('')) }}"
+    compose_minio_user: "{{ (((compose_base.services | default({})).minio | default({})).user | default('')) }}"
+    compose_rclone_env: "{{ (((compose_base.services | default({})).rclone | default({})).environment | default([])) }}"
+
+- name: Build service identity map from compose
+  ansible.builtin.set_fact:
+    service_identities:
+      jellyfin:
+        uid: "{{ compose_jellyfin_user.split(':')[0] | int }}"
+        gid: "{{ compose_jellyfin_user.split(':')[1] | int }}"
+        comment: "{{ permissions_data.users.jellyfin.comment | default('jellyfin') }}"
+      baikal:
+        uid: "{{ compose_baikal_user.split(':')[0] | int }}"
+        gid: "{{ compose_baikal_user.split(':')[1] | int }}"
+        comment: "{{ permissions_data.users.baikal.comment | default('baikal') }}"
+      rclone:
+        uid: "{{ (compose_rclone_env | select('match', '^PUID=') | list | first | default('PUID=8097')) | regex_replace('^PUID=', '') | int }}"
+        gid: "{{ (compose_rclone_env | select('match', '^MEDIA_GID=') | list | first | default('MEDIA_GID=5572')) | regex_replace('^MEDIA_GID=', '') | int }}"
+        comment: "{{ permissions_data.users.rclone.comment | default('rclone') }}"
+      minio:
+        uid: "{{ compose_minio_user.split(':')[0] | int }}"
+        gid: "{{ compose_minio_user.split(':')[1] | int }}"
+        comment: "{{ permissions_data.users.minio.comment | default('minio') }}"
+
+- name: Derive MinIO bind path from permissions manifest
+  ansible.builtin.set_fact:
+    minio_volume_path: "{{ (((volume_entries | selectattr('owner', 'equalto', 'minio') | list | first | default({})).path) | default('')) }}"

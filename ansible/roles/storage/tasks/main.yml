@@ -1,8 +1,36 @@
-- name: Ensure volume exists
+---
+# Ensures host-bind volume directories exist and have correct ownership/mode.
+# Expects: volume_entries, repo_root_path, apply_privileged, permissions_mode_selected
+
+- name: Ensure volume directories exist
   ansible.builtin.file:
-    path: "{{ item.path }}"
+    path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
     state: directory
+  loop: "{{ volume_entries }}"
+  when: item.path | default('') | length > 0
+
+- name: Apply ownership and mode for declared volumes (bootstrap)
+  become: true
+  ansible.builtin.file:
+    path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
     owner: "{{ item.owner | default('root') }}"
     group: "{{ item.group | default('root') }}"
-    mode: "{{ item.mode }}"
-  loop: "{{ volumes }}"
+    mode: "{{ item.mode | default('0755') }}"
+    recurse: "{{ item.recurse | default(false) | bool }}"
+    state: directory
+  loop: "{{ volume_entries }}"
+  when:
+    - apply_privileged
+    - item.path | default('') | length > 0
+
+- name: Apply runtime mode for declared volumes
+  ansible.builtin.file:
+    path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
+    mode: "{{ item.runtime_mode | default(item.mode | default('0755')) }}"
+    recurse: "{{ item.runtime_recurse | default(false) | bool }}"
+    state: directory
+  loop: "{{ volume_entries }}"
+  when:
+    - permissions_mode_selected == 'runtime'
+    - item.path | default('') | length > 0
+    - item.runtime_mode is defined

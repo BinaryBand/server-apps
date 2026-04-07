@@ -1,6 +1,6 @@
 - service: jellyfin
-  uid: 1000
-  user: svc_jellyfin
+  uid: 8096
+  user: jellyfin
   volumes:
     - name: config
       path: /srv/jellyfin/config

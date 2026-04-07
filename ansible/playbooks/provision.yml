@@ -1,4 +1,6 @@
 ---
+# Bootstrap-only provisioning scaffold.
+# Prerequisite: ansible-galaxy collection install -r ansible/requirements.yml
 - name: Provision storage
   hosts: all
   gather_facts: false
@@ -21,7 +23,7 @@
 
     - name: Build manifests list
       ansible.builtin.set_fact:
-        manifests: "{{ manifests | default([]) + (item.content | b64decode | from_yaml) }}"
+        manifests: "{{ manifests | default([]) + ((item.content | b64decode | from_yaml) | default([])) }}"
       loop: "{{ manifest_contents.results }}"
       tags: [volumes, permissions]
 

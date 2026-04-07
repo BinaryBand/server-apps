@@ -97,11 +97,6 @@ def _parse_args() -> Namespace:
     parser = ArgumentParser(description="Reset project storage and runtime state")
     parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
     parser.add_argument("--dry-run", action="store_true", help="Print actions only")
-    parser.add_argument(
-        "--keep-media",
-        action="store_true",
-        help="Deprecated no-op; media now lives in Docker volumes",
-    )
     return parser.parse_args()
 
 

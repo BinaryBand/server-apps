@@ -1,6 +1,6 @@
 - service: baikal
-  uid: 1001
-  user: svc_baikal
+  uid: 8098
+  user: baikal
   volumes:
     - name: config
       path: /srv/baikal/config

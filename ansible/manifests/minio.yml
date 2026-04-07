@@ -1,0 +1,8 @@
+- service: minio
+  uid: 1001
+  user: minio
+  volumes:
+    - name: data
+      path: /srv/minio/data
+      mode: "0750"
+  read_access: []
