@@ -11,6 +11,7 @@ See `ARCHITECTURE.md` for tool responsibilities and structural decisions.
 WSL with base Debian compatibility is the development target.
 
 ```bash
+poetry env use python3
 poetry install
 pre-commit install --hook-type pre-push
 ```

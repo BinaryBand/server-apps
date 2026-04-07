@@ -1,38 +1,36 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=2.1.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "cloud-apps"
 version = "0.1.0"
 description = "Runbook utilities for the cloud-apps stack"
 readme = "README.md"
-requires-python = ">=3.10"
-dependencies = [
-    "ansible==13.4.0",
-    "from-root==1.3.0",
-    "pydantic==2.10.6",
-    "python-dotenv==1.2.1",
-    "PyYAML==6.0.3",
-    "requests==2.32.5",
-    "ruff==0.15.5",
-    "types-requests==2.32.4.20260107",
-]
+requires-python = ">=3.12,<4.0"
+dynamic = ["dependencies"]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0,<8",
-    "import-linter>=2.0",
-    "lizard>=1.17,<2",
-    "vulture>=2.11,<3",
-]
+[tool.poetry]
+package-mode = false
 
-[tool.setuptools]
-package-dir = { "" = "." }
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+ansible = "13.4.0"
+from-root = "1.3.0"
+pydantic = "2.10.6"
+python-dotenv = "1.2.1"
+pyyaml = "6.0.3"
+requests = "2.32.5"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["runbook*", "src*"]
+[tool.poetry.group.dev.dependencies]
+ansible-lint = "26.4.0"
+import-linter = ">=2.0,<3.0"
+lizard = ">=1.17,<2.0"
+pre-commit = ">=4.0,<5.0"
+pytest = ">=7.0,<8.0"
+ruff = "0.15.5"
+types-requests = "2.32.4.20260107"
+vulture = ">=2.11,<3.0"
 
 # --- Layer boundary enforcement (Rule 3 from ARCHITECTURE.md) ---
 # Run: PYTHONPATH=. .venv/bin/lint-imports
