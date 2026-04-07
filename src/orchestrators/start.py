@@ -4,8 +4,8 @@ import sys
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.managers.checkpoint import OperationCheckpoint
 from src.managers.pipeline import PIPELINE_STEPS
+from src.managers.workflow_runner import run_checkpoint_stages, start_checkpoint
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.runtime import checkpoints_root, locks_root
 from src.toolbox.docker.health import ensure_docker_daemon_access
@@ -13,50 +13,37 @@ from src.toolbox.docker.health import ensure_docker_daemon_access
 from src.toolbox.core.config import runbook_resume_enabled
 
 
-def _start_checkpoint(*, resume_enabled: bool) -> OperationCheckpoint:
-    checkpoint = OperationCheckpoint("start", checkpoints_root(), resume=resume_enabled)
-    checkpoint.start(desired="Healthy")
-    return checkpoint
-
-
-def _run_stage(checkpoint: OperationCheckpoint, stage_name: str, step: object) -> None:
-    if checkpoint.should_skip_stage(stage_name):
-        print(f"[stage:{stage_name}] Skipping already completed stage")
-        return
-
-    print(f"[stage:{stage_name}] Running...")
+def _run_preflight() -> None:
     try:
-        step()
+        ensure_docker_daemon_access()
     except RuntimeError as err:
-        checkpoint.mark_stage(stage_name, ok=False, message=str(err))
-        checkpoint.finish(observed="Degraded", ok=False)
-        raise SystemExit(f"[stage:{stage_name}] {err}") from err
-
-    checkpoint.mark_stage(stage_name, ok=True)
+        raise SystemExit(f"[preflight] {err}") from err
 
 
-def _run_pipeline(checkpoint: OperationCheckpoint) -> None:
-    for stage_name, step in PIPELINE_STEPS:
-        _run_stage(checkpoint, stage_name, step)
+def _run_start_workflow(resume_enabled: bool) -> None:
+    checkpoint = start_checkpoint(
+        "start",
+        "Healthy",
+        root=checkpoints_root(),
+        resume=resume_enabled,
+    )
+
+    print("Initializing apps...")
+    run_checkpoint_stages(
+        checkpoint,
+        PIPELINE_STEPS,
+        observed_on_failure="Degraded",
+    )
+    checkpoint.finish(observed="Healthy", ok=True)
+    print("Initialization complete.")
 
 
 def main() -> None:
     resume_enabled = runbook_resume_enabled()
 
     with RunbookLock("start-stop", locks_root()):
-        try:
-            ensure_docker_daemon_access()
-        except RuntimeError as err:
-            raise SystemExit(f"[preflight] {err}") from err
-
-        checkpoint = _start_checkpoint(resume_enabled=resume_enabled)
-
-        print("Initializing apps...")
-
-        _run_pipeline(checkpoint)
-
-        checkpoint.finish(observed="Healthy", ok=True)
-        print("Initialization complete.")
+        _run_preflight()
+        _run_start_workflow(resume_enabled)
 
 
 if __name__ == "__main__":

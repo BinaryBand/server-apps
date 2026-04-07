@@ -1,0 +1,12 @@
+- name: Assert volume exists
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  register: validate_volume_stat
+  loop: "{{ volumes }}"
+  failed_when: not validate_volume_stat.stat.exists
+
+- name: Assert volume permissions
+  ansible.builtin.assert:
+    that:
+      - validate_volume_stat.stat.mode == item.mode
+  loop: "{{ volumes }}"

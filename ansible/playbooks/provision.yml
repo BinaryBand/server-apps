@@ -1,0 +1,59 @@
+---
+- name: Provision storage
+  hosts: all
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: Find manifest files
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/../manifests"
+        patterns: "*.yml"
+      register: manifest_files
+      tags: [volumes, permissions]
+
+    - name: Load manifest content
+      ansible.builtin.slurp:
+        src: "{{ item.path }}"
+      register: manifest_contents
+      loop: "{{ manifest_files.files }}"
+      tags: [volumes, permissions]
+
+    - name: Build manifests list
+      ansible.builtin.set_fact:
+        manifests: "{{ manifests | default([]) + (item.content | b64decode | from_yaml) }}"
+      loop: "{{ manifest_contents.results }}"
+      tags: [volumes, permissions]
+
+    - name: Create volume directories
+      ansible.builtin.file:
+        path: "{{ item.1.path }}"
+        state: directory
+        owner: "{{ item.0.uid }}"
+        mode: "{{ item.1.mode }}"
+      loop: "{{ manifests | subelements('volumes') }}"
+      tags: [volumes]
+
+    - name: Build ACL entry list
+      ansible.builtin.set_fact:
+        _acl_entries: >-
+          {%- set entries = [] -%}
+          {%- for manifest in manifests -%}
+            {%- for vol in manifest.volumes -%}
+              {%- for user in manifest.read_access -%}
+                {%- set _ = entries.append({'path': vol.path, 'user': user}) -%}
+              {%- endfor -%}
+            {%- endfor -%}
+          {%- endfor -%}
+          {{ entries }}
+      tags: [permissions]
+
+    - name: Apply read_access ACLs
+      ansible.posix.acl:
+        path: "{{ item.path }}"
+        entity: "{{ item.user }}"
+        etype: user
+        permissions: rx
+        state: present
+      loop: "{{ _acl_entries }}"
+      tags: [permissions]

@@ -1,0 +1,11 @@
+- service: restic
+  uid: 1002
+  user: svc_restic
+  volumes:
+    - name: repo
+      path: /srv/restic/repo
+      mode: "0700"
+    - name: backups
+      path: /srv/restic/backups
+      mode: "0750"
+  read_access: []

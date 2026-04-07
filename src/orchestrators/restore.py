@@ -1,5 +1,5 @@
 from src.toolbox.backups.restore import recent_snapshots, restore_snapshot
-from src.managers.checkpoint import OperationCheckpoint
+from src.managers.workflow_runner import StagePolicy, run_checkpoint_stage, start_checkpoint
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.runtime import checkpoints_root, locks_root, repo_root
 from src.toolbox.core.config import runbook_resume_enabled
@@ -33,27 +33,28 @@ def _print_snapshots() -> None:
 
 
 def _run_restore(args: Namespace, *, resume_enabled: bool) -> None:
-    checkpoint = OperationCheckpoint(
+    checkpoint = start_checkpoint(
         "restore",
-        checkpoints_root(),
+        "RestoreCompleted",
+        root=checkpoints_root(),
         resume=resume_enabled,
     )
-    checkpoint.start(desired="RestoreCompleted")
 
-    try:
-        if checkpoint.should_skip_stage("restore"):
-            print("[stage:restore] Skipping already completed stage")
-        else:
-            print("[stage:restore] Starting snapshot restore")
-            restore_snapshot(args.snapshot, DEFAULT_RESTORE_TARGET, args.no_apply_volumes)
-            checkpoint.mark_stage("restore", ok=True)
+    def _restore_step() -> None:
+        restore_snapshot(args.snapshot, DEFAULT_RESTORE_TARGET, args.no_apply_volumes)
 
-        checkpoint.finish(observed="RestoreCompleted", ok=True)
-        print("[stage:complete] Restore pipeline completed")
-    except RuntimeError as err:
-        checkpoint.mark_stage("restore", ok=False, message=str(err))
-        checkpoint.finish(observed="RestoreFailed", ok=False)
-        raise SystemExit(f"[stage:restore] {err}") from err
+    run_checkpoint_stage(
+        checkpoint,
+        "restore",
+        _restore_step,
+        StagePolicy(
+            observed_on_failure="RestoreFailed",
+            run_message="[stage:restore] Starting snapshot restore",
+        ),
+    )
+
+    checkpoint.finish(observed="RestoreCompleted", ok=True)
+    print("[stage:complete] Restore pipeline completed")
 
 
 def main():

@@ -1,0 +1,11 @@
+- service: baikal
+  uid: 1001
+  user: svc_baikal
+  volumes:
+    - name: config
+      path: /srv/baikal/config
+      mode: "0750"
+    - name: data
+      path: /srv/baikal/data
+      mode: "0750"
+  read_access: []

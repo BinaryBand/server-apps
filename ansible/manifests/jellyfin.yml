@@ -1,0 +1,20 @@
+- service: jellyfin
+  uid: 1000
+  user: svc_jellyfin
+  volumes:
+    - name: config
+      path: /srv/jellyfin/config
+      mode: "0750"
+    - name: cache
+      path: /srv/jellyfin/cache
+      mode: "0750"
+    - name: data
+      path: /srv/jellyfin/data
+      mode: "0750"
+    - name: media
+      path: /srv/media
+      mode: "0755"
+    - name: logs
+      path: /srv/logs
+      mode: "0750"
+  read_access: []

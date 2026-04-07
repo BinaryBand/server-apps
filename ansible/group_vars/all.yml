@@ -1,0 +1,7 @@
+project_name: cloud-apps
+manifest_dir: ansible/manifests
+compose_file: compose/base.yml
+puid: 1000
+pgid: 1000
+media_gid: 3000
+ansible_python_interpreter: "{{ ansible_playbook_python }}"

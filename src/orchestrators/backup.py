@@ -1,5 +1,11 @@
 from src.toolbox.backups.gather import gather_stage
 from src.managers.checkpoint import OperationCheckpoint
+from src.managers.workflow_runner import (
+    StagePolicy,
+    fail_checkpoint_stage,
+    run_checkpoint_stage,
+    start_checkpoint,
+)
 from src.toolbox.docker.wrappers.restic import (
     ResticRunnerError,
     has_restic_repo,
@@ -25,20 +31,47 @@ DEFAULT_RESTIC_EXCLUDES: list[str] = ["/backups/restore/**"]
 DEFAULT_RESTIC_TARGET = "/backups"
 
 
-def _run_gather_stage(checkpoint: OperationCheckpoint, include_file: Path) -> None:
-    """Run gather stage and mark checkpoint."""
-    if checkpoint.should_skip_stage("gather"):
-        print("[stage:gather] Skipping already completed stage")
+def _build_restic_args() -> list[str]:
+    restic_args: list[str] = []
+    if DEFAULT_RESTIC_TARGET == "/backups":
+        for pattern in DEFAULT_RESTIC_EXCLUDES:
+            restic_args.extend(["--exclude", pattern])
+    return restic_args
+
+
+def _ensure_restic_repo(checkpoint: OperationCheckpoint) -> None:
+    if has_restic_repo():
         return
 
+    print("[stage:restic-init] Repository not initialized; running init")
     try:
-        print("[stage:gather] Starting gather phase")
-        gather_stage(include_file=include_file)
-        checkpoint.mark_stage("gather", ok=True)
-    except RuntimeError as err:
-        checkpoint.mark_stage("gather", ok=False, message=str(err))
-        checkpoint.finish(observed="BackupFailed", ok=False)
-        raise SystemExit(f"[stage:gather] {err}") from err
+        init_restic_repo()
+    except ResticRunnerError as err:
+        fail_checkpoint_stage(
+            checkpoint,
+            "restic",
+            err=err,
+            policy=StagePolicy(
+                observed_on_failure="BackupFailed",
+                error_prefix="restic-init",
+            ),
+        )
+
+
+def _run_restic_backup(checkpoint: OperationCheckpoint, restic_args: list[str]) -> None:
+    try:
+        run_backup(paths=[DEFAULT_RESTIC_TARGET], args=restic_args)
+        checkpoint.mark_stage("restic", ok=True)
+    except ResticRunnerError as err:
+        fail_checkpoint_stage(
+            checkpoint,
+            "restic",
+            err=err,
+            policy=StagePolicy(
+                observed_on_failure="BackupFailed",
+                error_prefix="restic-backup",
+            ),
+        )
 
 
 def _run_restic_stage(checkpoint: OperationCheckpoint, restic_args: list[str]) -> None:
@@ -48,44 +81,36 @@ def _run_restic_stage(checkpoint: OperationCheckpoint, restic_args: list[str]) -
         return
 
     print("[stage:restic] Checking repository state")
-    if not has_restic_repo():
-        print("[stage:restic-init] Repository not initialized; running init")
-        try:
-            init_restic_repo()
-        except ResticRunnerError as err:
-            checkpoint.mark_stage("restic", ok=False, message=str(err))
-            checkpoint.finish(observed="BackupFailed", ok=False)
-            raise SystemExit(f"[stage:restic-init] {err}") from err
+    _ensure_restic_repo(checkpoint)
+    _run_restic_backup(checkpoint, restic_args)
 
-    try:
-        run_backup(paths=[DEFAULT_RESTIC_TARGET], args=restic_args)
-        checkpoint.mark_stage("restic", ok=True)
-    except ResticRunnerError as err:
-        checkpoint.mark_stage("restic", ok=False, message=str(err))
-        checkpoint.finish(observed="BackupFailed", ok=False)
-        raise SystemExit(f"[stage:restic-backup] {err}") from err
+
+def _run_backup_stages(checkpoint: OperationCheckpoint) -> None:
+    root: Path = repo_root()
+    include_file: Path = root / "configs" / "backup-include.txt"
+    run_checkpoint_stage(
+        checkpoint,
+        "gather",
+        lambda: gather_stage(include_file=include_file),
+        StagePolicy(
+            observed_on_failure="BackupFailed",
+            run_message="[stage:gather] Starting gather phase",
+        ),
+    )
+    _run_restic_stage(checkpoint, _build_restic_args())
 
 
 def main():
     resume_enabled = runbook_resume_enabled()
 
     with RunbookLock("backup-restore-reset", locks_root()):
-        checkpoint = OperationCheckpoint(
-            "backup", checkpoints_root(), resume=resume_enabled
+        checkpoint = start_checkpoint(
+            "backup",
+            "BackupCompleted",
+            root=checkpoints_root(),
+            resume=resume_enabled,
         )
-        checkpoint.start(desired="BackupCompleted")
-
-        root: Path = repo_root()
-        include_file: Path = root / "configs" / "backup-include.txt"
-
-        _run_gather_stage(checkpoint, include_file)
-
-        restic_args = []
-        if DEFAULT_RESTIC_TARGET == "/backups":
-            for pattern in DEFAULT_RESTIC_EXCLUDES:
-                restic_args.extend(["--exclude", pattern])
-
-        _run_restic_stage(checkpoint, restic_args)
+        _run_backup_stages(checkpoint)
 
         checkpoint.finish(observed="BackupCompleted", ok=True)
         print("[stage:complete] Backup pipeline completed")
