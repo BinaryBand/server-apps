@@ -14,23 +14,23 @@ def patch_reconciler_observer(
     media_public: bool = True,
 ) -> None:
     monkeypatch.setattr(
-        "src.reconciler.observer.runtime_observer.required_external_volume_names",
+        "src.reconciler.runtime_observer.required_external_volume_names",
         lambda: volumes if volumes is not None else [],
     )
     monkeypatch.setattr(
-        "src.reconciler.observer.runtime_observer.compose_service_names",
+        "src.reconciler.runtime_observer.compose_service_names",
         lambda: services if services is not None else [],
     )
     monkeypatch.setattr(
-        "src.reconciler.observer.runtime_observer.probe_external_volume",
+        "src.reconciler.runtime_observer.probe_external_volume",
         volume_probe or (lambda _name: True),
     )
     monkeypatch.setattr(
-        "src.reconciler.observer.runtime_observer.probe_container_health",
+        "src.reconciler.runtime_observer.probe_container_health",
         service_probe or (lambda _name: True),
     )
     monkeypatch.setattr(
-        "src.reconciler.observer.runtime_observer.probe_minio_media_public",
+        "src.reconciler.runtime_observer.probe_minio_media_public",
         lambda: media_public,
     )
 

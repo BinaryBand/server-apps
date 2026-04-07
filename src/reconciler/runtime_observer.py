@@ -35,6 +35,8 @@ class RuntimeObserver:
         services_degraded = self.probe_services(state)
 
         media_public = probe_minio_media_public()
-        upsert_condition(state, "minio:media-public", "true" if media_public else "false")
+        upsert_condition(
+            state, "minio:media-public", "true" if media_public else "false"
+        )
 
         return any((volumes_degraded, services_degraded, not media_public))

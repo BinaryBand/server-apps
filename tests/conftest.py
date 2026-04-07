@@ -29,5 +29,5 @@ def state_root_tmp(monkeypatch, tmp_path: Path) -> Path:
 
     Tests can depend on this fixture to ensure isolated state for idempotency checks.
     """
-    monkeypatch.setattr("src.reconciler.adapters.state_store.state_root", lambda: tmp_path)
+    monkeypatch.setattr("src.reconciler.state_store.state_root", lambda: tmp_path)
     return tmp_path
