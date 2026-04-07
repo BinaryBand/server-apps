@@ -17,69 +17,54 @@ from src.toolbox.docker.compose import ensure_external_volumes
 class TestReconcilerErrorHandling:
     """Test error handling scenarios in reconciler.py"""
 
-    def test_reconcile_once_handles_runtime_error_during_health_checks(
-        self, state_root_tmp, monkeypatch
+    @pytest.mark.parametrize(
+        ("failing_stage", "expected_message"),
+        [
+            ("run_runtime_health_checks", "Health check failed"),
+            ("run_permissions_playbook", "Permissions failed"),
+            ("run_runtime_post_start", "Post-start failed"),
+        ],
+    )
+    def test_reconcile_once_handles_runtime_errors(
+        self,
+        state_root_tmp,
+        monkeypatch,
+        failing_stage: str,
+        expected_message: str,
     ):
-        """Test that RuntimeError during health checks is properly handled"""
+        """Test that runtime stage failures are mapped to RuntimeHealth=false."""
         monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.required_external_volume_names", lambda: []
+            "src.reconciler.observer.runtime_observer.required_external_volume_names",
+            lambda: [],
         )
-        monkeypatch.setattr("src.reconciler.observer.runtime_observer.compose_service_names", lambda: [])
         monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
+            "src.reconciler.observer.runtime_observer.compose_service_names",
+            lambda: [],
+        )
+        monkeypatch.setattr(
+            "src.reconciler.observer.runtime_observer.probe_minio_media_public",
+            lambda: True,
         )
 
-        monkeypatch.setattr(
-            "src.managers.pipeline.ensure_external_volumes", lambda: None
-        )
+        monkeypatch.setattr("src.managers.pipeline.ensure_external_volumes", lambda: None)
         monkeypatch.setattr(
             "src.managers.pipeline.run_permissions_playbook", lambda **kwargs: None
         )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_post_start", lambda: None
-        )
+        monkeypatch.setattr("src.managers.pipeline.run_runtime_post_start", lambda: None)
+        monkeypatch.setattr("src.managers.pipeline.run_runtime_health_checks", lambda: None)
 
-        # Mock health checks to raise RuntimeError
-        def mock_run_runtime_health_checks():
-            raise RuntimeError("Health check failed")
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_health_checks",
-            mock_run_runtime_health_checks,
-        )
-
-        state = reconcile_once(check_only=False)
-
-        assert state.observed == "Degraded"
-        assert state.runStatus == "failed"
-        condition = next(c for c in state.conditions if c.name == "RuntimeHealth")
-        assert condition.status == "false"
-        assert "Health check failed" in condition.message
-
-    def test_reconcile_once_handles_runtime_error_during_permissions(
-        self, state_root_tmp, monkeypatch
-    ):
-        """Test that RuntimeError during permissions playbook is properly handled"""
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.required_external_volume_names", lambda: []
-        )
-        monkeypatch.setattr("src.reconciler.observer.runtime_observer.compose_service_names", lambda: [])
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
-        )
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.ensure_external_volumes", lambda: None
-        )
-
-        # Mock permissions playbook to raise RuntimeError
-        def mock_run_permissions_playbook(*args, **kwargs):
-            raise RuntimeError("Permissions failed")
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_permissions_playbook",
-            mock_run_permissions_playbook,
-        )
+        if failing_stage == "run_permissions_playbook":
+            monkeypatch.setattr(
+                "src.managers.pipeline.run_permissions_playbook",
+                lambda *args, **kwargs: (_ for _ in ()).throw(
+                    RuntimeError(expected_message)
+                ),
+            )
+        else:
+            monkeypatch.setattr(
+                f"src.managers.pipeline.{failing_stage}",
+                lambda: (_ for _ in ()).throw(RuntimeError(expected_message)),
+            )
 
         state = reconcile_once(check_only=False)
 
@@ -87,42 +72,7 @@ class TestReconcilerErrorHandling:
         assert state.runStatus == "failed"
         condition = next(c for c in state.conditions if c.name == "RuntimeHealth")
         assert condition.status == "false"
-        assert "Permissions failed" in condition.message
-
-    def test_reconcile_once_handles_runtime_error_during_post_start(
-        self, state_root_tmp, monkeypatch
-    ):
-        """Test that RuntimeError during post-start is properly handled"""
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.required_external_volume_names", lambda: []
-        )
-        monkeypatch.setattr("src.reconciler.observer.runtime_observer.compose_service_names", lambda: [])
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
-        )
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.ensure_external_volumes", lambda: None
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_permissions_playbook", lambda **kwargs: None
-        )
-
-        # Mock post-start to raise RuntimeError
-        def mock_run_runtime_post_start():
-            raise RuntimeError("Post-start failed")
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_post_start", mock_run_runtime_post_start
-        )
-
-        state = reconcile_once(check_only=False)
-
-        assert state.observed == "Degraded"
-        assert state.runStatus == "failed"
-        condition = next(c for c in state.conditions if c.name == "RuntimeHealth")
-        assert condition.status == "false"
-        assert "Post-start failed" in condition.message
+        assert expected_message in condition.message
 
 
 class TestHealthChecksErrorHandling:
@@ -303,7 +253,7 @@ class TestVolumeErrorHandling:
 
     def test_probe_external_volume_handles_nonexistent_volume(self):
         """Test that nonexistent volumes are handled gracefully"""
-        from src.toolbox.docker.volumes import probe_external_volume
+        from src.toolbox.docker.compose import probe_external_volume
 
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=1)

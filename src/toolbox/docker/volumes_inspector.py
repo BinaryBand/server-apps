@@ -9,20 +9,6 @@ from src.toolbox.docker.compose_storage import (
 import subprocess
 
 
-def probe_external_volume(name: str) -> bool:
-    """Return true when the named docker volume exists."""
-    try:
-        result = subprocess.run(
-            ["docker", "volume", "inspect", name],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except Exception:
-        return False
-    return result.returncode == 0
-
-
 def _list_docker_volumes(*args: str) -> list[str]:
     cmd: list[str] = ["docker", "volume", "ls", *args, "--format", "{{.Name}}"]
     proc: subprocess.CompletedProcess[str] = subprocess.run(

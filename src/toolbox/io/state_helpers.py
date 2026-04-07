@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from src.configuration.state_model import StageCondition, WorkflowState
-
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+from datetime import datetime
+from src.configuration.state_model import StageCondition, WorkflowState, utc_now
 
 
 def upsert_condition(
@@ -15,7 +11,7 @@ def upsert_condition(
 
     This consolidates repeated logic used across reconciler and checkpoints.
     """
-    now: datetime = _utc_now()
+    now: datetime = utc_now()
     for idx, condition in enumerate(state.conditions):
         if condition.name != name:
             continue

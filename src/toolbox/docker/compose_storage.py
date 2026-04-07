@@ -1,49 +1,17 @@
 from __future__ import annotations
 
 from src.configuration.compose_config import ComposeConfigModel
-from src.toolbox.core.runtime import repo_root
-from src.toolbox.core.config import get_project_name
+from src.toolbox.docker.compose_cli import compose_cmd
 
-from pathlib import Path
 from typing import Any
 import subprocess
-import dotenv
 import yaml
 from pydantic import ValidationError
 
 
-DOCKER_COMPOSE_CMD: list[str] = ["docker", "compose"]
-COMPOSE_FILES: tuple[str, str] = ("compose/base.yml", "compose/dev.yml")
-
-
-def _compose_file_args() -> list[str]:
-    root: Path = repo_root()
-    env: str = dotenv.find_dotenv()
-
-    cmd: list[str] = [
-        "--project-name",
-        get_project_name(),
-        "--project-directory",
-        str(root),
-    ]
-
-    if env:
-        cmd += ["--env-file", env]
-
-    for file in COMPOSE_FILES:
-        cmd += ["-f", str(root / file)]
-
-    return cmd
-
-
 def _run_compose_config_cmd() -> str:
     """Run docker-compose config command and return rendered YAML."""
-    cmd: list[str] = [
-        *DOCKER_COMPOSE_CMD,
-        *_compose_file_args(),
-        "config",
-        "--no-interpolate",
-    ]
+    cmd: list[str] = compose_cmd("config", "--no-interpolate")
     proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
     if proc.returncode != 0:
         raise RuntimeError(

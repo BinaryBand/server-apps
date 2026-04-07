@@ -1,8 +1,5 @@
 from .volumes_config import (
     logical_volume_names,
-    _resolve_volume_source,
-    _logical_source,
-    _storage_source,
     required_external_volume_names,
     host_bind_path,
     logical_volume_mount_source,
@@ -12,9 +9,6 @@ from .volumes_config import (
 )
 
 from .volumes_inspector import (
-    probe_external_volume,
-    _list_docker_volumes,
-    _fallback_configured_volumes,
     list_project_volumes,
     remove_project_volumes,
 )
@@ -22,7 +16,6 @@ from .volumes_inspector import (
 
 __all__ = [
     "logical_volume_names",
-    "probe_external_volume",
     "required_external_volume_names",
     "list_project_volumes",
     "remove_project_volumes",
