@@ -9,31 +9,42 @@
 
 - name: Derive service identities from compose base configuration
   ansible.builtin.set_fact:
-    compose_jellyfin_user: "{{ (((compose_base.services | default({})).jellyfin | default({})).user | default('')) }}"
-    compose_baikal_user: "{{ (((compose_base.services | default({})).baikal | default({})).user | default('')) }}"
-    compose_minio_user: "{{ (((compose_base.services | default({})).minio | default({})).user | default('')) }}"
-    compose_rclone_env: "{{ (((compose_base.services | default({})).rclone | default({})).environment | default([])) }}"
+    identity_compose_jellyfin_user: "{{ (((compose_base.services | default({})).jellyfin | default({})).user | default('')) }}"
+    identity_compose_baikal_user: "{{ (((compose_base.services | default({})).baikal | default({})).user | default('')) }}"
+    identity_compose_minio_user: "{{ (((compose_base.services | default({})).minio | default({})).user | default('')) }}"
+    identity_compose_rclone_env: "{{ (((compose_base.services | default({})).rclone | default({})).environment | default([])) }}"
+
+- name: Derive rclone UID/GID from compose environment list
+  ansible.builtin.set_fact:
+    identity_rclone_uid: >-
+      {{ (identity_compose_rclone_env | select('match', '^PUID=')
+          | list | first | default('PUID=8097'))
+         | regex_replace('^PUID=', '') | int }}
+    identity_rclone_gid: >-
+      {{ (identity_compose_rclone_env | select('match', '^MEDIA_GID=')
+          | list | first | default('MEDIA_GID=5572'))
+         | regex_replace('^MEDIA_GID=', '') | int }}
 
 - name: Build service identity map from compose
   ansible.builtin.set_fact:
-    service_identities:
+    identity_service_identities:
       jellyfin:
-        uid: "{{ compose_jellyfin_user.split(':')[0] | int }}"
-        gid: "{{ compose_jellyfin_user.split(':')[1] | int }}"
+        uid: "{{ identity_compose_jellyfin_user.split(':')[0] | int }}"
+        gid: "{{ identity_compose_jellyfin_user.split(':')[1] | int }}"
         comment: "{{ permissions_data.users.jellyfin.comment | default('jellyfin') }}"
       baikal:
-        uid: "{{ compose_baikal_user.split(':')[0] | int }}"
-        gid: "{{ compose_baikal_user.split(':')[1] | int }}"
+        uid: "{{ identity_compose_baikal_user.split(':')[0] | int }}"
+        gid: "{{ identity_compose_baikal_user.split(':')[1] | int }}"
         comment: "{{ permissions_data.users.baikal.comment | default('baikal') }}"
       rclone:
-        uid: "{{ (compose_rclone_env | select('match', '^PUID=') | list | first | default('PUID=8097')) | regex_replace('^PUID=', '') | int }}"
-        gid: "{{ (compose_rclone_env | select('match', '^MEDIA_GID=') | list | first | default('MEDIA_GID=5572')) | regex_replace('^MEDIA_GID=', '') | int }}"
+        uid: "{{ identity_rclone_uid | int }}"
+        gid: "{{ identity_rclone_gid | int }}"
         comment: "{{ permissions_data.users.rclone.comment | default('rclone') }}"
       minio:
-        uid: "{{ compose_minio_user.split(':')[0] | int }}"
-        gid: "{{ compose_minio_user.split(':')[1] | int }}"
+        uid: "{{ identity_compose_minio_user.split(':')[0] | int }}"
+        gid: "{{ identity_compose_minio_user.split(':')[1] | int }}"
         comment: "{{ permissions_data.users.minio.comment | default('minio') }}"
 
 - name: Derive MinIO bind path from permissions manifest
   ansible.builtin.set_fact:
-    minio_volume_path: "{{ (((volume_entries | selectattr('owner', 'equalto', 'minio') | list | first | default({})).path) | default('')) }}"
+    identity_minio_volume_path: "{{ (((volume_entries | selectattr('owner', 'equalto', 'minio') | list | first | default({})).path) | default('')) }}"

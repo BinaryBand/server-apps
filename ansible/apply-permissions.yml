@@ -43,8 +43,19 @@
           - alpine:3.20
           - sh
           - -lc
-          - "mkdir -p /target && chown -R {{ reset_uid_selected }}:{{ reset_gid_selected }} /target && chmod -R u+rwX /target"
+          - |
+            set -e
+            mkdir -p /target
+            drift="$(find /target \( ! -uid {{ reset_uid_selected }} -o ! -gid {{ reset_gid_selected }} \)
+              -print -quit 2>/dev/null || true)"
+            if [ -n "$drift" ]; then
+              chown -R {{ reset_uid_selected }}:{{ reset_gid_selected }} /target
+              chmod -R u+rwX /target
+              echo fixed
+            fi
       loop: "{{ reset_paths }}"
+      register: reset_paths_fix
+      changed_when: "'fixed' in reset_paths_fix.stdout"
       when:
         - apply_reset
         - item.path | default('') | length > 0

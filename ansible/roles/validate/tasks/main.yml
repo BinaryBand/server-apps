@@ -15,15 +15,15 @@
         test -r /media &&
         ! test -w /media &&
         ls /media >/dev/null
-  register: jellyfin_media_access
+  register: validate_jellyfin_media_access
   retries: 12
   delay: 5
-  until: jellyfin_media_access.rc == 0
+  until: validate_jellyfin_media_access.rc == 0
   changed_when: false
 
 - name: Define named volume ownership rules
   ansible.builtin.set_fact:
-    named_volume_ownership_rules:
+    validate_named_volume_ownership_rules:
       - name: jellyfin
         owner_uid: "{{ service_identities.jellyfin.uid | int }}"
         owner_gid: "{{ service_identities.jellyfin.gid | int }}"
@@ -49,8 +49,10 @@
       - alpine:3.20
       - sh
       - -lc
-      - >-
+      - >
         mkdir -p /target &&
         chown -R {{ item.0.owner_uid }}:{{ item.0.owner_gid }} /target &&
         chmod -R u+rwX /target
-  loop: "{{ named_volume_ownership_rules | subelements('volumes') }}"
+  loop: "{{ validate_named_volume_ownership_rules | subelements('volumes') }}"
+  register: validate_named_volumes_fix
+  changed_when: validate_named_volumes_fix.rc == 0

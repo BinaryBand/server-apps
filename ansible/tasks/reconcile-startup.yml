@@ -2,6 +2,12 @@
   ansible.builtin.include_role:
     name: identity
 
+- name: Promote identity role facts to service-scoped names
+  ansible.builtin.set_fact:
+    service_identities: "{{ identity_service_identities }}"
+    minio_volume_path: "{{ identity_minio_volume_path }}"
+  when: identity_service_identities is defined
+
 - name: Ensure declared groups exist
   become: true
   ansible.builtin.group:
@@ -40,12 +46,17 @@
       - alpine:3.20
       - sh
       - -lc
-      - >-
-        test -d /target/.minio.sys/buckets/media || exit 0;
-        drift="$(find /target/.minio.sys/buckets/media \( ! -uid {{ service_identities.minio.uid | int }} -o ! -gid {{ service_identities.minio.gid | int }} \) -print -quit 2>/dev/null || true)";
+      - |
+        set -e
+        if [ ! -d /target/.minio.sys/buckets/media ]; then exit 0; fi
+        drift="$(find /target/.minio.sys/buckets/media \
+          \( ! -uid {{ service_identities.minio.uid | int }}
+          -o ! -gid {{ service_identities.minio.gid | int }} \)
+          -print -quit 2>/dev/null || true)"
         if [ -n "$drift" ]; then
-          chown -R {{ service_identities.minio.uid | int }}:{{ service_identities.minio.gid | int }} /target/.minio.sys/buckets/media;
-          echo fixed;
+          chown -R {{ service_identities.minio.uid | int }}:{{ service_identities.minio.gid | int }}
+            /target/.minio.sys/buckets/media
+          echo fixed
         fi
   register: minio_metadata_fix
   changed_when: "'fixed' in minio_metadata_fix.stdout"
@@ -110,10 +121,18 @@
       - alpine:3.20
       - sh
       - -lc
-      - >-
-        mkdir -p /target &&
-        chown -R {{ service_identities.minio.uid | int }}:{{ service_identities.minio.gid | int }} /target &&
-        chmod -R u+rwX /target
+      - |
+        set -e
+        mkdir -p /target
+        drift="$(find /target \( ! -uid {{ service_identities.minio.uid | int }} \
+          -o ! -gid {{ service_identities.minio.gid | int }} \) -print -quit 2>/dev/null || true)"
+        if [ -n "$drift" ]; then
+          chown -R {{ service_identities.minio.uid | int }}:{{ service_identities.minio.gid | int }} /target
+          chmod -R u+rwX /target
+          echo fixed
+        fi
+  register: minio_data_fix
+  changed_when: "'fixed' in minio_data_fix.stdout"
   when:
     - permissions_mode_selected == 'runtime'
     - minio_volume_path | length > 0
@@ -137,6 +156,8 @@
       - up
       - -d
       - --remove-orphans
+  register: compose_up
+  changed_when: compose_up.rc == 0
   when: permissions_mode_selected == 'runtime'
 
 - name: Run post-startup validation (Jellyfin media + named volume ownership)

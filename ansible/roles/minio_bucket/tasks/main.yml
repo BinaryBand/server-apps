@@ -11,10 +11,11 @@
       - sh
       - -lc
       - "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null"
-  register: minio_ready
+  register: minio_bucket_ready
+  changed_when: false
   retries: 24
   delay: 5
-  until: minio_ready.rc == 0
+  until: minio_bucket_ready.rc == 0
 
 - name: Configure mc alias for MinIO
   ansible.builtin.command:
@@ -29,10 +30,11 @@
       - "http://127.0.0.1:9000"
       - "{{ rclone_env.MINIO_ROOT_USER }}"
       - "{{ rclone_env.MINIO_ROOT_PASSWORD }}"
-  register: minio_alias
+  register: minio_bucket_alias
+  changed_when: false
   retries: 6
   delay: 5
-  until: minio_alias.rc == 0
+  until: minio_bucket_alias.rc == 0
 
 - name: Check whether myminio/media exists
   ansible.builtin.command:
@@ -43,7 +45,7 @@
       - mc
       - stat
       - myminio/media
-  register: minio_media_stat
+  register: minio_bucket_media_stat
   failed_when: false
   changed_when: false
 
@@ -56,7 +58,9 @@
       - mc
       - mb
       - myminio/media
-  when: minio_media_stat.rc != 0
+  register: minio_bucket_create
+  changed_when: minio_bucket_create.rc == 0
+  when: minio_bucket_media_stat.rc != 0
 
 - name: Ensure anonymous download policy on myminio/media
   ansible.builtin.command:
@@ -69,9 +73,10 @@
       - set
       - download
       - myminio/media
-  register: minio_anon
+  register: minio_bucket_anon
+  changed_when: minio_bucket_anon.rc == 0
   retries: 3
   delay: 2
-  until: minio_anon.rc == 0
+  until: minio_bucket_anon.rc == 0
   when:
-    - "minio_media_stat.rc != 0 or 'Anonymous: Enabled' not in minio_media_stat.stdout"
+    - "minio_bucket_media_stat.rc != 0 or 'Anonymous: Enabled' not in minio_bucket_media_stat.stdout"

@@ -45,6 +45,8 @@
       - sh
       - -lc
       - "cp /staging/rclone.conf /config/rclone/rclone.conf && chmod 0600 /config/rclone/rclone.conf"
+  register: rclone_config_copy
+  changed_when: rclone_config_copy.rc == 0
 
 - name: Remove temporary staging directory for internal rclone config
   ansible.builtin.file:
