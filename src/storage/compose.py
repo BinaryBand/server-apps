@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.storage.volumes import required_external_volume_names
 from src.toolbox.docker.compose_cli import compose_cmd
-from src.toolbox.docker.compose_storage import rendered_compose_config
+from src.toolbox.docker.compose_storage import rendered_compose_config, external_alias_name_pairs
 
 import subprocess
 
@@ -71,7 +71,9 @@ __all__ = [
     "compose_cmd",
     "compose_service_names",
     "ensure_external_volumes",
+    "external_alias_name_pairs",
     "missing_external_volumes",
     "probe_external_volume",
+    "rendered_compose_config",
     "stop_compose_stack",
 ]

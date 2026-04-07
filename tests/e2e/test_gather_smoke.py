@@ -10,8 +10,8 @@ import pytest
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from src.toolbox.backups.gather import gather_stage
-from src.toolbox.docker.volumes import logical_volume_names as _logical_volume_names
+from src.backup.gather import gather_stage
+from src.storage.volumes import logical_volume_names as _logical_volume_names
 
 
 DOCKER_PROBE_TIMEOUT_SECONDS = 30

@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from src.toolbox.docker.compose_storage import (
-    external_alias_name_pairs,
-    rendered_compose_config,
-)
-from src.toolbox.docker.volumes import required_external_volume_names
+from src.storage.compose import rendered_compose_config, external_alias_name_pairs
+from src.storage.volumes import required_external_volume_names
 from src.toolbox.core.runtime import PROJECT_NAME, repo_root
 
 from pathlib import Path

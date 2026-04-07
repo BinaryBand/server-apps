@@ -10,8 +10,8 @@ import pytest
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from src.toolbox.backups.restore import restore_snapshot
-from src.toolbox.docker.volumes import logical_volume_names as _logical_volume_names
+from src.backup.restore import restore_snapshot
+from src.storage.volumes import logical_volume_names as _logical_volume_names
 
 
 DOCKER_PROBE_TIMEOUT_SECONDS = 30
@@ -152,20 +152,20 @@ def test_restore_applies_all_staged_logical_volumes(restore_env, monkeypatch) ->
         _assert_restore_source_and_target(docker_args or [], source, logical_name)
 
     monkeypatch.setattr(
-        "src.toolbox.backups.restore.pull_restic_from_cloud", lambda: None
+        "src.backup.restore.pull_restic_from_cloud", lambda: None
     )
     monkeypatch.setattr(
-        "src.toolbox.backups.restore.restic.run_restic_command", lambda args: None
+        "src.backup.restic.run_restic_command", lambda args: None
     )
     monkeypatch.setattr(
-        "src.toolbox.backups.restore.storage_mount_source",
+        "src.storage.volumes.storage_mount_source",
         lambda *a, **k: env["backups_volume"],
     )
     monkeypatch.setattr(
-        "src.toolbox.backups.restore.logical_volume_mount_source",
+        "src.storage.volumes.logical_volume_mount_source",
         lambda logical: f"{env['test_project']}_{logical}",
     )
-    monkeypatch.setattr("src.toolbox.backups.restore.rclone_sync", fake_rclone_sync)
+    monkeypatch.setattr("src.toolbox.docker.wrappers.rclone.rclone_sync", fake_rclone_sync)
 
     restore_snapshot(target=RESTORE_TARGET)
 

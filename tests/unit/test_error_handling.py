@@ -237,7 +237,7 @@ class TestVolumeErrorHandling:
 
     def test_probe_external_volume_handles_nonexistent_volume(self):
         """Test that nonexistent volumes are handled gracefully"""
-        from src.toolbox.docker.compose import probe_external_volume
+        from src.storage.compose import probe_external_volume
 
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=1)
