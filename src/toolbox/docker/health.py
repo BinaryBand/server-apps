@@ -89,6 +89,21 @@ def _docker_socket_permission_denied(stderr: str) -> bool:
     return "permission denied" in lowered and "docker.sock" in lowered
 
 
+def _docker_daemon_access_error(detail: str) -> str:
+    if _docker_socket_permission_denied(detail):
+        return (
+            "Docker daemon access denied for current user. "
+            "Grant access to /var/run/docker.sock (for example via docker group membership) "
+            "and start a fresh shell/session before retrying. "
+            f"Details: {detail}"
+        )
+    return (
+        "Docker daemon is not reachable from this shell. "
+        "Ensure the Docker service is running and the current context/socket is valid. "
+        f"Details: {detail}"
+    )
+
+
 def ensure_docker_daemon_access() -> None:
     """Fail fast when Docker daemon access is unavailable for runtime orchestration."""
     result = subprocess.run(
@@ -100,21 +115,67 @@ def ensure_docker_daemon_access() -> None:
     if result.returncode == 0:
         return
 
-    stderr = (result.stderr or "").strip()
-    detail = stderr or "docker info failed"
-    if _docker_socket_permission_denied(stderr):
-        raise RuntimeError(
-            "Docker daemon access denied for current user. "
-            "Grant access to /var/run/docker.sock (for example via docker group membership) "
-            "and start a fresh shell/session before retrying. "
-            f"Details: {detail}"
-        )
+    detail = (result.stderr or "").strip() or "docker info failed"
+    raise RuntimeError(_docker_daemon_access_error(detail))
 
-    raise RuntimeError(
-        "Docker daemon is not reachable from this shell. "
-        "Ensure the Docker service is running and the current context/socket is valid. "
-        f"Details: {detail}"
+
+def _resolve_wait_behavior(
+    success_predicate: CommandPredicate | None,
+    detail_formatter: CommandFormatter | None,
+) -> tuple[CommandPredicate, CommandFormatter]:
+    predicate = success_predicate or (lambda result: result.returncode == 0)
+    formatter = detail_formatter or _default_command_detail
+    return predicate, formatter
+
+
+def _run_wait_loop(
+    spec: CommandWaitSpec,
+    *,
+    predicate: CommandPredicate,
+    formatter: CommandFormatter,
+    stream: TextIO | None,
+) -> subprocess.CompletedProcess[str] | None:
+    state: dict[str, Any] = {"last_result": None}
+
+    def _probe() -> ProbeResult:
+        state["last_result"] = _run_command(spec.command)
+        result: subprocess.CompletedProcess[str] = state["last_result"]
+        return ProbeResult(ready=predicate(result), detail=formatter(result))
+
+    wait_until(
+        spec.description,
+        _probe,
+        WaitConfig(
+            timeout_seconds=spec.timeout_seconds,
+            interval_seconds=spec.interval_seconds,
+        ),
+        stream=stream,
     )
+    return state.get("last_result")
+
+
+def _require_last_result(
+    description: str,
+    last_result: subprocess.CompletedProcess[str] | None,
+) -> subprocess.CompletedProcess[str]:
+    if last_result is None:
+        raise RuntimeError(f"{description} failed before the first probe ran.")
+    return last_result
+
+
+def _raise_wait_failure(
+    spec: CommandWaitSpec,
+    last_result: subprocess.CompletedProcess[str] | None,
+    err: RuntimeError,
+) -> None:
+    raise RuntimeError(
+        _format_command_failure(
+            spec.description,
+            spec.command,
+            last_result,
+            str(err),
+        )
+    ) from err
 
 
 def wait_for_command(
@@ -124,41 +185,20 @@ def wait_for_command(
     detail_formatter: CommandFormatter | None = None,
     stream: TextIO | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    predicate = success_predicate or (lambda result: result.returncode == 0)
-    formatter = detail_formatter or _default_command_detail
-    state: dict[str, Any] = {"last_result": None}
-
-    def _probe() -> ProbeResult:
-        state["last_result"] = _run_command(spec.command)
-        result: subprocess.CompletedProcess[str] = state["last_result"]
-        return ProbeResult(
-            ready=predicate(result),
-            detail=formatter(result),
-        )
+    predicate, formatter = _resolve_wait_behavior(success_predicate, detail_formatter)
+    last_result: subprocess.CompletedProcess[str] | None = None
 
     try:
-        wait_until(
-            spec.description,
-            _probe,
-            WaitConfig(
-                timeout_seconds=spec.timeout_seconds,
-                interval_seconds=spec.interval_seconds,
-            ),
+        last_result = _run_wait_loop(
+            spec,
+            predicate=predicate,
+            formatter=formatter,
             stream=stream,
         )
     except RuntimeError as err:
-        raise RuntimeError(
-            _format_command_failure(
-                spec.description,
-                spec.command,
-                state["last_result"],
-                str(err),
-            )
-        ) from err
+        _raise_wait_failure(spec, last_result, err)
 
-    if state["last_result"] is None:
-        raise RuntimeError(f"{spec.description} failed before the first probe ran.")
-    return state["last_result"]
+    return _require_last_result(spec.description, last_result)
 
 
 def _healthy_status(result: subprocess.CompletedProcess[str]) -> bool:

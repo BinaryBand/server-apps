@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from unittest.mock import Mock
-
 from src.reconciler.core import reconcile_once
+from tests.support.reconciler_helpers import patch_reconciler_observer, patch_runtime_pipeline
 
 
 class TestReconcileWorkflowIntegration:
@@ -10,51 +9,21 @@ class TestReconcileWorkflowIntegration:
 
     def test_full_reconcile_workflow_success(self, state_root_tmp, monkeypatch):
         """Test the complete reconcile_once workflow with successful operations"""
-        # Mock all external dependencies to succeed
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.required_external_volume_names",
-            lambda: ["test_volume"],
+        patch_reconciler_observer(
+            monkeypatch,
+            volumes=["test_volume"],
+            services=["test_service"],
         )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.compose_service_names", lambda: ["test_service"]
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_external_volume", lambda name: True
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_container_health", lambda name: True
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
-        )
-
-        # Mock the actual operations
-        mock_ensure_volumes = Mock()
-        mock_run_permissions = Mock()
-        mock_run_post_start = Mock()
-        mock_run_health_checks = Mock()
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
-        )
+        pipeline = patch_runtime_pipeline(monkeypatch)
 
         # Run the full workflow
         state = reconcile_once(check_only=False)
 
         # Verify all operations were called
-        mock_ensure_volumes.assert_called_once()
-        mock_run_permissions.assert_called_once_with(mode="runtime")
-        mock_run_post_start.assert_called_once()
-        mock_run_health_checks.assert_called_once()
+        pipeline["ensure_volumes"].assert_called_once()
+        pipeline["run_permissions"].assert_called_once_with(mode="runtime")
+        pipeline["run_post_start"].assert_called_once()
+        pipeline["run_health_checks"].assert_called_once()
 
         # Verify final state
         assert state.observed == "Healthy"
@@ -73,50 +42,21 @@ class TestReconcileWorkflowIntegration:
 
     def test_full_reconcile_workflow_with_check_only(self, state_root_tmp, monkeypatch):
         """Test the reconcile_once workflow in check-only mode"""
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.required_external_volume_names",
-            lambda: ["test_volume"],
+        patch_reconciler_observer(
+            monkeypatch,
+            volumes=["test_volume"],
+            services=["test_service"],
         )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.compose_service_names", lambda: ["test_service"]
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_external_volume", lambda name: True
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_container_health", lambda name: True
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
-        )
-
-        # Mock the actual operations to ensure they are NOT called in check-only mode
-        mock_ensure_volumes = Mock()
-        mock_run_permissions = Mock()
-        mock_run_post_start = Mock()
-        mock_run_health_checks = Mock()
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
-        )
+        pipeline = patch_runtime_pipeline(monkeypatch)
 
         # Run in check-only mode
         state = reconcile_once(check_only=True)
 
         # Verify operations were NOT called
-        mock_ensure_volumes.assert_not_called()
-        mock_run_permissions.assert_not_called()
-        mock_run_post_start.assert_not_called()
-        mock_run_health_checks.assert_not_called()
+        pipeline["ensure_volumes"].assert_not_called()
+        pipeline["run_permissions"].assert_not_called()
+        pipeline["run_post_start"].assert_not_called()
+        pipeline["run_health_checks"].assert_not_called()
 
         # Verify check results
         assert state.observed == "Healthy"
@@ -135,53 +75,24 @@ class TestReconcileWorkflowIntegration:
         self, state_root_tmp, monkeypatch
     ):
         """Test the reconcile_once workflow with some degraded components"""
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.required_external_volume_names",
-            lambda: ["good_volume", "bad_volume"],
+        patch_reconciler_observer(
+            monkeypatch,
+            volumes=["good_volume", "bad_volume"],
+            services=["good_service", "bad_service"],
+            volume_probe=lambda name: name == "good_volume",
+            service_probe=lambda name: name == "good_service",
+            media_public=False,
         )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.compose_service_names",
-            lambda: ["good_service", "bad_service"],
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_external_volume",
-            lambda name: name == "good_volume",
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_container_health",
-            lambda name: name == "good_service",
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: False
-        )
-
-        # Mock the actual operations
-        mock_ensure_volumes = Mock()
-        mock_run_permissions = Mock()
-        mock_run_post_start = Mock()
-        mock_run_health_checks = Mock()
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
-        )
+        pipeline = patch_runtime_pipeline(monkeypatch)
 
         # Run the full workflow
         state = reconcile_once(check_only=False)
 
         # Verify all operations were called
-        mock_ensure_volumes.assert_called_once()
-        mock_run_permissions.assert_called_once_with(mode="runtime")
-        mock_run_post_start.assert_called_once()
-        mock_run_health_checks.assert_called_once()
+        pipeline["ensure_volumes"].assert_called_once()
+        pipeline["run_permissions"].assert_called_once_with(mode="runtime")
+        pipeline["run_post_start"].assert_called_once()
+        pipeline["run_health_checks"].assert_called_once()
 
         # Verify final state is degraded
         assert state.observed == "Degraded"
@@ -197,41 +108,12 @@ class TestReconcileWorkflowIntegration:
 
     def test_reconcile_workflow_idempotency(self, state_root_tmp, monkeypatch):
         """Test that running reconcile_once multiple times is idempotent"""
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.required_external_volume_names",
-            lambda: ["test_volume"],
+        patch_reconciler_observer(
+            monkeypatch,
+            volumes=["test_volume"],
+            services=["test_service"],
         )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.compose_service_names", lambda: ["test_service"]
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_external_volume", lambda name: True
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_container_health", lambda name: True
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
-        )
-
-        # Mock the actual operations
-        mock_ensure_volumes = Mock()
-        mock_run_permissions = Mock()
-        mock_run_post_start = Mock()
-        mock_run_health_checks = Mock()
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
-        )
+        pipeline = patch_runtime_pipeline(monkeypatch)
 
         # Run the workflow twice
         state1 = reconcile_once(check_only=False)
@@ -243,50 +125,21 @@ class TestReconcileWorkflowIntegration:
         assert len(state1.conditions) == len(state2.conditions)
 
         # Verify operations were called the expected number of times
-        mock_ensure_volumes.assert_called_once()
-        mock_run_permissions.assert_called_once_with(mode="runtime")
-        mock_run_post_start.assert_called_once()
-        mock_run_health_checks.assert_called_once()
+        pipeline["ensure_volumes"].assert_called_once()
+        pipeline["run_permissions"].assert_called_once_with(mode="runtime")
+        pipeline["run_post_start"].assert_called_once()
+        pipeline["run_health_checks"].assert_called_once()
 
     def test_reconcile_workflow_with_mixed_check_only_and_full(
         self, state_root_tmp, monkeypatch
     ):
         """Test switching between check-only and full reconcile"""
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.required_external_volume_names",
-            lambda: ["test_volume"],
+        patch_reconciler_observer(
+            monkeypatch,
+            volumes=["test_volume"],
+            services=["test_service"],
         )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.compose_service_names", lambda: ["test_service"]
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_external_volume", lambda name: True
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_container_health", lambda name: True
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
-        )
-
-        # Mock the actual operations
-        mock_ensure_volumes = Mock()
-        mock_run_permissions = Mock()
-        mock_run_post_start = Mock()
-        mock_run_health_checks = Mock()
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
-        )
+        pipeline = patch_runtime_pipeline(monkeypatch)
 
         # Run check-only first
         state1 = reconcile_once(check_only=True)
@@ -294,16 +147,16 @@ class TestReconcileWorkflowIntegration:
         assert state1.runStatus == "completed"
 
         # Verify operations were NOT called
-        mock_ensure_volumes.assert_not_called()
-        mock_run_permissions.assert_not_called()
-        mock_run_post_start.assert_not_called()
-        mock_run_health_checks.assert_not_called()
+        pipeline["ensure_volumes"].assert_not_called()
+        pipeline["run_permissions"].assert_not_called()
+        pipeline["run_post_start"].assert_not_called()
+        pipeline["run_health_checks"].assert_not_called()
 
         # Reset mocks
-        mock_ensure_volumes.reset_mock()
-        mock_run_permissions.reset_mock()
-        mock_run_post_start.reset_mock()
-        mock_run_health_checks.reset_mock()
+        pipeline["ensure_volumes"].reset_mock()
+        pipeline["run_permissions"].reset_mock()
+        pipeline["run_post_start"].reset_mock()
+        pipeline["run_health_checks"].reset_mock()
 
         # Run full reconcile
         state2 = reconcile_once(check_only=False)
@@ -311,10 +164,10 @@ class TestReconcileWorkflowIntegration:
         assert state2.runStatus == "completed"
 
         # Verify operations were called
-        mock_ensure_volumes.assert_called_once()
-        mock_run_permissions.assert_called_once_with(mode="runtime")
-        mock_run_post_start.assert_called_once()
-        mock_run_health_checks.assert_called_once()
+        pipeline["ensure_volumes"].assert_called_once()
+        pipeline["run_permissions"].assert_called_once_with(mode="runtime")
+        pipeline["run_post_start"].assert_called_once()
+        pipeline["run_health_checks"].assert_called_once()
 
 
 class TestReconcileWorkflowOrdering:
@@ -322,40 +175,16 @@ class TestReconcileWorkflowOrdering:
 
     def test_reconcile_workflow_operation_order(self, state_root_tmp, monkeypatch):
         """Test that operations are called in the correct order"""
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.required_external_volume_names", lambda: []
-        )
-        monkeypatch.setattr("src.reconciler.observer.runtime_observer.compose_service_names", lambda: [])
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
-        )
-
-        # Create mocks to track call order
-        mock_ensure_volumes = Mock()
-        mock_run_permissions = Mock()
-        mock_run_post_start = Mock()
-        mock_run_health_checks = Mock()
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
-        )
+        patch_reconciler_observer(monkeypatch, volumes=[], services=[])
+        pipeline = patch_runtime_pipeline(monkeypatch)
 
         # Run the workflow
         reconcile_once(check_only=False)
 
-        mock_ensure_volumes.assert_called_once()
-        mock_run_permissions.assert_called_once_with(mode="runtime")
-        mock_run_post_start.assert_called_once()
-        mock_run_health_checks.assert_called_once()
+        pipeline["ensure_volumes"].assert_called_once()
+        pipeline["run_permissions"].assert_called_once_with(mode="runtime")
+        pipeline["run_post_start"].assert_called_once()
+        pipeline["run_health_checks"].assert_called_once()
 
         # Verify the order by checking that each mock was called
         # (the actual order is verified by the test structure)
@@ -364,31 +193,10 @@ class TestReconcileWorkflowOrdering:
         self, state_root_tmp, monkeypatch
     ):
         """Test that subsequent operations are skipped when one fails"""
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.required_external_volume_names", lambda: []
-        )
-        monkeypatch.setattr("src.reconciler.observer.runtime_observer.compose_service_names", lambda: [])
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_minio_media_public", lambda: True
-        )
-
-        # Create mocks
-        mock_ensure_volumes = Mock()
-        mock_run_permissions = Mock(side_effect=RuntimeError("Permissions failed"))
-        mock_run_post_start = Mock()
-        mock_run_health_checks = Mock()
-
-        monkeypatch.setattr(
-            "src.managers.pipeline.ensure_external_volumes", mock_ensure_volumes
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_permissions_playbook", mock_run_permissions
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_post_start", mock_run_post_start
-        )
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_runtime_health_checks", mock_run_health_checks
+        patch_reconciler_observer(monkeypatch, volumes=[], services=[])
+        pipeline = patch_runtime_pipeline(
+            monkeypatch,
+            permissions_side_effect=RuntimeError("Permissions failed"),
         )
 
         # Run the workflow - should fail on permissions
@@ -399,7 +207,7 @@ class TestReconcileWorkflowOrdering:
         assert state.runStatus == "failed"
 
         # Verify only the first operation was called
-        mock_ensure_volumes.assert_called_once()
-        mock_run_permissions.assert_called_once_with(mode="runtime")
-        mock_run_post_start.assert_not_called()
-        mock_run_health_checks.assert_not_called()
+        pipeline["ensure_volumes"].assert_called_once()
+        pipeline["run_permissions"].assert_called_once_with(mode="runtime")
+        pipeline["run_post_start"].assert_not_called()
+        pipeline["run_health_checks"].assert_not_called()

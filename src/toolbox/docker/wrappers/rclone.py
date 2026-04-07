@@ -56,6 +56,25 @@ def _command_exists(command: str) -> bool:
     return probe.returncode == 0
 
 
+def _mount_ready_for_unmount() -> bool:
+    return (
+        _rclone_container_is_running()
+        and _mount_path_exists()
+        and _mount_is_active()
+    )
+
+
+def _try_unmount_with(command: str, *args: str) -> bool:
+    if not _command_exists(command):
+        return False
+    result = _docker_exec_ok([command, *args, _MEDIA_MOUNT_PATH])
+    return result.returncode == 0
+
+
+def _run_fallback_umount() -> None:
+    _try_unmount_with("umount", "-l")
+
+
 def _docker_run_rclone_sync_command(
     source: str,
     destination: str,
@@ -107,20 +126,13 @@ def rclone_sync(
 
 def _try_fuse_unmount() -> None:
     """Attempt to unmount rclone FUSE mount inside the rclone container."""
-    if not _rclone_container_is_running():
-        return
-    if not _mount_path_exists():
-        return
-    if not _mount_is_active():
+    if not _mount_ready_for_unmount():
         return
 
-    if _command_exists("fusermount"):
-        fuse_result = _docker_exec_ok(["fusermount", "-uz", _MEDIA_MOUNT_PATH])
-        if fuse_result.returncode == 0:
-            return
+    if _try_unmount_with("fusermount", "-uz"):
+        return
 
-    if _command_exists("umount"):
-        _docker_exec_ok(["umount", "-l", _MEDIA_MOUNT_PATH])
+    _run_fallback_umount()
 
 
 def cleanup_media_mount() -> None:

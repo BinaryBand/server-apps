@@ -12,6 +12,7 @@ from src.toolbox.core.locking import RunbookLock
 from src.toolbox.docker.health import run_runtime_health_checks
 from src.toolbox.docker.post_start import run_runtime_post_start
 from src.toolbox.docker.compose import ensure_external_volumes
+from tests.support.reconciler_helpers import patch_reconciler_observer, patch_runtime_pipeline
 
 
 class TestReconcilerErrorHandling:
@@ -33,25 +34,8 @@ class TestReconcilerErrorHandling:
         expected_message: str,
     ):
         """Test that runtime stage failures are mapped to RuntimeHealth=false."""
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.required_external_volume_names",
-            lambda: [],
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.compose_service_names",
-            lambda: [],
-        )
-        monkeypatch.setattr(
-            "src.reconciler.observer.runtime_observer.probe_minio_media_public",
-            lambda: True,
-        )
-
-        monkeypatch.setattr("src.managers.pipeline.ensure_external_volumes", lambda: None)
-        monkeypatch.setattr(
-            "src.managers.pipeline.run_permissions_playbook", lambda **kwargs: None
-        )
-        monkeypatch.setattr("src.managers.pipeline.run_runtime_post_start", lambda: None)
-        monkeypatch.setattr("src.managers.pipeline.run_runtime_health_checks", lambda: None)
+        patch_reconciler_observer(monkeypatch, volumes=[], services=[], media_public=True)
+        patch_runtime_pipeline(monkeypatch)
 
         if failing_stage == "run_permissions_playbook":
             monkeypatch.setattr(
