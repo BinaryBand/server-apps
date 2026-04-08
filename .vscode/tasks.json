@@ -116,9 +116,47 @@
       }
     },
     {
+      "label": "Ruff: Lint",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/ruff",
+      "args": ["check", "src", "tests"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Ruff: Format Check",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/ruff",
+      "args": ["format", "--check", "src", "tests"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Pyright: Check",
+      "type": "shell",
+      "command": "npx",
+      "args": ["pyright"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
       "label": "Validate: Python Gate",
       "dependsOrder": "sequence",
       "dependsOn": [
+        "Ruff: Lint",
+        "Ruff: Format Check",
         "Check: Lizard Complexity",
         "Check: Lizard File Complexity",
         "Check: Vulture Dead Code"

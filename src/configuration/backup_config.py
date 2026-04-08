@@ -1,47 +1,37 @@
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass, field
 from pathlib import Path
 
+from pydantic import BaseModel, ConfigDict, Field
 
-@dataclass
-class StreamSource:
+
+class StreamSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     source: str
     destination: str
+    exclude: list[str] = Field(default_factory=list)
 
 
-@dataclass
-class BatchConfig:
-    include: list[str] = field(default_factory=list)
-    exclude: list[str] = field(default_factory=list)
+class BatchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include: list[str] = Field(default_factory=list)
+    exclude: list[str] = Field(default_factory=list)
 
 
-@dataclass
-class BackupConfig:
-    batch: BatchConfig = field(default_factory=BatchConfig)
-    stream: list[StreamSource] = field(default_factory=list)
+class BackupConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    batch: BatchConfig = Field(default_factory=BatchConfig)
+    stream: list[StreamSource] = Field(default_factory=list)
 
     @classmethod
     def from_toml(cls, path: Path) -> BackupConfig:
         with open(path, "rb") as f:
-            data = tomllib.load(f)
-        b = data.get("batch", {})
-        return cls(
-            batch=BatchConfig(
-                include=b.get("include", []),
-                exclude=b.get("exclude", []),
-            ),
-            stream=[
-                StreamSource(
-                    name=s["name"],
-                    source=s["source"],
-                    destination=s["destination"],
-                )
-                for s in data.get("stream", [])
-            ],
-        )
+            return cls.model_validate(tomllib.load(f))
 
 
 __all__ = ["BackupConfig", "BatchConfig", "StreamSource"]

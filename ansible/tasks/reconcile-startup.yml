@@ -138,6 +138,31 @@
     - minio_volume_path | length > 0
     - minio_volume_path.startswith('/')
 
+- name: Heal stale media mountpoint before compose startup
+  ansible.builtin.shell: |
+    set -u
+    media_path="{{ lookup('ansible.builtin.env', 'MEDIA_MOUNT_DIR', default=repo_root_path ~ '/runtime/media') }}"
+    if LC_ALL=C ls -ld "$media_path" >/dev/null 2>&1; then
+      exit 0
+    fi
+    if command -v fusermount >/dev/null 2>&1; then
+      fusermount -uz "$media_path" >/dev/null 2>&1 || true
+    fi
+    umount -l "$media_path" >/dev/null 2>&1 || true
+    if ! LC_ALL=C ls -ld "$media_path" >/dev/null 2>&1; then
+      rm -rf "$media_path" >/dev/null 2>&1 || true
+      mkdir -p "$media_path" || true
+    fi
+    if LC_ALL=C ls -ld "$media_path" >/dev/null 2>&1; then
+      echo healed
+    fi
+  args:
+    executable: /bin/bash
+  register: media_mount_heal
+  changed_when: "'healed' in media_mount_heal.stdout"
+  failed_when: false
+  when: permissions_mode_selected == 'runtime'
+
 - name: Start docker compose stack
   ansible.builtin.command:
     argv:

@@ -101,7 +101,11 @@ def _run_backup_stages(checkpoint: OperationCheckpoint, config: BackupConfig) ->
     _run_restic_stage(checkpoint, _build_restic_args())
 
     for source in config.stream:
-        adapter = RcloneStreamSync(source=source.source, destination=source.destination)
+        adapter = RcloneStreamSync(
+            source=source.source,
+            destination=source.destination,
+            exclude=source.exclude,
+        )
         run_checkpoint_stage(
             checkpoint,
             f"stream-{source.name}",

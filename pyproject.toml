@@ -32,6 +32,13 @@ ruff = "0.15.5"
 types-requests = "2.32.4.20260107"
 vulture = ">=2.11,<3.0"
 
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N"]
+
 # --- Layer boundary enforcement (Rule 3 from ARCHITECTURE.md) ---
 # Run: PYTHONPATH=. .venv/bin/lint-imports
 [tool.importlinter]

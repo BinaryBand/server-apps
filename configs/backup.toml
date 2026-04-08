@@ -15,23 +15,35 @@ include = [
   # Baikal: CalDAV/CardDAV config and data
   "volumes/baikal_config/**",
   "volumes/baikal_data/**",
-  # MinIO config/identity + bucket metadata only (excludes object data)
+  # MinIO config/identity + bucket metadata only
   "volumes/minio_data/.minio.sys/config/**",
   "volumes/minio_data/.minio.sys/buckets/*/.metadata.bin/**",
   "volumes/minio_data/.minio.sys/pool.bin",
+  # MinIO notes bucket — versioned via restic
+  "volumes/minio_data/notes/**",
 ]
 exclude = [
   # Volatile MinIO internals — never back up
   "volumes/minio_data/.minio.sys/tmp/**",
   "volumes/minio_data/.minio.sys/multipart/**",
+  # Jellyfin metadata artwork — too large for local staging (streamed separately)
+  "volumes/jellyfin_data/data/metadata/**",
+  # Jellyfin transcodes — transient, never back up
+  "volumes/jellyfin_data/data/transcodes/**",
 ]
 
 [[stream]]
-# MinIO object data — synced directly to pCloud without local staging.
-# Too large for local staging; streamed via S3 API.
-# To enable chunking for objects >2 GB, change destination to:
+# Jellyfin metadata artwork — synced directly to pCloud without local staging.
+name = "jellyfin-metadata"
+source = "/data/volumes/jellyfin_data/data/metadata"
+destination = "pcloud:Backups/Jellyfin/metadata"
+
+[[stream]]
+# MinIO object data (excluding notes, which goes via restic batch above).
+# To enable chunking for objects >2 GB change destination to:
 #   pcloud_chunker:Backups/Minio
 # (and update minio_restore.py to match)
 name = "minio-objects"
 source = "minio:"
 destination = "pcloud:Backups/Minio"
+exclude = ["notes/**"]
