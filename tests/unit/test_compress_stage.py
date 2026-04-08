@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 from subprocess import CompletedProcess
-from unittest.mock import patch
 
 from src.adapters.rclone.compress_stage import CompressStage
 from src.configuration.backup_config import CompressSource

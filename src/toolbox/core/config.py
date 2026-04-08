@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Optional
 
-from src.toolbox.core.secrets import read_secret
 from src.toolbox.core.runtime import repo_root
+from src.toolbox.core.secrets import read_secret
 
 try:
     from src.configuration.rclone_config import RcloneConfig

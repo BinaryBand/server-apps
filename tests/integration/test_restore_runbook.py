@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from types import SimpleNamespace
+from unittest.mock import Mock
 
-from src.orchestrators.restore import DEFAULT_RESTORE_TARGET, main
 from src.configuration.backup_config import BackupConfig, BatchConfig
+from src.orchestrators.restore import DEFAULT_RESTORE_TARGET, main
 
 
 def _empty_config() -> BackupConfig:

@@ -5,7 +5,6 @@ from src.toolbox.core.config import get_project_name, rclone_transfers
 from src.toolbox.docker.volumes_config import storage_docker_mount_flags
 from src.toolbox.docker.wrappers.rclone import rclone_sync
 
-
 _CONSERVATIVE_FLAGS: list[str] = [
     "--transfers",
     rclone_transfers(),
