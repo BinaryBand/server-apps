@@ -24,13 +24,9 @@ def recent_snapshots(limit: int = 10) -> str:
     pull_restic_from_cloud()
 
     try:
-        return restic.run_restic_command_with_output(
-            ["snapshots", "--latest", str(limit)]
-        )
+        return restic.run_restic_command_with_output(["snapshots", "--latest", str(limit)])
     except restic.ResticRunnerError as err:
-        raise RuntimeError(
-            f"[recent_snapshots] snapshot listing failed: {err}"
-        ) from err
+        raise RuntimeError(f"[recent_snapshots] snapshot listing failed: {err}") from err
 
 
 def _sync_volume_path_to_target(
@@ -42,9 +38,7 @@ def _sync_volume_path_to_target(
     docker_args += ["-v", f"{backups_volume_name}:/source-root:ro"]
     docker_args += ["-v", f"{target_mount}:/dest"]
 
-    rclone_sync(
-        f"/source-root/{source_relative_path}", "/dest", docker_args=docker_args
-    )
+    rclone_sync(f"/source-root/{source_relative_path}", "/dest", docker_args=docker_args)
 
 
 def _volume_subdir_exists(volume_name: str, relative_path: str) -> bool:
@@ -72,9 +66,7 @@ def pull_restic_from_cloud() -> None:
         return
 
     docker_args = storage_docker_mount_flags("restic_repo", "/repo")
-    docker_args += storage_docker_mount_flags(
-        "rclone_config", "/config/rclone", read_only=True
-    )
+    docker_args += storage_docker_mount_flags("rclone_config", "/config/rclone", read_only=True)
     docker_args += ["-e", "RCLONE_CONFIG=/config/rclone/rclone.conf"]
 
     try:
@@ -85,9 +77,7 @@ def pull_restic_from_cloud() -> None:
         ) from err
 
 
-def _find_source_path(
-    backups_volume_name: str, source_name: str, target_prefix: str
-) -> str | None:
+def _find_source_path(backups_volume_name: str, source_name: str, target_prefix: str) -> str | None:
     """Find source path for a logical volume in backup volume candidates."""
     candidates = [
         f"{target_prefix}volumes/{source_name}",
@@ -110,9 +100,7 @@ def _apply_restored_volumes_from_backups_volume(target: str) -> None:
         target_prefix = target.removeprefix("/backups/").strip("/") + "/"
 
     for source_name in logical_volume_names():
-        source_relative_path = _find_source_path(
-            backups_volume_name, source_name, target_prefix
-        )
+        source_relative_path = _find_source_path(backups_volume_name, source_name, target_prefix)
 
         if source_relative_path is None:
             print(f"Skipping {source_name}; not found in backups.")
@@ -121,9 +109,7 @@ def _apply_restored_volumes_from_backups_volume(target: str) -> None:
         target_mount = logical_volume_mount_source(source_name)
 
         print(f"Applying restored data: {source_relative_path} -> {target_mount}")
-        _sync_volume_path_to_target(
-            backups_volume_name, source_relative_path, target_mount
-        )
+        _sync_volume_path_to_target(backups_volume_name, source_relative_path, target_mount)
 
 
 def restore_snapshot(
@@ -148,5 +134,6 @@ def restore_snapshot(
         return
 
     print("Restore target is outside /backups; skipping volume apply step.")
+
 
 __all__ = ["recent_snapshots", "restore_snapshot", "pull_restic_from_cloud"]

@@ -71,9 +71,7 @@ class TestReconcileWorkflowIntegration:
         for condition in state.conditions:
             assert condition.status == "true"
 
-    def test_full_reconcile_workflow_with_degraded_state(
-        self, state_root_tmp, monkeypatch
-    ):
+    def test_full_reconcile_workflow_with_degraded_state(self, state_root_tmp, monkeypatch):
         """Test the reconcile_once workflow with some degraded components"""
         patch_reconciler_observer(
             monkeypatch,
@@ -130,9 +128,7 @@ class TestReconcileWorkflowIntegration:
         pipeline["run_post_start"].assert_called_once()
         pipeline["run_health_checks"].assert_called_once()
 
-    def test_reconcile_workflow_with_mixed_check_only_and_full(
-        self, state_root_tmp, monkeypatch
-    ):
+    def test_reconcile_workflow_with_mixed_check_only_and_full(self, state_root_tmp, monkeypatch):
         """Test switching between check-only and full reconcile"""
         patch_reconciler_observer(
             monkeypatch,
@@ -189,9 +185,7 @@ class TestReconcileWorkflowOrdering:
         # Verify the order by checking that each mock was called
         # (the actual order is verified by the test structure)
 
-    def test_reconcile_workflow_skips_operations_on_error(
-        self, state_root_tmp, monkeypatch
-    ):
+    def test_reconcile_workflow_skips_operations_on_error(self, state_root_tmp, monkeypatch):
         """Test that subsequent operations are skipped when one fails"""
         patch_reconciler_observer(monkeypatch, volumes=[], services=[])
         pipeline = patch_runtime_pipeline(

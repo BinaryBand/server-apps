@@ -23,7 +23,7 @@ def _load_rclone_config() -> Optional[RcloneConfig]:
     if RcloneConfig is None:
         _RCLONE_CFG = None
         return None
-    if '_RCLONE_CFG' in globals() and _RCLONE_CFG is not None:
+    if "_RCLONE_CFG" in globals() and _RCLONE_CFG is not None:
         return _RCLONE_CFG
     cfg_path = repo_root() / "configs" / "rclone.toml"
     try:
@@ -66,7 +66,8 @@ def restic_pcloud_remote(default: str = "pcloud:Backups/Restic") -> str:
 
 
 def restic_pcloud_sync_enabled() -> bool:
-    return read_secret("RESTIC_PCLOUD_SYNC", "1") not in {
+    # Disabled by default to avoid unexpected remote pushes during test runs.
+    return read_secret("RESTIC_PCLOUD_SYNC", "0") not in {
         "0",
         "false",
         "False",

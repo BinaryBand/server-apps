@@ -57,11 +57,7 @@ def _command_exists(command: str) -> bool:
 
 
 def _mount_ready_for_unmount() -> bool:
-    return (
-        _rclone_container_is_running()
-        and _mount_path_exists()
-        and _mount_is_active()
-    )
+    return _rclone_container_is_running() and _mount_path_exists() and _mount_is_active()
 
 
 def _try_unmount_with(command: str, *args: str) -> bool:

@@ -28,9 +28,23 @@ def test_cleanup_uses_umount_when_fusermount_missing() -> None:
             return _cp(cmd)
         if cmd[:5] == ["docker", "exec", "rclone", "cat", "/proc/self/mountinfo"]:
             return _cp(cmd, stdout="1 1 0:1 / /media rw\n")
-        if cmd[:6] == ["docker", "exec", "rclone", "sh", "-lc", "command -v fusermount >/dev/null 2>&1"]:
+        if cmd[:6] == [
+            "docker",
+            "exec",
+            "rclone",
+            "sh",
+            "-lc",
+            "command -v fusermount >/dev/null 2>&1",
+        ]:
             return _cp(cmd, returncode=1)
-        if cmd[:6] == ["docker", "exec", "rclone", "sh", "-lc", "command -v umount >/dev/null 2>&1"]:
+        if cmd[:6] == [
+            "docker",
+            "exec",
+            "rclone",
+            "sh",
+            "-lc",
+            "command -v umount >/dev/null 2>&1",
+        ]:
             return _cp(cmd)
         if cmd[:4] == ["docker", "exec", "rclone", "umount"]:
             return _cp(cmd)

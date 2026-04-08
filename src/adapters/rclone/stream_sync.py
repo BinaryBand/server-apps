@@ -38,9 +38,7 @@ class RcloneStreamSync:
 
     def _docker_args(self) -> list[str]:
         docker_args: list[str] = volatile.rclone_docker_volume_flags()
-        docker_args += storage_docker_mount_flags(
-            "rclone_config", "/config/rclone", read_only=True
-        )
+        docker_args += storage_docker_mount_flags("rclone_config", "/config/rclone", read_only=True)
         docker_args += ["-e", "RCLONE_CONFIG=/config/rclone/rclone.conf"]
         docker_args += ["--network", f"{get_project_name()}_default"]
         return docker_args

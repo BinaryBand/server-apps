@@ -46,13 +46,9 @@ class OperationCheckpoint:
         if state.runStatus != "in-progress":
             return False
 
-        return any(
-            c.name == stage_name and c.status == "true" for c in state.conditions
-        )
+        return any(c.name == stage_name and c.status == "true" for c in state.conditions)
 
-    def mark_stage(
-        self, stage_name: str, *, ok: bool, message: str | None = None
-    ) -> None:
+    def mark_stage(self, stage_name: str, *, ok: bool, message: str | None = None) -> None:
         from src.toolbox.io.state_helpers import upsert_condition
 
         state: WorkflowState = self.state

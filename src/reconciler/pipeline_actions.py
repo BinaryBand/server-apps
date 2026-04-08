@@ -11,9 +11,7 @@ from src.toolbox.io.state_helpers import upsert_condition
 
 def _mark_stage_conditions(state: WorkflowState, stage_name: str) -> None:
     builders: dict[str, Callable[[], list[str]]] = {
-        "volumes": lambda: [
-            f"volume:{name}" for name in required_external_volume_names()
-        ],
+        "volumes": lambda: [f"volume:{name}" for name in required_external_volume_names()],
         "permissions": lambda: ["PermissionsApplied"],
         "runtime": lambda: ["PostStartApplied", "minio:media-public"],
         "health": lambda: [f"service:{name}" for name in compose_service_names()],

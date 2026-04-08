@@ -129,21 +129,18 @@ class CompressStage:
 
             if not archives:
                 print(
-                    f"[compress:{self.config.name}] No archives found"
-                    f" at {self.config.destination}"
+                    f"[compress:{self.config.name}] No archives found at {self.config.destination}"
                 )
                 return
 
             for archive_rel in archives:
                 self._restore_archive(archive_rel, tmpdir, docker_args)
 
-    def _restore_archive(
-        self, archive_rel: str, tmpdir: str, docker_args: list[str]
-    ) -> None:
+    def _restore_archive(self, archive_rel: str, tmpdir: str, docker_args: list[str]) -> None:
         # archive_rel e.g. "alyssa-grenfell/thumbnails.zip"
         archive_posix = PurePosixPath(archive_rel)
-        archive_stem = archive_posix.stem                   # "thumbnails"
-        archive_parent = str(archive_posix.parent)          # "alyssa-grenfell"
+        archive_stem = archive_posix.stem  # "thumbnails"
+        archive_parent = str(archive_posix.parent)  # "alyssa-grenfell"
         # restore path relative to source: "alyssa-grenfell/thumbnails"
         restore_rel = _join_posix(archive_parent, archive_stem)
 

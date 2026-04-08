@@ -9,9 +9,9 @@ volatile = _impl.volatile
 
 
 def gather_stage(include_file):
-	_impl.rclone_sync = rclone_sync
-	_impl.volatile = volatile
-	return _impl.gather_stage(include_file)
+    _impl.rclone_sync = rclone_sync
+    _impl.volatile = volatile
+    return _impl.gather_stage(include_file)
 
 
 __all__ = ["gather_stage"]

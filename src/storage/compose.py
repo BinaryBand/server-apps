@@ -61,11 +61,8 @@ def _is_runtime_service(service_cfg: object) -> bool:
 def compose_service_names() -> list[str]:
     config = rendered_compose_config()
     services = config.get("services", {})
-    return [
-        name
-        for name, service_cfg in services.items()
-        if _is_runtime_service(service_cfg)
-    ]
+    return [name for name, service_cfg in services.items() if _is_runtime_service(service_cfg)]
+
 
 __all__ = [
     "compose_cmd",

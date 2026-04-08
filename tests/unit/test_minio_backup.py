@@ -9,9 +9,7 @@ from unittest.mock import patch
 def _load_minio_backup_module():
     import importlib.util
 
-    script = (
-        Path(__file__).resolve().parents[2] / "scripts" / "ops" / "minio_backup.py"
-    )
+    script = Path(__file__).resolve().parents[2] / "scripts" / "ops" / "minio_backup.py"
     spec = importlib.util.spec_from_file_location("minio_backup", script)
     assert spec is not None
     mod = importlib.util.module_from_spec(spec)
@@ -33,8 +31,9 @@ def test_minio_backup_runs_compose_command() -> None:
         captured.append(cmd)
         return subprocess.CompletedProcess(cmd, 0)
 
-    with patch("subprocess.run", side_effect=fake_run), patch.object(
-        sys, "argv", ["minio_backup.py"]
+    with (
+        patch("subprocess.run", side_effect=fake_run),
+        patch.object(sys, "argv", ["minio_backup.py"]),
     ):
         mod.main()
 
@@ -54,8 +53,9 @@ def test_minio_backup_scopes_to_requested_path() -> None:
         captured.append(cmd)
         return subprocess.CompletedProcess(cmd, 0)
 
-    with patch("subprocess.run", side_effect=fake_run), patch.object(
-        sys, "argv", ["minio_backup.py", "/media/podcasts/morbid"]
+    with (
+        patch("subprocess.run", side_effect=fake_run),
+        patch.object(sys, "argv", ["minio_backup.py", "/media/podcasts/morbid"]),
     ):
         mod.main()
 

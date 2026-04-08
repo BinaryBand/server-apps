@@ -95,10 +95,15 @@ def has_restic_repo() -> bool:
 
     probe = subprocess.run(
         [
-            "docker", "run", "--rm",
-            "-v", f"{source}:/repo:ro",
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{source}:/repo:ro",
             "alpine:3.20",
-            "test", "-f", "/repo/config",
+            "test",
+            "-f",
+            "/repo/config",
         ],
         check=False,
         capture_output=True,

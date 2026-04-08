@@ -34,11 +34,7 @@ def _collect_external_volume_names(compose_path: Path) -> set[str]:
             flush_current()
             break
 
-        if (
-            raw.startswith("  ")
-            and not raw.startswith("    ")
-            and raw.strip().endswith(":")
-        ):
+        if raw.startswith("  ") and not raw.startswith("    ") and raw.strip().endswith(":"):
             flush_current()
             current_volume_entry = True
             continue
@@ -89,11 +85,7 @@ def _collect_external_alias_name_pairs(compose_path: Path) -> dict[str, str]:
             flush_current()
             break
 
-        if (
-            raw.startswith("  ")
-            and not raw.startswith("    ")
-            and raw.strip().endswith(":")
-        ):
+        if raw.startswith("  ") and not raw.startswith("    ") and raw.strip().endswith(":"):
             flush_current()
             current_volume_entry = True
             current_alias = raw.strip().removesuffix(":")

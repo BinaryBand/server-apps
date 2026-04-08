@@ -21,7 +21,6 @@ include = [
   "volumes/minio_data/.minio.sys/pool.bin",
   # MinIO notes bucket — versioned via restic
   "volumes/minio_data/notes/**",
-  "volumes/minio_data/notebook/**",
 ]
 exclude = [
   # Volatile MinIO internals — never back up

@@ -237,8 +237,10 @@ class TestHasResticRepo:
 # Helpers for TestHasResticRepo
 # ---------------------------------------------------------------------------
 
+
 def _run_result(returncode: int):
     from unittest.mock import MagicMock
+
     r = MagicMock()
     r.returncode = returncode
     return r

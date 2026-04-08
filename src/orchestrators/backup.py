@@ -15,6 +15,7 @@ from src.backup.restic import (
     has_restic_repo,
     init_restic_repo,
     run_backup,
+    push_restic_to_cloud,
 )
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.runtime import (
@@ -26,6 +27,7 @@ from src.toolbox.core.runtime import (
 from pathlib import Path
 import sys
 from src.toolbox.core.config import runbook_resume_enabled
+from src.toolbox.core.config import restic_pcloud_sync_enabled
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(repo_root()))
@@ -145,6 +147,17 @@ def main():
         _run_backup_stages(checkpoint, config)
 
         checkpoint.finish(observed="BackupCompleted", ok=True)
+        # Optionally push the restic repository offsite to the configured cloud
+        # remote. This is gated by `RESTIC_PCLOUD_SYNC` and disabled by default
+        # to avoid surprises in test environments.
+        try:
+            if restic_pcloud_sync_enabled():
+                print("[stage:restic-push] Pushing restic repo to cloud")
+                push_restic_to_cloud()
+                print("[stage:restic-push] Restic repo pushed to cloud")
+        except Exception as err:
+            # Don't fail the overall backup if the push step fails — log and continue.
+            print(f"[stage:restic-push] Warning: push to cloud failed: {err}")
         print("[stage:complete] Backup pipeline completed")
 
 

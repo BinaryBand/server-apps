@@ -21,9 +21,7 @@ def upsert_condition(
         break
     else:
         state.conditions.append(
-            StageCondition(
-                name=name, status=status, message=message, lastTransitionTime=now
-            )
+            StageCondition(name=name, status=status, message=message, lastTransitionTime=now)
         )
 
     state.lastTransitionTime = now

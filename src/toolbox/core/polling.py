@@ -20,15 +20,11 @@ class WaitConfig:
 
 def _normalize_probe(raw_result: ProbeResult | bool) -> ProbeResult:
     return (
-        raw_result
-        if isinstance(raw_result, ProbeResult)
-        else ProbeResult(ready=bool(raw_result))
+        raw_result if isinstance(raw_result, ProbeResult) else ProbeResult(ready=bool(raw_result))
     )
 
 
-def _timeout_message(
-    description: str, timeout_seconds: float, detail: str | None
-) -> str:
+def _timeout_message(description: str, timeout_seconds: float, detail: str | None) -> str:
     detail_str: str = f" Last status: {detail}." if detail else ""
     return f"Timed out while waiting for {description} after {timeout_seconds:.0f}s{detail_str}"
 
@@ -57,9 +53,7 @@ def wait_until(
             return result
 
         if _is_timed_out(deadline):
-            raise RuntimeError(
-                _timeout_message(description, config.timeout_seconds, result.detail)
-            )
+            raise RuntimeError(_timeout_message(description, config.timeout_seconds, result.detail))
 
         _sleep_for_interval(config.interval_seconds)
 

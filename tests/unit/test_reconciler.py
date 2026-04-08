@@ -5,9 +5,7 @@ from src.reconciler.core import reconcile_once
 from tests.support.reconciler_helpers import patch_reconciler_observer
 
 
-def test_check_only_reports_degraded_when_volume_drift_exists(
-    state_root_tmp, monkeypatch
-) -> None:
+def test_check_only_reports_degraded_when_volume_drift_exists(state_root_tmp, monkeypatch) -> None:
     patch_reconciler_observer(
         monkeypatch,
         volumes=["rclone_config"],
@@ -24,9 +22,7 @@ def test_check_only_reports_degraded_when_volume_drift_exists(
     assert condition.status == "false"
 
 
-def test_check_only_reports_healthy_when_checks_pass(
-    state_root_tmp, monkeypatch
-) -> None:
+def test_check_only_reports_healthy_when_checks_pass(state_root_tmp, monkeypatch) -> None:
     calls: list[str] = []
 
     def fake_probe(name: str) -> bool:

@@ -49,7 +49,12 @@ def test_compress_stage_copies_config_and_runs_rclone(monkeypatch, tmp_path):
                     staging = arg.split(":", 1)[0]
                     break
         # create expected download layout so zipping works
-        if staging and src.startswith(cs.source + "/") and ":/staging" in ":/staging" and "/download/" in dest:
+        if (
+            staging
+            and src.startswith(cs.source + "/")
+            and ":/staging" in ":/staging"
+            and "/download/" in dest
+        ):
             # dest is like /staging/download/<parent>
             host_dest = dest.replace("/staging", staging)
             os.makedirs(host_dest, exist_ok=True)
@@ -59,12 +64,8 @@ def test_compress_stage_copies_config_and_runs_rclone(monkeypatch, tmp_path):
 
     monkeypatch.setattr("subprocess.run", fake_run)
     # patch the names as used inside the compress_stage module
-    monkeypatch.setattr(
-        "src.adapters.rclone.compress_stage.rclone_lsf", fake_lsf
-    )
-    monkeypatch.setattr(
-        "src.adapters.rclone.compress_stage.rclone_copy", fake_copy
-    )
+    monkeypatch.setattr("src.adapters.rclone.compress_stage.rclone_lsf", fake_lsf)
+    monkeypatch.setattr("src.adapters.rclone.compress_stage.rclone_copy", fake_copy)
 
     stage = CompressStage(cs)
     # Run backup; should not raise
@@ -72,7 +73,8 @@ def test_compress_stage_copies_config_and_runs_rclone(monkeypatch, tmp_path):
 
     # Assertions: subprocess.run was called to copy rclone.conf
     assert any(
-        "rclone_config:/config/rclone" in c for c in (run_calls if isinstance(run_calls, list) else [run_calls])
+        "rclone_config:/config/rclone" in c
+        for c in (run_calls if isinstance(run_calls, list) else [run_calls])
     ), "rclone.conf copy not invoked"
 
     # rclone_lsf and rclone_copy should have been called

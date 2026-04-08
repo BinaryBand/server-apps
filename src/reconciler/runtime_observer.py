@@ -14,9 +14,7 @@ class RuntimeObserver:
         statuses: list[bool] = []
         for volume_name in required_external_volume_names():
             exists = probe_external_volume(volume_name)
-            upsert_condition(
-                state, f"volume:{volume_name}", "true" if exists else "false"
-            )
+            upsert_condition(state, f"volume:{volume_name}", "true" if exists else "false")
             statuses.append(exists)
         return not all(statuses)
 
@@ -24,9 +22,7 @@ class RuntimeObserver:
         statuses: list[bool] = []
         for service_name in compose_service_names():
             healthy = probe_container_health(service_name)
-            upsert_condition(
-                state, f"service:{service_name}", "true" if healthy else "false"
-            )
+            upsert_condition(state, f"service:{service_name}", "true" if healthy else "false")
             statuses.append(healthy)
         return not all(statuses)
 
@@ -35,8 +31,6 @@ class RuntimeObserver:
         services_degraded = self.probe_services(state)
 
         media_public = probe_minio_media_public()
-        upsert_condition(
-            state, "minio:media-public", "true" if media_public else "false"
-        )
+        upsert_condition(state, "minio:media-public", "true" if media_public else "false")
 
         return any((volumes_degraded, services_degraded, not media_public))

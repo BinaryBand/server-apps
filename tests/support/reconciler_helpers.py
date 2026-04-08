@@ -51,15 +51,9 @@ def patch_runtime_pipeline(
         "run_health_checks": Mock(),
     }
 
-    monkeypatch.setattr(
-        "src.workflows.pipeline.ensure_external_volumes", mocks["ensure_volumes"]
-    )
-    monkeypatch.setattr(
-        "src.workflows.pipeline.run_permissions_playbook", mocks["run_permissions"]
-    )
-    monkeypatch.setattr(
-        "src.workflows.pipeline.run_runtime_post_start", mocks["run_post_start"]
-    )
+    monkeypatch.setattr("src.workflows.pipeline.ensure_external_volumes", mocks["ensure_volumes"])
+    monkeypatch.setattr("src.workflows.pipeline.run_permissions_playbook", mocks["run_permissions"])
+    monkeypatch.setattr("src.workflows.pipeline.run_runtime_post_start", mocks["run_post_start"])
     monkeypatch.setattr(
         "src.workflows.pipeline.run_runtime_health_checks", mocks["run_health_checks"]
     )

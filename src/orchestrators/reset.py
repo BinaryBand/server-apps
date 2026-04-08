@@ -21,9 +21,7 @@ import shutil
 def remove_local_path(path: Path, *, dry_run: bool = False) -> None:
     if not path.exists():
         return
-    action: Literal["Would remove", "Removing"] = (
-        "Would remove" if dry_run else "Removing"
-    )
+    action: Literal["Would remove", "Removing"] = "Would remove" if dry_run else "Removing"
     print(f"{action}: {path}")
     if dry_run:
         return

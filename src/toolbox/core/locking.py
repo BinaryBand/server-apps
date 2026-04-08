@@ -63,9 +63,7 @@ class RunbookLock:
                 return
             if status == "held":
                 if self._deadline_passed(deadline):
-                    raise RuntimeError(
-                        f"lock is held for group '{self._name}' ({self._lock_dir})"
-                    )
+                    raise RuntimeError(f"lock is held for group '{self._name}' ({self._lock_dir})")
                 time.sleep(0.1)
 
     def release(self) -> None:

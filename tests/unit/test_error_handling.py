@@ -153,9 +153,7 @@ class TestAnsibleErrorHandling:
         from pathlib import Path
 
         # Mock repo_root to return a non-existent path
-        monkeypatch.setattr(
-            "src.toolbox.core.runtime.repo_root", lambda: Path("/nonexistent")
-        )
+        monkeypatch.setattr("src.toolbox.core.runtime.repo_root", lambda: Path("/nonexistent"))
 
         with pytest.raises(SystemExit):
             run_permissions_playbook(mode="runtime")
@@ -180,9 +178,7 @@ class TestAnsibleErrorHandling:
 
         assert "Ansible failed" in str(err.value)
 
-    def test_run_permissions_playbook_runtime_passes_correct_mode_extra_var(
-        self, monkeypatch
-    ):
+    def test_run_permissions_playbook_runtime_passes_correct_mode_extra_var(self, monkeypatch):
         """Test that runtime mode passes permissions_mode=runtime to ansible-playbook"""
 
         captured_cmd: list[list[str]] = []
@@ -237,9 +233,7 @@ class TestAnsibleErrorHandling:
 
         assert "Failed to run permissions playbook" in str(err.value)
 
-    def test_run_permissions_playbook_runtime_adds_docker_socket_hint(
-        self, monkeypatch
-    ):
+    def test_run_permissions_playbook_runtime_adds_docker_socket_hint(self, monkeypatch):
         """Test runtime mode wraps docker.sock permission failures with remediation"""
 
         def mock_exists(self):
@@ -261,9 +255,7 @@ class TestAnsibleErrorHandling:
         assert "Failed to run permissions playbook" in message
         assert "Runtime mode requires Docker daemon access" in message
 
-    def test_run_permissions_playbook_runtime_retries_with_become_prompt(
-        self, monkeypatch
-    ):
+    def test_run_permissions_playbook_runtime_retries_with_become_prompt(self, monkeypatch):
         """Runtime failures should retry once with --ask-become-pass recovery flag."""
         from subprocess import CalledProcessError
 

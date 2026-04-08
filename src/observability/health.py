@@ -315,6 +315,7 @@ def probe_container_health(container: str) -> bool:
     status = result.stdout.strip()
     return status in ("healthy", "running")
 
+
 __all__ = [
     "CommandWaitSpec",
     "ContainerExecWaitSpec",

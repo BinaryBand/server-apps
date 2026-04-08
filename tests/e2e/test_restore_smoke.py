@@ -38,9 +38,7 @@ def restore_env(repo_root, docker_available):
     logical_names = _logical_volume_names()
     test_project = f"smoke-restore-{uuid.uuid4().hex[:8]}"
     backups_volume = f"{test_project}-backups-source"
-    target_volumes = [
-        f"{test_project}_{logical_name}" for logical_name in logical_names
-    ]
+    target_volumes = [f"{test_project}_{logical_name}" for logical_name in logical_names]
 
     subprocess.run(
         ["docker", "volume", "create", backups_volume],
@@ -152,12 +150,8 @@ def test_restore_applies_all_staged_logical_volumes(restore_env, monkeypatch) ->
         seen_logical_names.add(logical_name)
         _assert_restore_source_and_target(docker_args or [], source, logical_name)
 
-    monkeypatch.setattr(
-        "src.backup.restore.pull_restic_from_cloud", lambda: None
-    )
-    monkeypatch.setattr(
-        "src.backup.restic.run_restic_command", lambda args: None
-    )
+    monkeypatch.setattr("src.backup.restore.pull_restic_from_cloud", lambda: None)
+    monkeypatch.setattr("src.backup.restic.run_restic_command", lambda args: None)
     monkeypatch.setattr(
         "src.storage.volumes.storage_mount_source",
         lambda *a, **k: env["backups_volume"],
