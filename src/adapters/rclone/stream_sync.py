@@ -1,17 +1,22 @@
 from dataclasses import dataclass, field
 
 from src.storage import volumes as volatile
-from src.toolbox.core.config import get_project_name
+from src.toolbox.core.config import get_project_name, rclone_transfers
 from src.toolbox.docker.volumes_config import storage_docker_mount_flags
 from src.toolbox.docker.wrappers.rclone import rclone_sync
 
 
 _CONSERVATIVE_FLAGS: list[str] = [
-    "--transfers", "1",
-    "--buffer-size", "64M",
-    "--retries", "3",
-    "--low-level-retries", "5",
-    "--stats", "60s",
+    "--transfers",
+    rclone_transfers(),
+    "--buffer-size",
+    "64M",
+    "--retries",
+    "3",
+    "--low-level-retries",
+    "5",
+    "--stats",
+    "60s",
 ]
 
 

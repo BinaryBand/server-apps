@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+import tempfile
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from src.orchestrators.restore import DEFAULT_RESTORE_TARGET, main
@@ -52,6 +54,12 @@ def test_restore_mode_uses_default_target(monkeypatch) -> None:
     monkeypatch.setattr(
         "src.orchestrators.restore.BackupConfig.from_toml",
         lambda *a, **k: _empty_config(),
+    )
+    # Ensure the lock root is isolated for this test so an existing lock
+    # in the repo runtime/locks won't cause a failure.
+    monkeypatch.setattr(
+        "src.orchestrators.restore.locks_root",
+        lambda: Path(tempfile.mkdtemp()),
     )
 
     main()

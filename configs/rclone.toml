@@ -1,0 +1,8 @@
+# Rclone configuration used by runbook tooling
+transfers = 4
+buffer_size = "64M"
+retries = 3
+low_level_retries = 5
+stats = "60s"
+version = "latest"
+remote = "pcloud"

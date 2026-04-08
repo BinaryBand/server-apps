@@ -1,5 +1,7 @@
 import tempfile
 import zipfile
+import os
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -27,16 +29,30 @@ class CompressStage:
     config: CompressSource
 
     def _docker_args(self, tmpdir: str) -> list[str]:
-        args: list[str] = storage_docker_mount_flags(
-            "rclone_config", "/config/rclone", read_only=True
-        )
+        # Mount the prepared config copy from the staging dir so the
+        # container can run as a non-root user and still read rclone.conf.
+        args: list[str] = ["-v", f"{tmpdir}/rclone_conf:/config/rclone:ro"]
         args += ["-e", "RCLONE_CONFIG=/config/rclone/rclone.conf"]
         args += ["--network", f"{get_project_name()}_default"]
+        # Run container as the host UID:GID so files written into the
+        # host tempdir are owned by the invoking user and removable later.
+        args += ["--user", f"{os.getuid()}:{os.getgid()}"]
         args += ["-v", f"{tmpdir}:/staging"]
         return args
 
     def backup(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
+            # Copy rclone.conf from the docker volume into the staging
+            # directory and make it readable by the host UID so the
+            # non-root rclone container can read it.
+            staging_conf_dir = Path(tmpdir) / "rclone_conf"
+            staging_conf_dir.mkdir(parents=True, exist_ok=True)
+            cp_cmd = (
+                "docker run --rm -v rclone_config:/config/rclone:ro "
+                f"-v {staging_conf_dir}:/staging alpine sh -c 'cp /config/rclone/rclone.conf /staging/rclone.conf && chown {os.getuid()}:{os.getgid()} /staging/rclone.conf && chmod 600 /staging/rclone.conf'"
+            )
+            subprocess.run(cp_cmd, shell=True, check=True)
+
             docker_args = self._docker_args(tmpdir)
 
             # List all matching files under source
@@ -95,6 +111,14 @@ class CompressStage:
 
     def restore(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
+            staging_conf_dir = Path(tmpdir) / "rclone_conf"
+            staging_conf_dir.mkdir(parents=True, exist_ok=True)
+            cp_cmd = (
+                "docker run --rm -v rclone_config:/config/rclone:ro "
+                f"-v {staging_conf_dir}:/staging alpine sh -c 'cp /config/rclone/rclone.conf /staging/rclone.conf && chown {os.getuid()}:{os.getgid()} /staging/rclone.conf && chmod 600 /staging/rclone.conf'"
+            )
+            subprocess.run(cp_cmd, shell=True, check=True)
+
             docker_args = self._docker_args(tmpdir)
 
             # List all zip archives at the cloud destination
