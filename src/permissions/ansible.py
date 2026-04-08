@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 import os
 import shutil
 import subprocess
 import sys
-
-import src.toolbox.core.runtime as runtime
-
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
+import src.toolbox.core.runtime as runtime
 
 MODE = Literal["bootstrap", "runtime", "reset"]
 

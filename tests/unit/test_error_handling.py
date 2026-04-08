@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
-from src.reconciler.core import reconcile_once
-from src.toolbox.core.ansible import run_permissions_playbook
-from src.toolbox.core.secrets import minio_credentials
-from src.toolbox.core.locking import RunbookLock
+import pytest
+
 from src.observability.health import run_runtime_health_checks
 from src.observability.post_start import run_runtime_post_start
+from src.reconciler.core import reconcile_once
+from src.toolbox.core.ansible import run_permissions_playbook
+from src.toolbox.core.locking import RunbookLock
+from src.toolbox.core.secrets import minio_credentials
 from src.toolbox.docker.compose import ensure_external_volumes
 from tests.support.reconciler_helpers import patch_reconciler_observer, patch_runtime_pipeline
 
@@ -40,9 +41,7 @@ class TestReconcilerErrorHandling:
         if failing_stage == "run_permissions_playbook":
             monkeypatch.setattr(
                 "src.workflows.pipeline.run_permissions_playbook",
-                lambda *args, **kwargs: (_ for _ in ()).throw(
-                    RuntimeError(expected_message)
-                ),
+                lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError(expected_message)),
             )
         else:
             monkeypatch.setattr(
@@ -64,8 +63,9 @@ class TestHealthChecksErrorHandling:
 
     def test_wait_for_command_handles_command_failures(self):
         """Test that wait_for_command properly handles command failures"""
-        from src.observability.health import CommandWaitSpec, wait_for_command
         from subprocess import CompletedProcess
+
+        from src.observability.health import CommandWaitSpec, wait_for_command
 
         failed = CompletedProcess(
             ["docker", "inspect", "nonexistent"],
@@ -116,9 +116,7 @@ class TestHealthChecksErrorHandling:
     def test_run_runtime_health_checks_handles_multiple_failures(self):
         """Test that run_runtime_health_checks handles multiple service failures"""
         with patch("src.toolbox.core.config.rclone_remote", return_value="pcloud"):
-            with patch(
-                "src.observability.health.wait_for_container_exec"
-            ) as mock_exec:
+            with patch("src.observability.health.wait_for_container_exec") as mock_exec:
                 mock_exec.side_effect = RuntimeError("Service unavailable")
 
                 with pytest.raises(RuntimeError) as err:
@@ -129,6 +127,7 @@ class TestHealthChecksErrorHandling:
     def test_preflight_reports_docker_socket_permission_denied(self):
         """Test docker preflight surfaces permission guidance for docker.sock denial"""
         from subprocess import CompletedProcess
+
         from src.observability.health import ensure_docker_daemon_access
 
         denied = CompletedProcess(
@@ -185,7 +184,6 @@ class TestAnsibleErrorHandling:
         self, monkeypatch
     ):
         """Test that runtime mode passes permissions_mode=runtime to ansible-playbook"""
-        from pathlib import Path
 
         captured_cmd: list[list[str]] = []
 
