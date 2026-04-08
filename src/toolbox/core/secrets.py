@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dotenv import find_dotenv, load_dotenv
-from typing import overload
 import os
+from typing import overload
 
+from dotenv import find_dotenv, load_dotenv
 
 _loaded = False
 

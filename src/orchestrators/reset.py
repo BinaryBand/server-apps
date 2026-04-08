@@ -1,21 +1,20 @@
+import shutil
+import subprocess
+from argparse import ArgumentParser, Namespace
+from pathlib import Path
+from typing import Literal
+
+from src.permissions.ansible import run_permissions_playbook
 from src.storage.compose import compose_cmd
 from src.storage.volumes import remove_project_volumes
-from src.workflows.checkpoint import OperationCheckpoint
+from src.toolbox.core.config import get_project_name
 from src.toolbox.core.locking import RunbookLock
-from src.permissions.ansible import run_permissions_playbook
 from src.toolbox.core.runtime import (
     checkpoints_root,
     locks_root,
     logs_root,
 )
-from src.toolbox.core.config import get_project_name
-
-from argparse import ArgumentParser, Namespace
-from typing import Literal
-from pathlib import Path
-
-import subprocess
-import shutil
+from src.workflows.checkpoint import OperationCheckpoint
 
 
 def remove_local_path(path: Path, *, dry_run: bool = False) -> None:

@@ -11,7 +11,6 @@ from src.observability.health import (
     wait_for_container_health,
 )
 
-
 __all__ = [
     "CommandWaitSpec",
     "ContainerExecWaitSpec",

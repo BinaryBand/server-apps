@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.toolbox.core.secrets import secret
-
-from from_root import from_root
 from pathlib import Path
 
+from from_root import from_root
+
+from src.toolbox.core.secrets import secret
 
 PROJECT_NAME = "cloud-apps"
 

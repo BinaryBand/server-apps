@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.storage.compose import rendered_compose_config, external_alias_name_pairs
+from pathlib import Path
+
+from src.storage.compose import external_alias_name_pairs, rendered_compose_config
 from src.storage.volumes import required_external_volume_names
 from src.toolbox.core.runtime import PROJECT_NAME, repo_root
-
-from pathlib import Path
 
 
 def _collect_external_volume_names(compose_path: Path) -> set[str]:

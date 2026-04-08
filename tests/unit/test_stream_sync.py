@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 from src.adapters.rclone.stream_sync import RcloneStreamSync
 

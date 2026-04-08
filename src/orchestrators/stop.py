@@ -1,18 +1,18 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.storage.compose import stop_compose_stack
+from src.toolbox.core.locking import RunbookLock
+from src.toolbox.core.runtime import checkpoints_root, locks_root
 from src.toolbox.docker.wrappers.rclone import cleanup_media_mount
 from src.workflows.workflow_runner import (
     StagePolicy,
     run_checkpoint_stage,
     start_checkpoint,
 )
-from src.toolbox.core.locking import RunbookLock
-from src.toolbox.core.runtime import checkpoints_root, locks_root
 
 
 def _run_cleanup_stage(checkpoint) -> None:

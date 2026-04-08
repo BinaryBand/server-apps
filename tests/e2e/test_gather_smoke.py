@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
-import sys
 import subprocess
+import sys
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -13,7 +13,6 @@ if __package__ in {None, ""}:
 from src.backup.gather import gather_stage
 from src.configuration.backup_config import BackupConfig
 from src.storage.volumes import logical_volume_names as _logical_volume_names
-
 
 DOCKER_PROBE_TIMEOUT_SECONDS = 30
 

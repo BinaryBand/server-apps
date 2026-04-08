@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from src.configuration.state_model import WorkflowState
 from src.reconciler.pipeline_actions import run_pipeline_stages
+from src.reconciler.runtime_observer import RuntimeObserver
 from src.reconciler.state_machine import ReconcileState, ReconcileStateMachine
 from src.reconciler.state_store import load_state, persist_state
-from src.reconciler.runtime_observer import RuntimeObserver
 from src.toolbox.io.state_helpers import upsert_condition
 
 

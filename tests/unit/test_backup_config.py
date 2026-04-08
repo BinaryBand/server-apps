@@ -6,7 +6,7 @@ import tomllib
 import pytest
 from pydantic import ValidationError
 
-from src.configuration.backup_config import BackupConfig, BatchConfig, CompressSource, StreamSource
+from src.configuration.backup_config import BackupConfig
 
 
 def _parse(toml: str) -> BackupConfig:

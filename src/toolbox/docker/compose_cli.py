@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from src.toolbox.core.config import get_project_name
-from src.toolbox.core.runtime import repo_root
-
 from pathlib import Path
+
 import dotenv
 
+from src.toolbox.core.config import get_project_name
+from src.toolbox.core.runtime import repo_root
 
 DOCKER_COMPOSE_CMD: list[str] = ["docker", "compose"]
 COMPOSE_FILES: tuple[str, str] = ("compose/base.yml", "compose/dev.yml")

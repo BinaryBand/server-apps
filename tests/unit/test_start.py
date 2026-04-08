@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from unittest.mock import patch
 from contextlib import nullcontext
+from unittest.mock import patch
 
 from src.orchestrators.start import main
 

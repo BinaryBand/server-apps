@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from unittest.mock import patch, Mock
 from contextlib import nullcontext
+from unittest.mock import patch
 
-from src.orchestrators.backup import main
 from src.backup.restic import ResticRunnerError, has_restic_repo
 from src.configuration.backup_config import BackupConfig, BatchConfig
+from src.orchestrators.backup import main
 
 
 def _empty_config() -> BackupConfig:
@@ -104,7 +104,6 @@ def test_main_handles_gather_errors() -> None:
 
 def test_main_handles_restic_repo_init_errors() -> None:
     """Test that restic repo initialization errors are handled"""
-    from src.backup.restic import ResticRunnerError
 
     with (
         patch(
@@ -133,7 +132,6 @@ def test_main_handles_restic_repo_init_errors() -> None:
 
 def test_main_handles_backup_errors() -> None:
     """Test that restic backup stage errors are caught and reported"""
-    from src.backup.restic import ResticRunnerError
 
     with (
         patch(

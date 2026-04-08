@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import src.backup.gather as _impl
 
-
 # Compatibility aliases for legacy monkeypatch targets.
 rclone_sync = _impl.rclone_sync
 volatile = _impl.volatile

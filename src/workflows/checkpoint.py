@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any, Literal
+from uuid import uuid4
+
 from src.configuration.state_model import WorkflowState, utc_now
 from src.toolbox.io.state_io import read_json_file, write_json_file_atomic
-
-from typing import Any, Literal
-from pathlib import Path
-from uuid import uuid4
 
 
 class OperationCheckpoint:

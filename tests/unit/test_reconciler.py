@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from src.reconciler.core import reconcile_once
 from tests.support.reconciler_helpers import patch_reconciler_observer
 

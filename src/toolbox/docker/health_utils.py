@@ -8,7 +8,6 @@ from src.observability.health_utils import (
     _run_wait_loop,
 )
 
-
 __all__ = [
     "_run_command",
     "_default_command_detail",

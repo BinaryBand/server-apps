@@ -1,10 +1,8 @@
-from src.toolbox.core.config import rclone_version
-
+import subprocess
 from subprocess import CalledProcessError, CompletedProcess
 from typing import Iterable
 
-import subprocess
-
+from src.toolbox.core.config import rclone_version
 
 _MEDIA_MOUNT_PATH = "/media"
 

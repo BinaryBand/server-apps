@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from src.configuration.state_model import WorkflowState
-from src.workflows.pipeline import PIPELINE_STEPS
 from src.storage.compose import compose_service_names
 from src.storage.volumes import required_external_volume_names
 from src.toolbox.io.state_helpers import upsert_condition
+from src.workflows.pipeline import PIPELINE_STEPS
 
 
 def _mark_stage_conditions(state: WorkflowState, stage_name: str) -> None:

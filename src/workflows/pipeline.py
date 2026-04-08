@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from src.storage.compose import ensure_external_volumes
-from src.permissions.ansible import run_permissions_playbook
-from src.observability.post_start import run_runtime_post_start
-from src.observability.health import run_runtime_health_checks
-
 from collections.abc import Callable
 
+from src.observability.health import run_runtime_health_checks
+from src.observability.post_start import run_runtime_post_start
+from src.permissions.ansible import run_permissions_playbook
+from src.storage.compose import ensure_external_volumes
 
 PIPELINE_STEPS: list[tuple[str, Callable[[], None]]] = [
     ("volumes", lambda: ensure_external_volumes()),

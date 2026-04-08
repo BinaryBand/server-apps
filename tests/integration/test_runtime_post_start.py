@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from src.observability.post_start import run_runtime_post_start
-
 from unittest.mock import patch
+
+from src.observability.post_start import run_runtime_post_start
 
 
 def test_run_runtime_post_start_executes_in_order() -> None:

@@ -1,16 +1,15 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.workflows.pipeline import PIPELINE_STEPS
-from src.workflows.workflow_runner import run_checkpoint_stages, start_checkpoint
+from src.observability.health import ensure_docker_daemon_access
+from src.toolbox.core.config import runbook_resume_enabled
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.runtime import checkpoints_root, locks_root
-from src.observability.health import ensure_docker_daemon_access
-
-from src.toolbox.core.config import runbook_resume_enabled
+from src.workflows.pipeline import PIPELINE_STEPS
+from src.workflows.workflow_runner import run_checkpoint_stages, start_checkpoint
 
 
 def _run_preflight() -> None:

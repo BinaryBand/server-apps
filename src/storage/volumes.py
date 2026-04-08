@@ -9,7 +9,6 @@ from src.toolbox.docker.volumes_config import (
 )
 from src.toolbox.docker.volumes_inspector import list_project_volumes, remove_project_volumes
 
-
 __all__ = [
     "logical_volume_names",
     "required_external_volume_names",

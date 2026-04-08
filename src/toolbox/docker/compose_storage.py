@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from src.configuration.compose_config import ComposeConfigModel
-from src.toolbox.docker.compose_cli import compose_cmd
-
-from typing import Any
 import subprocess
+from typing import Any
+
 import yaml
 from pydantic import ValidationError
+
+from src.configuration.compose_config import ComposeConfigModel
+from src.toolbox.docker.compose_cli import compose_cmd
 
 
 def _run_compose_config_cmd() -> str:

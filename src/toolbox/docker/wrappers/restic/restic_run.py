@@ -5,7 +5,6 @@ from src.backup.restic import (
     run_restic_command_with_output,
 )
 
-
 __all__ = [
     "RESTIC_PCLOUD_REMOTE",
     "ResticRunnerError",

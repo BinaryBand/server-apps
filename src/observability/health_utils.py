@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from src.toolbox.core.polling import ProbeResult, WaitConfig, wait_until
-
-from typing import Any, Callable
-from collections.abc import Sequence
-import subprocess
 import shlex
+import subprocess
+from collections.abc import Sequence
+from typing import Any, Callable
+
+from src.toolbox.core.polling import ProbeResult, WaitConfig, wait_until
 
 
 def _run_command(command: Sequence[str]) -> subprocess.CompletedProcess[str]:

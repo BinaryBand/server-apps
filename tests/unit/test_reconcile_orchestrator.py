@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 from src.orchestrators.reconcile import main
 

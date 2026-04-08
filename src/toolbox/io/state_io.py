@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
 import json
 import tempfile
+from pathlib import Path
 
 
 def read_json_file(path: Path) -> dict[str, object] | None:

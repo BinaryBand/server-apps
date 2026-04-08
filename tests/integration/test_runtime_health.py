@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+from io import StringIO
+from subprocess import CompletedProcess
+from unittest.mock import call, patch
+
+import pytest
+
 from src.observability.health import (
     CommandWaitSpec,
     ContainerExecWaitSpec,
@@ -8,11 +14,6 @@ from src.observability.health import (
     wait_for_command,
 )
 from src.toolbox.core.polling import ProbeResult, WaitConfig, wait_until
-
-from io import StringIO
-from subprocess import CompletedProcess
-from unittest.mock import call, patch
-import pytest
 
 
 def test_wait_until_returns_on_ready_probe() -> None:

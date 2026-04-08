@@ -1,20 +1,19 @@
+import sys
+from argparse import ArgumentParser, Namespace
+
+from src.adapters.rclone.compress_stage import CompressStage
+from src.adapters.rclone.stream_sync import RcloneStreamSync
 from src.backup.restore import recent_snapshots, restore_snapshot
 from src.backup.stage_runner import run_restore_stage
-from src.adapters.rclone.stream_sync import RcloneStreamSync
-from src.adapters.rclone.compress_stage import CompressStage
 from src.configuration.backup_config import BackupConfig
+from src.toolbox.core.config import runbook_resume_enabled
+from src.toolbox.core.locking import RunbookLock
+from src.toolbox.core.runtime import checkpoints_root, locks_root, repo_root
 from src.workflows.workflow_runner import (
     StagePolicy,
     run_checkpoint_stage,
     start_checkpoint,
 )
-from src.toolbox.core.locking import RunbookLock
-from src.toolbox.core.runtime import checkpoints_root, locks_root, repo_root
-from src.toolbox.core.config import runbook_resume_enabled
-
-from argparse import ArgumentParser, Namespace
-import sys
-
 
 DEFAULT_RESTORE_TARGET = "/backups/restore"
 

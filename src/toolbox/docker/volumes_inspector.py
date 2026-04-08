@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+import subprocess
+
 from src.toolbox.docker.compose_storage import (
     external_alias_name_pairs,
     rendered_compose_config,
-    service_volume_sources,
 )
-
-import subprocess
 
 
 def _list_docker_volumes(*args: str) -> list[str]:

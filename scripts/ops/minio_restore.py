@@ -14,8 +14,8 @@ Template:
     python scripts/ops/minio_restore.py /media/<category>/<item>
 """
 
-import os
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path, PurePosixPath

@@ -7,7 +7,6 @@ from src.storage.compose import (
     stop_compose_stack,
 )
 
-
 __all__ = [
     "compose_cmd",
     "compose_service_names",

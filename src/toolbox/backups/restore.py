@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import src.backup.restore as _impl
 
-
 # Compatibility aliases for legacy monkeypatch targets.
 restic = _impl.restic
 rclone_sync = _impl.rclone_sync
