@@ -8,7 +8,7 @@ from src.orchestrators.restore import main
 
 
 def _empty_config() -> BackupConfig:
-    return BackupConfig(batch=BatchConfig(), stream=[], compress=[])
+    return BackupConfig(batch=BatchConfig(), stream=[])
 
 
 def test_main_runs_restore_stage_when_not_listing() -> None:

@@ -9,8 +9,8 @@ implements the `BackupStage` protocol — a bidirectional contract with `backup(
 ### Pipeline symmetry
 
 ```text
-BACKUP:   gather → restic  |  stream (source → cloud)  |  compress (zip → cloud)
-RESTORE:  restic → volumes |  stream (cloud → source)  |  compress (cloud → unzip → source)
+BACKUP:   gather → restic  |  stream (source → cloud)
+RESTORE:  restic → volumes |  stream (cloud → source)
 ```
 
 ---
@@ -44,24 +44,7 @@ Streams files directly between two rclone remotes (or local volume paths) withou
 Runs rclone in a disposable Docker container. Mounts all logical volumes at
 `/data/volumes/<name>` and joins the compose network so `minio:9000` is reachable.
 
-### `CompressStage` — `src/adapters/rclone/compress_stage.py`
-
-Groups matched files by their immediate parent directory, zips each group, and uploads
-the archives to a cloud remote. The archive path encodes the restore destination — no
-separate manifest is needed.
-
-- `backup()`:
-  1. `rclone lsf source --include patterns` → file list
-  2. Group by `PurePosixPath(f).parent`
-  3. For each group: `rclone copy source/parent → /tmp/staging/parent`, zip it,
-     `rclone copy archive → destination/grandparent/`
-
-- `restore()`:
-  1. `rclone lsf destination --include "**/*.zip"` → archive list
-  2. For each archive: `rclone copy destination/archive_dir → /tmp/staging/`, unzip to
-     `/tmp/extract/parent/`, `rclone copy /tmp/extract/parent → source/parent`
-
-Uses a host temp directory bind-mounted into each disposable rclone container as staging.
+<!-- Compress/archive-based staging removed. Use `restic` and `stream` stages only. -->
 
 ---
 
@@ -157,10 +140,10 @@ Loads `BackupConfig` from `backup.toml` to drive the stream and compress stages.
 | `src/ports/backup_stage.py` | `BackupStage` protocol (the port) |
 | `src/ports/object_sync.py` | Deleted — replaced by `backup_stage.py` |
 | `src/adapters/rclone/stream_sync.py` | `RcloneStreamSync` — bidirectional sync adapter |
-| `src/adapters/rclone/compress_stage.py` | `CompressStage` — zip-then-sync adapter |
+| `src/adapters/rclone/compress_stage.py` | (removed) |
 | `src/backup/stage_runner.py` | Generic `run_backup_stage` / `run_restore_stage` |
 | `src/backup/stream_sync.py` | Deleted — absorbed into `stage_runner.py` |
-| `src/configuration/backup_config.py` | Pydantic config models including `CompressSource` |
+| `src/configuration/backup_config.py` | Pydantic config models |
 | `src/orchestrators/backup.py` | Full backup pipeline |
 | `src/orchestrators/restore.py` | Full restore pipeline (symmetric) |
 | `configs/backup.toml` | Single control surface for all backup strategies |

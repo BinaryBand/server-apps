@@ -10,7 +10,7 @@ from src.orchestrators.backup import main
 
 def _empty_config() -> BackupConfig:
     """Minimal config with no stream or compress stages."""
-    return BackupConfig(batch=BatchConfig(), stream=[], compress=[])
+    return BackupConfig(batch=BatchConfig(), stream=[])
 
 
 def test_main_runs_gather_and_restic_stages() -> None:

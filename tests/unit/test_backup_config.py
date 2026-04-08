@@ -19,7 +19,6 @@ class TestBackupConfigParsing:
         assert config.batch.include == []
         assert config.batch.exclude == []
         assert config.stream == []
-        assert config.compress == []
 
     def test_batch_include_and_exclude(self) -> None:
         config = _parse("""
@@ -54,20 +53,7 @@ class TestBackupConfigParsing:
         """)
         assert config.stream[0].exclude == ["notes/**"]
 
-    def test_compress_source_parsed(self) -> None:
-        config = _parse("""
-            [[compress]]
-            name = "podcast-thumbnails"
-            source = "minio:media/podcasts"
-            patterns = ["**/*.webp", "**/*.jpg"]
-            destination = "pcloud:Backups/Compressed/podcasts"
-        """)
-        assert len(config.compress) == 1
-        c = config.compress[0]
-        assert c.name == "podcast-thumbnails"
-        assert c.source == "minio:media/podcasts"
-        assert c.patterns == ["**/*.webp", "**/*.jpg"]
-        assert c.destination == "pcloud:Backups/Compressed/podcasts"
+    # compress entries removed from configuration model; related tests removed
 
     def test_multiple_streams(self) -> None:
         config = _parse("""
@@ -103,13 +89,4 @@ class TestBackupConfigParsing:
                 typo_field = true
             """)
 
-    def test_extra_keys_rejected_on_compress(self) -> None:
-        with pytest.raises(ValidationError):
-            _parse("""
-                [[compress]]
-                name = "x"
-                source = "s"
-                patterns = []
-                destination = "d"
-                extra = "bad"
-            """)
+    # compress-related tests removed

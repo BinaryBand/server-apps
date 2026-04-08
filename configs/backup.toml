@@ -41,20 +41,4 @@ name = "minio-objects"
 source = "minio:"
 destination = "pcloud:Backups/Minio"
 exclude = ["notes/**"]
-
-[[compress]]
-# Notebook objects — compress per parent directory and upload to pCloud.
-# Grouping by immediate parent directory reduces high-file-count overhead.
-name = "notebook-archives"
-source = "minio:notebook"
-patterns = ["**/*"]
-destination = "pcloud:Backups/Compressed/notebook"
-
-[[compress]]
-# Podcast thumbnail images — zipped per-show directory, synced to pCloud.
-# Each show's thumbnails dir becomes one zip archive, e.g.:
-#   pcloud:Backups/Compressed/podcasts/alyssa-grenfell/thumbnails.zip
-name = "podcast-thumbnails"
-source = "minio:media/podcasts"
-patterns = ["**/*.webp", "**/*.jpg", "**/*.jpeg", "**/*.png"]
-destination = "pcloud:Backups/Compressed/podcasts"
+# compress/archive-based staging removed; prefer stream and restic only

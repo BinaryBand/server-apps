@@ -8,7 +8,7 @@ from src.orchestrators.backup import main
 
 
 def _empty_config() -> BackupConfig:
-    return BackupConfig(batch=BatchConfig(), stream=[], compress=[])
+    return BackupConfig(batch=BatchConfig(), stream=[])
 
 
 def test_restic_push_not_called_by_default() -> None:

@@ -1,7 +1,6 @@
 import sys
 from argparse import ArgumentParser, Namespace
 
-from src.adapters.rclone.compress_stage import CompressStage
 from src.adapters.rclone.stream_sync import RcloneStreamSync
 from src.backup.restore import recent_snapshots, restore_snapshot
 from src.backup.stage_runner import run_restore_stage
@@ -79,17 +78,7 @@ def _run_restore(args: Namespace, *, resume_enabled: bool) -> None:
             ),
         )
 
-    for source in config.compress:
-        stage = CompressStage(config=source)
-        run_checkpoint_stage(
-            checkpoint,
-            f"restore-compress-{source.name}",
-            lambda s=stage, n=source.name: run_restore_stage(s, n),
-            StagePolicy(
-                observed_on_failure="RestoreFailed",
-                run_message=f"[stage:restore-compress-{source.name}] Restoring compressed archives to {source.source}",
-            ),
-        )
+    # compress support removed; no restore-compress stages
 
     checkpoint.finish(observed="RestoreCompleted", ok=True)
     print("[stage:complete] Restore pipeline completed")

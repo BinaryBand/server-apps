@@ -10,7 +10,7 @@ from src.orchestrators.restore import DEFAULT_RESTORE_TARGET, main
 
 
 def _empty_config() -> BackupConfig:
-    return BackupConfig(batch=BatchConfig(), stream=[], compress=[])
+    return BackupConfig(batch=BatchConfig(), stream=[])
 
 
 def test_list_snapshots_mode_uses_listing_path(monkeypatch, capsys) -> None:

@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-from src.adapters.rclone.compress_stage import CompressStage
 from src.adapters.rclone.stream_sync import RcloneStreamSync
 from src.backup.gather import gather_stage
 from src.backup.restic import (
@@ -118,17 +117,7 @@ def _run_backup_stages(checkpoint: OperationCheckpoint, config: BackupConfig) ->
             ),
         )
 
-    for source in config.compress:
-        stage = CompressStage(config=source)
-        run_checkpoint_stage(
-            checkpoint,
-            f"compress-{source.name}",
-            lambda s=stage, n=source.name: run_backup_stage(s, n),
-            StagePolicy(
-                observed_on_failure="BackupFailed",
-                run_message=f"[stage:compress-{source.name}] Compressing {source.source} to {source.destination}",
-            ),
-        )
+    # compress support removed; no compress stages to run
 
 
 def main():
