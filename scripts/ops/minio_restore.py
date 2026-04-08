@@ -66,14 +66,30 @@ def rclone_restore_paths(restore_path: str | None) -> tuple[str, str]:
 
 def rclone_filter_args(includes: list[str], excludes: list[str]) -> list[str]:
     args: list[str] = []
-    for include_path in includes:
-        normalized = _normalized_relative_path(include_path)
-        if normalized:
-            args.extend(["--include", f"{normalized}/**"])
+
+    normalized_excludes: list[str] = []
     for exclude_path in excludes:
         normalized = _normalized_relative_path(exclude_path)
         if normalized:
-            args.extend(["--exclude", f"{normalized}/**"])
+            normalized_excludes.append(normalized)
+
+    normalized_includes: list[str] = []
+    for include_path in includes:
+        normalized = _normalized_relative_path(include_path)
+        if normalized:
+            normalized_includes.append(normalized)
+
+    # Excludes must come first so they can override broader include prefixes.
+    for normalized in normalized_excludes:
+        args.extend(["--filter", f"- {normalized}/**"])
+
+    for normalized in normalized_includes:
+        args.extend(["--filter", f"+ {normalized}/**"])
+
+    # When includes are provided, explicitly exclude everything else.
+    if normalized_includes:
+        args.extend(["--filter", "- **"])
+
     return args
 
 
@@ -101,7 +117,7 @@ def main() -> None:
             "--entrypoint",
             "rclone",
             "rclone",
-            "copy",
+            "sync",
             source_path,
             destination_path,
             *filter_args,

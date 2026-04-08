@@ -96,8 +96,37 @@ def test_minio_restore_applies_include_exclude_filters() -> None:
         mod.main()
 
     cmd = captured[0]
-    assert "--include" in cmd
-    assert "media/podcasts/**" in cmd
-    assert "--exclude" in cmd
-    assert "media/podcasts/morbid/**" in cmd
-    assert "media/podcasts/necronomipod/**" in cmd
+    assert "--filter" in cmd
+    assert "- media/podcasts/morbid/**" in cmd
+    assert "- media/podcasts/necronomipod/**" in cmd
+    assert "+ media/podcasts/**" in cmd
+    assert "- **" in cmd
+
+
+def test_minio_restore_exclude_only_uses_filter_without_catch_all() -> None:
+    mod = _load_minio_restore_module()
+
+    captured: list = []
+
+    def fake_run(cmd, **kwargs):
+        captured.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0)
+
+    with (
+        patch("subprocess.run", side_effect=fake_run),
+        patch.object(
+            sys,
+            "argv",
+            [
+                "minio_restore.py",
+                "--exclude",
+                "/media/podcasts/necronomipod",
+            ],
+        ),
+    ):
+        mod.main()
+
+    cmd = captured[0]
+    assert "--filter" in cmd
+    assert "- media/podcasts/necronomipod/**" in cmd
+    assert "- **" not in cmd
