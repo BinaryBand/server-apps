@@ -4,6 +4,11 @@ from unittest.mock import patch
 from contextlib import nullcontext
 
 from src.orchestrators.restore import main
+from src.configuration.backup_config import BackupConfig, BatchConfig
+
+
+def _empty_config() -> BackupConfig:
+    return BackupConfig(batch=BatchConfig(), stream=[], compress=[])
 
 
 def test_main_runs_restore_stage_when_not_listing() -> None:
@@ -21,6 +26,10 @@ def test_main_runs_restore_stage_when_not_listing() -> None:
         patch(
             "src.orchestrators.restore.RunbookLock",
             return_value=nullcontext(),
+        ),
+        patch(
+            "src.orchestrators.restore.BackupConfig.from_toml",
+            return_value=_empty_config(),
         ),
         patch(
             "src.orchestrators.restore.restore_snapshot",
@@ -51,6 +60,10 @@ def test_main_handles_restore_errors() -> None:
         patch(
             "src.orchestrators.restore.RunbookLock",
             return_value=nullcontext(),
+        ),
+        patch(
+            "src.orchestrators.restore.BackupConfig.from_toml",
+            return_value=_empty_config(),
         ),
         patch(
             "src.orchestrators.restore.restore_snapshot",

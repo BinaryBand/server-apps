@@ -33,7 +33,7 @@
     - apply_privileged
     - item.path | default('') | length > 0
 
-- name: Apply runtime mode for declared volumes
+- name: Apply runtime mode for declared volumes (owned by current user)
   ansible.builtin.file:
     path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
     mode: "{{ item.runtime_mode | default(item.mode | default('0755')) }}"
@@ -48,3 +48,49 @@
     - item.runtime_mode is defined
     - runtime_volume_stats.results[volume_idx].stat.exists | default(false)
     - runtime_volume_stats.results[volume_idx].stat.uid | default(-1) | int == (lookup('ansible.builtin.pipe', 'id -u') | int)
+
+- name: Detect runtime mode drift on volumes not owned by current user
+  ansible.builtin.set_fact:
+    _storage_privileged_mode_paths: >-
+      {{ _storage_privileged_mode_paths | default([]) +
+         ([item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path]
+          if (item.runtime_mode is defined and
+              runtime_volume_stats.results[volume_idx].stat.exists | default(false) and
+              runtime_volume_stats.results[volume_idx].stat.uid | default(-1) | int !=
+              (lookup('ansible.builtin.pipe', 'id -u') | int))
+          else []) }}
+  loop: "{{ volume_entries }}"
+  loop_control:
+    index_var: volume_idx
+  when:
+    - permissions_mode_selected == 'runtime'
+    - item.path | default('') | length > 0
+
+- name: Apply runtime mode with elevated privileges (recovery)
+  become: true
+  ansible.builtin.file:
+    path: "{{ item.path if item.path.startswith('/') else repo_root_path ~ '/' ~ item.path }}"
+    mode: "{{ item.runtime_mode }}"
+    recurse: "{{ item.runtime_recurse | default(false) | bool }}"
+    state: directory
+  loop: "{{ volume_entries }}"
+  loop_control:
+    index_var: volume_idx
+  when:
+    - permissions_mode_selected == 'runtime'
+    - item.path | default('') | length > 0
+    - item.runtime_mode is defined
+    - runtime_volume_stats.results[volume_idx].stat.exists | default(false)
+    - runtime_volume_stats.results[volume_idx].stat.uid | default(-1) | int != (lookup('ansible.builtin.pipe', 'id -u') | int)
+    - runtime_recover_with_become_enabled | default(false) | bool
+
+- name: Fail if runtime mode drift requires elevated privileges
+  ansible.builtin.fail:
+    msg: >-
+      Permission drift detected on volume(s) not owned by the current user:
+      {{ _storage_privileged_mode_paths | default([]) | join(', ') }}.
+      Retrying with elevated privileges (sudo prompt will appear).
+  when:
+    - permissions_mode_selected == 'runtime'
+    - (_storage_privileged_mode_paths | default([])) | length > 0
+    - not (runtime_recover_with_become_enabled | default(false) | bool)

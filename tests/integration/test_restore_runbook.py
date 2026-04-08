@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from src.orchestrators.restore import DEFAULT_RESTORE_TARGET, main
+from src.configuration.backup_config import BackupConfig, BatchConfig
+
+
+def _empty_config() -> BackupConfig:
+    return BackupConfig(batch=BatchConfig(), stream=[], compress=[])
 
 
 def test_list_snapshots_mode_uses_listing_path(monkeypatch, capsys) -> None:
@@ -44,6 +49,10 @@ def test_restore_mode_uses_default_target(monkeypatch) -> None:
     )
     monkeypatch.setattr("src.orchestrators.restore.recent_snapshots", list_snapshots)
     monkeypatch.setattr("src.orchestrators.restore.restore_snapshot", restore_snapshot)
+    monkeypatch.setattr(
+        "src.orchestrators.restore.BackupConfig.from_toml",
+        lambda *a, **k: _empty_config(),
+    )
 
     main()
 

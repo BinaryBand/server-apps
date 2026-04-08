@@ -12,10 +12,11 @@ def gather_stage(include: Sequence[str], exclude: Sequence[str] = ()) -> None:
     )
 
     extra_args: list[str] = []
-    for pattern in include:
-        extra_args += ["--include", pattern]
     for pattern in exclude:
-        extra_args += ["--exclude", pattern]
+        extra_args += ["--filter", f"- {pattern}"]
+    for pattern in include:
+        extra_args += ["--filter", f"+ {pattern}"]
+    extra_args += ["--filter", "- *"]
 
     rclone_sync("/data", "/backups", docker_args=docker_args, extra_args=extra_args)
 

@@ -11,28 +11,26 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.backup.gather import gather_stage
+from src.configuration.backup_config import BackupConfig
 from src.storage.volumes import logical_volume_names as _logical_volume_names
 
 
 DOCKER_PROBE_TIMEOUT_SECONDS = 30
 
 
-def _stage_roots_from_include_file(include_file: Path) -> list[str]:
+def _stage_roots_from_include_patterns(patterns: list[str]) -> list[str]:
+    """Extract the top-two path components from include patterns.
+
+    e.g. "volumes/jellyfin_config/**" → "volumes/jellyfin_config"
+    """
     roots: list[str] = []
-
-    for raw_line in include_file.read_text(encoding="utf8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-
-        parts = line.split("/")
+    for pattern in patterns:
+        parts = pattern.split("/")
         if len(parts) < 2:
             continue
-
         root = "/".join(parts[:2]).rstrip("/")
         if root and root not in roots:
             roots.append(root)
-
     return roots
 
 
@@ -42,10 +40,7 @@ def gather_env(repo_root, docker_available):
         pytest.skip("docker is required for gather smoke tests")
 
     probe = subprocess.run(
-        [
-            "docker",
-            "info",
-        ],
+        ["docker", "info"],
         check=False,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -53,8 +48,8 @@ def gather_env(repo_root, docker_available):
     if probe.returncode != 0:
         pytest.skip("docker daemon is not available")
 
-    include_file = repo_root / "configs" / "backup-include.txt"
-    stage_roots = _stage_roots_from_include_file(include_file)
+    config = BackupConfig.from_toml(repo_root / "configs" / "backup.toml")
+    stage_roots = _stage_roots_from_include_patterns(config.batch.include)
     logical_volume_names = _logical_volume_names()
     source_volumes: dict[str, str] = {
         logical_name: f"smoke-gather-{uuid.uuid4().hex[:8]}-{logical_name}"
@@ -90,7 +85,7 @@ def gather_env(repo_root, docker_available):
         )
 
     yield {
-        "include_file": include_file,
+        "config": config,
         "stage_roots": stage_roots,
         "logical_volume_names": logical_volume_names,
         "source_volumes": source_volumes,
@@ -155,27 +150,12 @@ def test_gather_mounts_populated_stage_roots(gather_env, monkeypatch) -> None:
         assert source == "/data"
         assert destination == "/backups"
         assert docker_args is not None
-        assert extra_args == ["--include-from", "/filters/backup-include.txt"]
-
-        try:
-            include_probe = subprocess.run(
-                [
-                    "docker",
-                    "run",
-                    "--rm",
-                    *(docker_args or []),
-                    "alpine:3.20",
-                    "sh",
-                    "-lc",
-                    "test -f /filters/backup-include.txt",
-                ],
-                check=False,
-                timeout=DOCKER_PROBE_TIMEOUT_SECONDS,
-            )
-        except subprocess.TimeoutExpired as err:
-            pytest.fail(f"Timed out while probing mounted include file: {err}")
-
-        assert include_probe.returncode == 0
+        # All filters use --filter flags (no --include-from or bare --include/--exclude)
+        assert extra_args is not None
+        filter_flags = [a for a in extra_args if a == "--filter"]
+        assert len(filter_flags) > 0, "Expected at least one --filter flag"
+        assert "--include-from" not in extra_args
+        assert "--include" not in extra_args
 
         for root in env["stage_roots"]:
             _assert_container_path_has_content(docker_args or [], f"/data/{root}")
@@ -188,4 +168,5 @@ def test_gather_mounts_populated_stage_roots(gather_env, monkeypatch) -> None:
         lambda: patched_flags,
     )
 
-    gather_stage(env["include_file"])
+    config: BackupConfig = env["config"]
+    gather_stage(config.batch.include, config.batch.exclude)

@@ -4,6 +4,13 @@ from unittest.mock import patch, Mock
 from contextlib import nullcontext
 
 from src.orchestrators.backup import main
+from src.backup.restic import ResticRunnerError, has_restic_repo
+from src.configuration.backup_config import BackupConfig, BatchConfig
+
+
+def _empty_config() -> BackupConfig:
+    """Minimal config with no stream or compress stages."""
+    return BackupConfig(batch=BatchConfig(), stream=[], compress=[])
 
 
 def test_main_runs_gather_and_restic_stages() -> None:
@@ -21,6 +28,10 @@ def test_main_runs_gather_and_restic_stages() -> None:
         patch(
             "src.orchestrators.backup.RunbookLock",
             return_value=nullcontext(),
+        ),
+        patch(
+            "src.orchestrators.backup.BackupConfig.from_toml",
+            return_value=_empty_config(),
         ),
         patch(
             "src.orchestrators.backup.gather_stage",
@@ -47,6 +58,10 @@ def test_main_initializes_restic_repo_if_missing() -> None:
         patch(
             "src.orchestrators.backup.RunbookLock",
             return_value=nullcontext(),
+        ),
+        patch(
+            "src.orchestrators.backup.BackupConfig.from_toml",
+            return_value=_empty_config(),
         ),
         patch(
             "src.orchestrators.backup.gather_stage",
@@ -143,3 +158,87 @@ def test_main_handles_backup_errors() -> None:
             raise AssertionError("Expected SystemExit")
         except SystemExit as err:
             assert "BackupFailed" in str(err) or "restic backup failed" in str(err)
+
+
+class TestHasResticRepo:
+    """has_restic_repo() mounts the volume in a container — no password, no root needed."""
+
+    def test_returns_true_when_config_file_exists(self) -> None:
+        """docker run exits 0 (test -f succeeds) → repo initialized."""
+        with (
+            patch("src.backup.restic._ensure_restic_repo_volume_exists"),
+            patch("src.backup.restic.storage_mount_source", return_value="restic_repo_data"),
+            patch("src.backup.restic.subprocess.run", return_value=_run_result(0)),
+        ):
+            assert has_restic_repo() is True
+
+    def test_returns_false_when_config_file_missing(self) -> None:
+        """docker run exits 1 (test -f fails) → repo not initialized."""
+        with (
+            patch("src.backup.restic._ensure_restic_repo_volume_exists"),
+            patch("src.backup.restic.storage_mount_source", return_value="restic_repo_data"),
+            patch("src.backup.restic.subprocess.run", return_value=_run_result(1)),
+        ):
+            assert has_restic_repo() is False
+
+    def test_returns_false_when_docker_run_fails(self) -> None:
+        """Non-zero exit for any reason (e.g. image pull error) → False."""
+        with (
+            patch("src.backup.restic._ensure_restic_repo_volume_exists"),
+            patch("src.backup.restic.storage_mount_source", return_value="restic_repo_data"),
+            patch("src.backup.restic.subprocess.run", return_value=_run_result(125)),
+        ):
+            assert has_restic_repo() is False
+
+    def test_mounts_correct_volume(self) -> None:
+        """The docker run command must mount the restic volume at /repo."""
+        captured: list[list[str]] = []
+
+        def _spy(cmd, **kwargs):
+            captured.append(list(cmd))
+            return _run_result(0)
+
+        with (
+            patch("src.backup.restic._ensure_restic_repo_volume_exists"),
+            patch("src.backup.restic.storage_mount_source", return_value="my_vol"),
+            patch("src.backup.restic.subprocess.run", side_effect=_spy),
+        ):
+            has_restic_repo()
+
+        assert captured, "subprocess.run was not called"
+        cmd = captured[0]
+        assert "my_vol:/repo:ro" in " ".join(cmd)
+        assert "test" in cmd
+        assert "/repo/config" in cmd
+
+    def test_does_not_invoke_restic(self) -> None:
+        """No restic compose command must be issued — check is volume-level."""
+        captured: list[list[str]] = []
+
+        def _spy(cmd, **kwargs):
+            captured.append(list(cmd))
+            return _run_result(0)
+
+        with (
+            patch("src.backup.restic._ensure_restic_repo_volume_exists"),
+            patch("src.backup.restic.storage_mount_source", return_value="vol"),
+            patch("src.backup.restic.subprocess.run", side_effect=_spy),
+        ):
+            has_restic_repo()
+
+        for cmd in captured:
+            assert "compose" not in cmd, f"unexpected compose call: {cmd}"
+            assert "restic" not in [c for c in cmd if not c.startswith("-")], (
+                f"unexpected restic invocation: {cmd}"
+            )
+
+
+# ---------------------------------------------------------------------------
+# Helpers for TestHasResticRepo
+# ---------------------------------------------------------------------------
+
+def _run_result(returncode: int):
+    from unittest.mock import MagicMock
+    r = MagicMock()
+    r.returncode = returncode
+    return r

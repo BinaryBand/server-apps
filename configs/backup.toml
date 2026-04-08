@@ -21,22 +21,17 @@ include = [
   "volumes/minio_data/.minio.sys/pool.bin",
   # MinIO notes bucket — versioned via restic
   "volumes/minio_data/notes/**",
+  "volumes/minio_data/notebook/**",
 ]
 exclude = [
   # Volatile MinIO internals — never back up
   "volumes/minio_data/.minio.sys/tmp/**",
   "volumes/minio_data/.minio.sys/multipart/**",
   # Jellyfin metadata artwork — too large for local staging (streamed separately)
-  "volumes/jellyfin_data/data/metadata/**",
+  "volumes/jellyfin_data/metadata/**",
   # Jellyfin transcodes — transient, never back up
   "volumes/jellyfin_data/data/transcodes/**",
 ]
-
-[[stream]]
-# Jellyfin metadata artwork — synced directly to pCloud without local staging.
-name = "jellyfin-metadata"
-source = "/data/volumes/jellyfin_data/data/metadata"
-destination = "pcloud:Backups/Jellyfin/metadata"
 
 [[stream]]
 # MinIO object data (excluding notes, which goes via restic batch above).
@@ -47,3 +42,20 @@ name = "minio-objects"
 source = "minio:"
 destination = "pcloud:Backups/Minio"
 exclude = ["notes/**"]
+
+[[compress]]
+# Notebook objects — compress per parent directory and upload to pCloud.
+# Grouping by immediate parent directory reduces high-file-count overhead.
+name = "notebook-archives"
+source = "minio:notebook"
+patterns = ["**/*"]
+destination = "pcloud:Backups/Compressed/notebook"
+
+[[compress]]
+# Podcast thumbnail images — zipped per-show directory, synced to pCloud.
+# Each show's thumbnails dir becomes one zip archive, e.g.:
+#   pcloud:Backups/Compressed/podcasts/alyssa-grenfell/thumbnails.zip
+name = "podcast-thumbnails"
+source = "minio:media/podcasts"
+patterns = ["**/*.webp", "**/*.jpg", "**/*.jpeg", "**/*.png"]
+destination = "pcloud:Backups/Compressed/podcasts"

@@ -32,23 +32,35 @@ class RcloneStreamSync:
     exclude: list[str] = field(default_factory=list)
     extra_flags: list[str] = field(default_factory=lambda: list(_CONSERVATIVE_FLAGS))
 
-    def sync(self) -> None:
+    def _docker_args(self) -> list[str]:
         docker_args: list[str] = volatile.rclone_docker_volume_flags()
         docker_args += storage_docker_mount_flags(
             "rclone_config", "/config/rclone", read_only=True
         )
         docker_args += ["-e", "RCLONE_CONFIG=/config/rclone/rclone.conf"]
         docker_args += ["--network", f"{get_project_name()}_default"]
+        return docker_args
 
-        effective_flags = list(self.extra_flags)
+    def _effective_flags(self) -> list[str]:
+        flags = list(self.extra_flags)
         for pattern in self.exclude:
-            effective_flags += ["--exclude", pattern]
+            flags += ["--exclude", pattern]
+        return flags
 
+    def backup(self) -> None:
         rclone_sync(
             self.source,
             self.destination,
-            docker_args=docker_args,
-            extra_args=effective_flags,
+            docker_args=self._docker_args(),
+            extra_args=self._effective_flags(),
+        )
+
+    def restore(self) -> None:
+        rclone_sync(
+            self.destination,
+            self.source,
+            docker_args=self._docker_args(),
+            extra_args=self._effective_flags(),
         )
 
 

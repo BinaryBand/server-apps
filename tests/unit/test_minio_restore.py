@@ -44,7 +44,7 @@ def test_minio_restore_runs_compose_command(monkeypatch: object) -> None:
     assert captured, "subprocess.run was not called"
     cmd = captured[0]
     assert "rclone" in cmd
-    assert "copy" in cmd
+    assert "sync" in cmd
     assert "pcloud:/Backups/Minio" in cmd
     assert "minio:" in cmd
 

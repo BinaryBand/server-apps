@@ -1,6 +1,7 @@
 from src.backup.gather import gather_stage
-from src.backup.stream_sync import stream_sync_stage
+from src.backup.stage_runner import run_backup_stage
 from src.adapters.rclone.stream_sync import RcloneStreamSync
+from src.adapters.rclone.compress_stage import CompressStage
 from src.configuration.backup_config import BackupConfig
 from src.workflows.checkpoint import OperationCheckpoint
 from src.workflows.workflow_runner import (
@@ -101,7 +102,7 @@ def _run_backup_stages(checkpoint: OperationCheckpoint, config: BackupConfig) ->
     _run_restic_stage(checkpoint, _build_restic_args())
 
     for source in config.stream:
-        adapter = RcloneStreamSync(
+        stage = RcloneStreamSync(
             source=source.source,
             destination=source.destination,
             exclude=source.exclude,
@@ -109,10 +110,22 @@ def _run_backup_stages(checkpoint: OperationCheckpoint, config: BackupConfig) ->
         run_checkpoint_stage(
             checkpoint,
             f"stream-{source.name}",
-            lambda a=adapter, n=source.name: stream_sync_stage(a, n),
+            lambda s=stage, n=source.name: run_backup_stage(s, n),
             StagePolicy(
                 observed_on_failure="BackupFailed",
                 run_message=f"[stage:stream-{source.name}] Syncing {source.source} to {source.destination}",
+            ),
+        )
+
+    for source in config.compress:
+        stage = CompressStage(config=source)
+        run_checkpoint_stage(
+            checkpoint,
+            f"compress-{source.name}",
+            lambda s=stage, n=source.name: run_backup_stage(s, n),
+            StagePolicy(
+                observed_on_failure="BackupFailed",
+                run_message=f"[stage:compress-{source.name}] Compressing {source.source} to {source.destination}",
             ),
         )
 

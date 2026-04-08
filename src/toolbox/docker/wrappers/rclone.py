@@ -124,6 +124,64 @@ def rclone_sync(
     _run_or_raise_rclone_sync(cmd)
 
 
+def rclone_copy(
+    source: str,
+    destination: str,
+    *,
+    docker_args: list[str] | None = None,
+    extra_args: list[str] | None = None,
+) -> None:
+    """Run `rclone copy` in a disposable container (no destination deletion)."""
+    docker_args = _normalize_list(docker_args)
+    extra_args = _normalize_list(extra_args)
+
+    cmd: list[str] = [
+        "docker",
+        "run",
+        "--rm",
+        *docker_args,
+        _rclone_image(),
+        "copy",
+        source,
+        destination,
+        "--progress",
+        *extra_args,
+    ]
+    try:
+        subprocess.run(cmd, check=True)
+    except CalledProcessError as err:
+        raise RuntimeError(f"rclone copy failed with {err.returncode}: {' '.join(cmd)}") from err
+
+
+def rclone_lsf(
+    path: str,
+    *,
+    docker_args: list[str] | None = None,
+    extra_args: list[str] | None = None,
+) -> list[str]:
+    """Run `rclone lsf --recursive --files-only` and return the file paths."""
+    docker_args = _normalize_list(docker_args)
+    extra_args = _normalize_list(extra_args)
+
+    cmd: list[str] = [
+        "docker",
+        "run",
+        "--rm",
+        *docker_args,
+        _rclone_image(),
+        "lsf",
+        path,
+        "--recursive",
+        "--files-only",
+        *extra_args,
+    ]
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except CalledProcessError as err:
+        raise RuntimeError(f"rclone lsf failed with {err.returncode}: {' '.join(cmd)}") from err
+    return [line for line in result.stdout.splitlines() if line]
+
+
 def _try_fuse_unmount() -> None:
     """Attempt to unmount rclone FUSE mount inside the rclone container."""
     if not _mount_ready_for_unmount():
@@ -144,4 +202,4 @@ def cleanup_media_mount() -> None:
     _try_fuse_unmount()
 
 
-__all__ = ["rclone_sync", "cleanup_media_mount"]
+__all__ = ["rclone_sync", "rclone_copy", "rclone_lsf", "cleanup_media_mount"]

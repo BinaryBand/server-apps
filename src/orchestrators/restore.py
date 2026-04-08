@@ -1,4 +1,8 @@
 from src.backup.restore import recent_snapshots, restore_snapshot
+from src.backup.stage_runner import run_restore_stage
+from src.adapters.rclone.stream_sync import RcloneStreamSync
+from src.adapters.rclone.compress_stage import CompressStage
+from src.configuration.backup_config import BackupConfig
 from src.workflows.workflow_runner import (
     StagePolicy,
     run_checkpoint_stage,
@@ -37,6 +41,9 @@ def _print_snapshots() -> None:
 
 
 def _run_restore(args: Namespace, *, resume_enabled: bool) -> None:
+    root = repo_root()
+    config = BackupConfig.from_toml(root / "configs" / "backup.toml")
+
     checkpoint = start_checkpoint(
         "restore",
         "RestoreCompleted",
@@ -56,6 +63,34 @@ def _run_restore(args: Namespace, *, resume_enabled: bool) -> None:
             run_message="[stage:restore] Starting snapshot restore",
         ),
     )
+
+    for source in config.stream:
+        stage = RcloneStreamSync(
+            source=source.source,
+            destination=source.destination,
+            exclude=source.exclude,
+        )
+        run_checkpoint_stage(
+            checkpoint,
+            f"restore-stream-{source.name}",
+            lambda s=stage, n=source.name: run_restore_stage(s, n),
+            StagePolicy(
+                observed_on_failure="RestoreFailed",
+                run_message=f"[stage:restore-stream-{source.name}] Restoring {source.destination} to {source.source}",
+            ),
+        )
+
+    for source in config.compress:
+        stage = CompressStage(config=source)
+        run_checkpoint_stage(
+            checkpoint,
+            f"restore-compress-{source.name}",
+            lambda s=stage, n=source.name: run_restore_stage(s, n),
+            StagePolicy(
+                observed_on_failure="RestoreFailed",
+                run_message=f"[stage:restore-compress-{source.name}] Restoring compressed archives to {source.source}",
+            ),
+        )
 
     checkpoint.finish(observed="RestoreCompleted", ok=True)
     print("[stage:complete] Restore pipeline completed")
