@@ -3,8 +3,8 @@ from __future__ import annotations
 from contextlib import nullcontext
 from unittest.mock import patch
 
-from src.orchestrators.backup import main
 from src.configuration.backup_config import BackupConfig, BatchConfig
+from src.orchestrators.backup import main
 
 
 def _empty_config() -> BackupConfig:

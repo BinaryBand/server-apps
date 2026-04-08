@@ -1,8 +1,25 @@
-from src.backup.gather import gather_stage
-from src.backup.stage_runner import run_backup_stage
-from src.adapters.rclone.stream_sync import RcloneStreamSync
+import sys
+from pathlib import Path
+
 from src.adapters.rclone.compress_stage import CompressStage
+from src.adapters.rclone.stream_sync import RcloneStreamSync
+from src.backup.gather import gather_stage
+from src.backup.restic import (
+    ResticRunnerError,
+    has_restic_repo,
+    init_restic_repo,
+    push_restic_to_cloud,
+    run_backup,
+)
+from src.backup.stage_runner import run_backup_stage
 from src.configuration.backup_config import BackupConfig
+from src.toolbox.core.config import restic_pcloud_sync_enabled, runbook_resume_enabled
+from src.toolbox.core.locking import RunbookLock
+from src.toolbox.core.runtime import (
+    checkpoints_root,
+    locks_root,
+    repo_root,
+)
 from src.workflows.checkpoint import OperationCheckpoint
 from src.workflows.workflow_runner import (
     StagePolicy,
@@ -10,24 +27,6 @@ from src.workflows.workflow_runner import (
     run_checkpoint_stage,
     start_checkpoint,
 )
-from src.backup.restic import (
-    ResticRunnerError,
-    has_restic_repo,
-    init_restic_repo,
-    run_backup,
-    push_restic_to_cloud,
-)
-from src.toolbox.core.locking import RunbookLock
-from src.toolbox.core.runtime import (
-    checkpoints_root,
-    locks_root,
-    repo_root,
-)
-
-from pathlib import Path
-import sys
-from src.toolbox.core.config import runbook_resume_enabled
-from src.toolbox.core.config import restic_pcloud_sync_enabled
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(repo_root()))
