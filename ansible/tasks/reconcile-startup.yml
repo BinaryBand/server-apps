@@ -139,6 +139,7 @@
     - minio_volume_path.startswith('/')
 
 - name: Heal stale media mountpoint before compose startup
+  become: "{{ runtime_recover_with_become_enabled | bool }}"
   ansible.builtin.shell: |
     set -u
     media_path="{{ lookup('ansible.builtin.env', 'MEDIA_MOUNT_DIR', default=repo_root_path ~ '/runtime/media') }}"

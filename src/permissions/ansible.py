@@ -77,6 +77,21 @@ def _build_playbook_command(paths: _PlaybookPaths, *, mode: MODE, dry_run: bool)
 	return command
 
 
+def _build_recovery_playbook_command(
+	paths: _PlaybookPaths,
+	*,
+	mode: MODE,
+	dry_run: bool,
+) -> list[str]:
+	command = _build_playbook_command(paths, mode=mode, dry_run=dry_run)
+	command.extend([
+		"--ask-become-pass",
+		"-e",
+		"runtime_recover_with_become_request=true",
+	])
+	return command
+
+
 def _run_playbook(command: list[str], *, cwd: Path) -> None:
 	subprocess.run(command, check=True, env=os.environ.copy(), cwd=str(cwd))
 
@@ -118,6 +133,22 @@ def run_permissions_playbook(
 	try:
 		_run_or_escalate(command, mode=mode)
 	except Exception as err:
+		if mode == "runtime" and not dry_run:
+			print(
+				"[permissions] Runtime playbook failed; retrying with sudo prompt for recovery tasks..."
+			)
+			recovery_cmd = _build_recovery_playbook_command(
+				paths,
+				mode=mode,
+				dry_run=dry_run,
+			)
+			try:
+				_run_playbook(recovery_cmd, cwd=runtime.repo_root())
+				return
+			except Exception as retry_err:
+				hint = _format_runtime_failure_hint(retry_err, mode=mode)
+				raise RuntimeError(f"Failed to run permissions playbook: {hint}") from retry_err
+
 		hint = _format_runtime_failure_hint(err, mode=mode)
 		raise RuntimeError(f"Failed to run permissions playbook: {hint}") from err
 

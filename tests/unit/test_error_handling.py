@@ -263,6 +263,34 @@ class TestAnsibleErrorHandling:
         assert "Failed to run permissions playbook" in message
         assert "Runtime mode requires Docker daemon access" in message
 
+    def test_run_permissions_playbook_runtime_retries_with_become_prompt(
+        self, monkeypatch
+    ):
+        """Runtime failures should retry once with --ask-become-pass recovery flag."""
+        from subprocess import CalledProcessError
+
+        def mock_exists(self):
+            return True
+
+        monkeypatch.setattr("pathlib.Path.exists", mock_exists)
+        monkeypatch.setattr("os.getuid", lambda: 1000)
+        monkeypatch.setattr("os.getgid", lambda: 1000)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                CalledProcessError(2, "ansible-playbook"),
+                None,
+            ]
+
+            run_permissions_playbook(mode="runtime")
+
+        first_cmd = mock_run.call_args_list[0][0][0]
+        retry_cmd = mock_run.call_args_list[1][0][0]
+
+        assert "--ask-become-pass" not in first_cmd
+        assert "--ask-become-pass" in retry_cmd
+        assert "runtime_recover_with_become_request=true" in retry_cmd
+
 
 class TestPostStartErrorHandling:
     """Test error handling in post-start operations"""

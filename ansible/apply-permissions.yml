@@ -10,6 +10,7 @@
     permissions_mode_selected: "{{ permissions_mode | default('runtime') }}"
     apply_privileged: "{{ permissions_mode_selected == 'bootstrap' }}"
     apply_reset: "{{ permissions_mode_selected == 'reset' }}"
+    runtime_recover_with_become_enabled: "{{ (runtime_recover_with_become_request | default(false)) | bool }}"
     reset_uid_selected: "{{ (reset_uid | default('1000')) | int }}"
     reset_gid_selected: "{{ (reset_gid | default('1000')) | int }}"
     volume_entries: "{{ permissions_data.volumes | default([]) }}"
