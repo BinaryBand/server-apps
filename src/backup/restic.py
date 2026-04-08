@@ -6,6 +6,7 @@ import subprocess
 from src.storage.compose import compose_cmd
 from src.storage.volumes import storage_mount_source
 from src.toolbox.core.config import restic_pcloud_remote, restic_version
+from src.toolbox.docker.volumes_config import storage_docker_mount_flags
 from src.toolbox.docker.wrappers.rclone import rclone_sync
 
 log = logging.getLogger(__name__)
@@ -129,7 +130,11 @@ def run_backup(
 
 
 def push_restic_to_cloud() -> None:
-    rclone_sync("restic_repo", RESTIC_PCLOUD_REMOTE)
+    restic_container_path = "/restic_repo"
+    docker_args: list[str] = storage_docker_mount_flags("restic_repo", restic_container_path, read_only=True)
+    docker_args += storage_docker_mount_flags("rclone_config", "/config/rclone", read_only=True)
+    docker_args += ["-e", "RCLONE_CONFIG=/config/rclone/rclone.conf"]
+    rclone_sync(restic_container_path, RESTIC_PCLOUD_REMOTE, docker_args=docker_args)
 
 
 __all__ = [

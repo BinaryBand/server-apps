@@ -2,20 +2,16 @@
 # Paths staged locally and snapshotted by restic (versioned, deduplicated).
 # Roots are relative to /data inside the gather container.
 include = [
+  # Jellyfin: config XMLs and library definitions
   "volumes/jellyfin_config/**",
+  # Jellyfin: databases, playlists, user data, plugins, and virtual-folder state
   "volumes/jellyfin_data/data/**",
-  # Explicit SQLite coverage (live DB + companions + exported snapshots)
-  "volumes/jellyfin_data/data/**/*.db",
-  "volumes/jellyfin_data/data/**/*.sqlite",
-  "volumes/jellyfin_data/data/**/*.sqlite3",
-  "volumes/jellyfin_data/data/**/*.db-wal",
-  "volumes/jellyfin_data/data/**/*.db-shm",
-  "volumes/jellyfin_data/data/db-snapshots/**",
   "volumes/jellyfin_data/plugins/**",
+  "volumes/jellyfin_data/root/**",
   # Baikal: CalDAV/CardDAV config and data
   "volumes/baikal_config/**",
   "volumes/baikal_data/**",
-  # MinIO config/identity + bucket metadata only
+  # MinIO: config/identity + bucket metadata only (.minio.sys object data excluded below)
   "volumes/minio_data/.minio.sys/config/**",
   "volumes/minio_data/.minio.sys/buckets/*/.metadata.bin/**",
   "volumes/minio_data/.minio.sys/pool.bin",
@@ -23,22 +19,30 @@ include = [
   "volumes/minio_data/notes/**",
 ]
 exclude = [
-  # Volatile MinIO internals — never back up
+  # Jellyfin: metadata artwork is large and can be regenerated
+  "volumes/jellyfin_data/metadata/**",
+  # Jellyfin: transcodes are transient scratch space
+  "volumes/jellyfin_data/data/transcodes/**",
+  # MinIO: volatile upload internals — never back up
   "volumes/minio_data/.minio.sys/tmp/**",
   "volumes/minio_data/.minio.sys/multipart/**",
-  # Jellyfin metadata artwork — too large for local staging (streamed separately)
-  "volumes/jellyfin_data/metadata/**",
-  # Jellyfin transcodes — transient, never back up
-  "volumes/jellyfin_data/data/transcodes/**",
 ]
 
 [[stream]]
-# MinIO object data (excluding notes, which goes via restic batch above).
-# To enable chunking for objects >2 GB change destination to:
+# MinIO object data: stream remaining buckets (not notes or media) directly
+# from the host volume to pCloud. Excludes .minio.sys entirely — the critical
+# parts (config, bucket metadata) are already versioned by restic above.
+# To enable chunking for objects >2 GB, change destination to:
 #   pcloud_chunker:Backups/Minio
-# (and update minio_restore.py to match)
 name = "minio-objects"
-source = "minio:"
+source = "volumes/minio_data"
 destination = "pcloud:Backups/Minio"
-exclude = ["notes/**"]
-# compress/archive-based staging removed; prefer stream and restic only
+exclude = [".minio.sys/**", "notes/**", "media/**"]
+
+[[stream]]
+# Audio/media bucket: copy directly from the MinIO S3 remote via rclone.
+# Keeps large-media transfers out of restic entirely.
+name = "minio-media"
+source = "minio:media"
+destination = "pcloud:Backups/Minio/media"
+exclude = []
