@@ -23,7 +23,7 @@ code .
 
 ## Tooling Config
 
-All tooling behaviour is driven by committed config files — editor-agnostic, picked up automatically.
+All tooling behavior is driven by committed config files — editor-agnostic, picked up automatically.
 
 **`pyproject.toml`** — relevant sections:
 

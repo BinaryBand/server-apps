@@ -118,7 +118,7 @@ reduces API overhead while still preserving content.
 ### `src/orchestrators/backup.py`
 
 Runs stages in order: gather → restic → stream × N.
-Each stage is wrapped in `run_checkpoint_stage` for resumability.
+Each stage is wrapped in `run_checkpoint_stage` for resume-ability.
 
 ### `src/orchestrators/restore.py`
 
@@ -130,7 +130,7 @@ Loads `BackupConfig` from `backup.toml` to drive the stream stages.
 ## Files
 
 | File | Role |
-|---|---|
+| --- | --- |
 | `src/ports/backup_stage.py` | `BackupStage` protocol (the port) |
 | `src/adapters/rclone/stream_sync.py` | `RcloneStreamSync` — bidirectional sync adapter |
 | `src/backup/stage_runner.py` | Generic `run_backup_stage` / `run_restore_stage` |

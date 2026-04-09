@@ -1,57 +1,19 @@
 {
   "cSpell.words": [
     "dockerfiles",
-    "dotenv",
     "healthcheck",
     "jellyfin",
     "mountpoint",
     "pcloud",
     "pgid",
     "puid",
+    "Pydantic",
+    "PYTHONPATH",
+    "pyyaml",
     "rclone",
     "restic",
     "rprivate",
+    "semgrep",
     "setuptools"
-  ],
-  "files.exclude": {
-    "**/.pytest_cache": true,
-    "**/__pycache__": true,
-    "**/.ruff_cache": true,
-    "**/*.egg-info": true,
-    "**/build": true,
-    "**/.venv": true
-  },
-  "search.exclude": {
-    "**/.pytest_cache": true,
-    "**/__pycache__": true,
-    "**/.ruff_cache": true,
-    "**/*.egg-info": true,
-    "**/build": true,
-    "**/.venv": true
-  },
-  "files.watcherExclude": {
-    "**/.pytest_cache/**": true,
-    "**/__pycache__/**": true,
-    "**/.ruff_cache/**": true,
-    "**/*.egg-info": true,
-    "**/build": true,
-    "**/.venv": true
-  },
-  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
-  "python.terminal.activateEnvironment": true,
-  "python.terminal.activateEnvInCurrentTerminal": true,
-  "python.testing.pytestArgs": ["tests"],
-  "python.testing.unittestEnabled": false,
-  "python.testing.pytestEnabled": true,
-  "python.analysis.typeCheckingMode": "off",
-  "python.analysis.diagnosticMode": "openFilesOnly",
-  "editor.formatOnSave": true,
-  "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit"
-  },
-  "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff"
-  },
-  "python-envs.defaultEnvManager": "ms-python.python:poetry",
-  "python-envs.defaultPackageManager": "ms-python.python:poetry"
+  ]
 }
