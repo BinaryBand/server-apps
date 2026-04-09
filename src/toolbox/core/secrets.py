@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from typing import overload
 
 from dotenv import find_dotenv, load_dotenv
@@ -9,9 +10,22 @@ _loaded = False
 
 
 def _load_env_once() -> None:
+    """Load .env once, but skip during pytest runs to keep tests hermetic.
+
+    Tests expect environment defaults and should not be affected by a
+    repository `.env`. Detect pytest by the `PYTEST_CURRENT_TEST` env var
+    or presence of the `pytest` module in `sys.modules` and avoid loading
+    the file in those cases.
+    """
     global _loaded
     if _loaded:
         return
+
+    # Avoid loading the repository .env while running tests.
+    if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
+        _loaded = True
+        return
+
     load_dotenv(find_dotenv())
     _loaded = True
 

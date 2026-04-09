@@ -120,7 +120,7 @@ def _run_backup_stages(checkpoint: OperationCheckpoint, config: BackupConfig) ->
     # compress support removed; no compress stages to run
 
 
-def main():
+def main() -> None:
     resume_enabled = runbook_resume_enabled()
     root: Path = repo_root()
     config = BackupConfig.from_toml(root / "configs" / "backup.toml")

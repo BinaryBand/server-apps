@@ -84,7 +84,7 @@ def _run_restore(args: Namespace, *, resume_enabled: bool) -> None:
     print("[stage:complete] Restore pipeline completed")
 
 
-def main():
+def main() -> None:
     args = _parse_args()
     resume_enabled = runbook_resume_enabled()
 

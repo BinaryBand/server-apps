@@ -8,7 +8,14 @@ from typing import Literal
 
 
 class RunbookLock:
-    def __init__(self, name: str, root: Path, *, timeout_seconds: float = 0.0):
+    def __init__(self, name: str, root: Path, *, timeout_seconds: float | None = None):
+        # timeout_seconds: if None, read from env RUNBOOK_LOCK_TIMEOUT (seconds)
+        if timeout_seconds is None:
+            try:
+                timeout_seconds = float(os.environ.get("RUNBOOK_LOCK_TIMEOUT", "0"))
+            except ValueError:
+                timeout_seconds = 0.0
+
         self._name: str = name
         self._root: Path = root
         self._timeout_seconds: float = timeout_seconds
@@ -18,9 +25,21 @@ class RunbookLock:
         marker: Path = self._lock_dir / "owner.txt"
         try:
             text = marker.read_text(encoding="utf-8")
-            pid = int(text.strip().removeprefix("pid="))
-        except (FileNotFoundError, ValueError):
+        except FileNotFoundError:
             return True
+
+        pid = None
+        for line in text.splitlines():
+            if line.startswith("pid="):
+                try:
+                    pid = int(line.removeprefix("pid=").strip())
+                except ValueError:
+                    pid = None
+                break
+
+        if pid is None:
+            return True
+
         try:
             os.kill(pid, 0)
             return False
@@ -39,7 +58,11 @@ class RunbookLock:
         try:
             self._lock_dir.mkdir()
             marker: Path = self._lock_dir / "owner.txt"
-            marker.write_text(f"pid={os.getpid()}\n", encoding="utf-8")
+            # record pid and start time for diagnostics
+            marker.write_text(
+                f"pid={os.getpid()}\nstarted={time.time()}\n",
+                encoding="utf-8",
+            )
             return "acquired"
         except PermissionError as err:
             raise RuntimeError(f"unable to acquire lock: {self._lock_dir}") from err

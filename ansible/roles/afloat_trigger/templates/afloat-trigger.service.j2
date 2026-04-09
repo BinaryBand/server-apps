@@ -1,0 +1,12 @@
+[Unit]
+Description=Afloat Trigger Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=nobody
+ExecStart=/usr/bin/curl --silent --show-error --fail --retry 3 --retry-delay 10 --max-time 30 -X POST -H "Content-Type: application/json" -d '{}' {{ afloat_api_url }}/runs
+
+[Install]
+WantedBy=multi-user.target

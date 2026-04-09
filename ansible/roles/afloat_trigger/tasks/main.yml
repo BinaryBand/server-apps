@@ -1,0 +1,28 @@
+---
+- name: Template service file
+  become: true
+  ansible.builtin.template:
+    src: afloat-trigger.service.j2
+    dest: /etc/systemd/system/afloat-trigger.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Template timer file
+  become: true
+  ansible.builtin.template:
+    src: afloat-trigger.timer.j2
+    dest: /etc/systemd/system/afloat-trigger.timer
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Ensure timer is enabled and started
+  become: true
+  ansible.builtin.systemd:
+    name: afloat-trigger.timer
+    enabled: true
+    state: started
+    daemon_reload: true

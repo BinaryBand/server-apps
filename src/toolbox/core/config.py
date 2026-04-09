@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from src.toolbox.core.runtime import repo_root
 from src.toolbox.core.secrets import read_secret
 
 try:
     from src.configuration.rclone_config import RcloneConfig
-except Exception:
+except ImportError:
     RcloneConfig = None  # type: ignore
 
 
@@ -15,24 +13,23 @@ def get_project_name() -> str:
     return read_secret("PROJECT_NAME", "cloud-apps")
 
 
-_RCLONE_CFG: Optional[RcloneConfig]
+_RCLONE_CFG: RcloneConfig | None = None
+_RCLONE_CFG_LOADED: bool = False
 
 
-def _load_rclone_config() -> Optional[RcloneConfig]:
-    global _RCLONE_CFG
+def _load_rclone_config() -> RcloneConfig | None:
+    global _RCLONE_CFG, _RCLONE_CFG_LOADED
     if RcloneConfig is None:
-        _RCLONE_CFG = None
         return None
-    if "_RCLONE_CFG" in globals() and _RCLONE_CFG is not None:
+    if _RCLONE_CFG_LOADED:
         return _RCLONE_CFG
     cfg_path = repo_root() / "configs" / "rclone.toml"
     try:
-        if cfg_path.exists():
-            _RCLONE_CFG = RcloneConfig.from_toml(cfg_path)
-        else:
-            _RCLONE_CFG = RcloneConfig()
-    except Exception:
+        _RCLONE_CFG = RcloneConfig.from_toml(cfg_path) if cfg_path.exists() else RcloneConfig()
+    except Exception as err:
+        print(f"[config] Failed to load rclone config: {err}")
         _RCLONE_CFG = RcloneConfig()
+    _RCLONE_CFG_LOADED = True
     return _RCLONE_CFG
 
 

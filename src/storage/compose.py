@@ -42,7 +42,8 @@ def probe_external_volume(name: str) -> bool:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-    except Exception:
+    except OSError as err:
+        print(f"[compose] probe external volume error for {name}: {err}")
         return False
     return result.returncode == 0
 

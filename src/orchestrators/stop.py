@@ -54,7 +54,7 @@ def _run_stop_stages() -> None:
     print("Shutdown complete.")
 
 
-def main():
+def main() -> None:
     with RunbookLock("start-stop", locks_root()):
         _run_stop_stages()
 
