@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
 import pytest
+from src.toolbox.docker.compose import ensure_external_volumes
 
 from src.observability.health import run_runtime_health_checks
 from src.observability.post_start import run_runtime_post_start
@@ -12,7 +13,6 @@ from src.reconciler.core import reconcile_once
 from src.toolbox.core.ansible import run_permissions_playbook
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.secrets import minio_credentials
-from src.toolbox.docker.compose import ensure_external_volumes
 from tests.support.reconciler_helpers import patch_reconciler_observer, patch_runtime_pipeline
 
 

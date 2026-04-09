@@ -8,8 +8,8 @@ from src.configuration.backup_config import BackupConfig, StreamSource
 from src.toolbox.core.config import runbook_resume_enabled
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.runtime import checkpoints_root, locks_root, repo_root
-from src.workflows.workflow_runner import StagePolicy, run_checkpoint_stage, start_checkpoint
 from src.workflows.checkpoint import OperationCheckpoint
+from src.workflows.workflow_runner import StagePolicy, run_checkpoint_stage, start_checkpoint
 
 DEFAULT_RESTORE_TARGET = "/backups/restore"
 

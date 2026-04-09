@@ -1,0 +1,6 @@
+rules:
+  - id: no-os-system
+    pattern: os.system(...)
+    message: "Use subprocess.run() instead of os.system() — no shell injection surface."
+    languages: [python]
+    severity: ERROR

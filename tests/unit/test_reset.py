@@ -41,7 +41,7 @@ def test_main_runs_dry_run_without_modifications() -> None:
             "src.orchestrators.reset.compose_cmd",
             return_value=["docker", "compose", "down"],
         ),
-        patch("subprocess.run", return_value=Mock()) as mock_run,
+        patch("subprocess.run", return_value=Mock()),
         patch("src.orchestrators.reset.remove_project_volumes", return_value=(0, 0)),
         patch("src.orchestrators.reset.normalize_reset_permissions", return_value=None),
     ):

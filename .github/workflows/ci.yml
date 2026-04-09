@@ -1,0 +1,53 @@
+name: CI - Quality & Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  quality-and-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install Poetry
+        run: python -m pip install poetry
+
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.create false
+          poetry install --no-interaction --no-ansi --with dev
+
+      - name: Ruff lint
+        run: ruff check src tests
+
+      - name: Ruff format check
+        run: ruff format --check src tests
+
+      - name: Lizard complexity (project)
+        run: python -m lizard src runbook -C 5 -L 25 -a 4 -w
+
+      - name: Lizard file gate
+        run: python scripts/quality/lizard_file_gate.py src runbook --max-file-ccn-sum 35 --max-file-avg-ccn 4.5 --max-file-high-risk-funcs 2 --high-risk-ccn 6
+
+      - name: Vulture dead code
+        run: python -m vulture src runbook --min-confidence 80
+
+      - name: Import-linter
+        env:
+          PYTHONPATH: .
+        run: lint-imports
+
+      - name: Run tests
+        run: python -m pytest -q

@@ -1,0 +1,6 @@
+rules:
+  - id: no-subprocess-shell-true
+    pattern: subprocess.run(..., shell=True, ...)
+    message: "subprocess.run with shell=True is forbidden — construct arg lists instead."
+    languages: [python]
+    severity: ERROR

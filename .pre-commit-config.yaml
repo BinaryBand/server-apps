@@ -27,3 +27,17 @@ repos:
         entry: .venv/bin/lint-imports
         language: system
         pass_filenames: false
+
+      - id: jscpd
+        name: jscpd duplicate detection
+        entry: jscpd
+        language: system
+        args: ["--config", ".jscpd.json"]
+        pass_filenames: false
+
+      - id: semgrep
+        name: Semgrep custom rules
+        entry: .venv/bin/semgrep
+        language: system
+        args: ["--config", "rules/semgrep/", "src/", "--error"]
+        pass_filenames: false
