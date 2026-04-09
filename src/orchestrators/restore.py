@@ -49,7 +49,10 @@ def _run_stream_restore(source: StreamSource, checkpoint: OperationCheckpoint) -
         ),
         StagePolicy(
             observed_on_failure="RestoreFailed",
-            run_message=(f"[stage:restore-stream-{source.name}] Restoring {source.destination} to {source.source}"),
+            run_message=(
+                f"[stage:restore-stream-{source.name}] Restoring {source.destination} "
+                f"to {source.source}"
+            ),
         ),
     )
 
@@ -58,7 +61,9 @@ def _run_restore(args: Namespace, *, resume_enabled: bool) -> None:
     root = repo_root()
     config = BackupConfig.from_toml(root / "configs" / "backup.toml")
 
-    checkpoint = start_checkpoint("restore", "RestoreCompleted", root=checkpoints_root(), resume=resume_enabled)
+    checkpoint = start_checkpoint(
+        "restore", "RestoreCompleted", root=checkpoints_root(), resume=resume_enabled
+    )
 
     run_checkpoint_stage(
         checkpoint,

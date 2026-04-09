@@ -152,6 +152,38 @@
       }
     },
     {
+      "label": "Check: Duplicate Code (jscpd)",
+      "type": "shell",
+      "command": "jscpd",
+      "args": [
+        "--config",
+        ".jscpd.json"
+      ],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Check: Semgrep Rules",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/semgrep",
+      "args": [
+        "--config",
+        "rules/semgrep/",
+        "src/",
+        "--error"
+      ],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
       "label": "Validate: Python Gate",
       "dependsOrder": "sequence",
       "dependsOn": [
@@ -159,7 +191,9 @@
         "Ruff: Format Check",
         "Check: Lizard Complexity",
         "Check: Lizard File Complexity",
-        "Check: Vulture Dead Code"
+        "Check: Vulture Dead Code",
+        "Check: Duplicate Code (jscpd)",
+        "Check: Semgrep Rules"
       ],
       "group": {
         "kind": "test",

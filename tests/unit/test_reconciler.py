@@ -45,7 +45,9 @@ def test_check_only_reports_healthy_when_checks_pass(state_root_tmp, monkeypatch
     assert condition.status == "true"
 
 
-def test_check_only_reports_degraded_when_media_bucket_not_public(state_root_tmp, monkeypatch) -> None:
+def test_check_only_reports_degraded_when_media_bucket_not_public(
+    state_root_tmp, monkeypatch
+) -> None:
     patch_reconciler_observer(
         monkeypatch,
         volumes=[],
@@ -61,7 +63,9 @@ def test_check_only_reports_degraded_when_media_bucket_not_public(state_root_tmp
     assert condition.status == "false"
 
 
-def test_check_only_records_media_public_condition_when_healthy(state_root_tmp, monkeypatch) -> None:
+def test_check_only_records_media_public_condition_when_healthy(
+    state_root_tmp, monkeypatch
+) -> None:
     patch_reconciler_observer(
         monkeypatch,
         volumes=[],

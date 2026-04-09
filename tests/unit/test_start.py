@@ -82,7 +82,10 @@ def test_main_handles_permission_errors_during_workflow() -> None:
         ),
         patch(
             "src.workflows.pipeline.run_permissions_playbook",
-            side_effect=RuntimeError("Failed to run permissions playbook: Operation not permitted: /media/owen/Passport/minio"),
+            side_effect=RuntimeError(
+                "Failed to run permissions playbook: Operation not permitted: "
+                "/media/owen/Passport/minio"
+            ),
         ),
     ):
         try:

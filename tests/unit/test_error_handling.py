@@ -5,7 +5,6 @@ from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
 import pytest
-from src.toolbox.docker.compose import ensure_external_volumes
 
 from src.observability.health import run_runtime_health_checks
 from src.observability.post_start import run_runtime_post_start
@@ -13,6 +12,7 @@ from src.reconciler.core import reconcile_once
 from src.toolbox.core.ansible import run_permissions_playbook
 from src.toolbox.core.locking import RunbookLock
 from src.toolbox.core.secrets import minio_credentials
+from src.toolbox.docker.compose import ensure_external_volumes
 from tests.support.reconciler_helpers import patch_reconciler_observer, patch_runtime_pipeline
 
 
@@ -97,7 +97,9 @@ class TestHealthChecksErrorHandling:
         )
 
         with patch("src.observability.health._run_command") as mock_run:
-            mock_run.return_value = Mock(returncode=1, stdout="", stderr="No such container: nonexistent\n")
+            mock_run.return_value = Mock(
+                returncode=1, stdout="", stderr="No such container: nonexistent\n"
+            )
 
             with pytest.raises(RuntimeError) as err:
                 wait_for_container_health(
@@ -195,10 +197,16 @@ class TestAnsibleErrorHandling:
 
         cmd = captured_cmd[0]
         assert "-e" in cmd
-        mode_idx = next(i for i, v in enumerate(cmd) if v == "-e" and i + 1 < len(cmd) and "permissions_mode" in cmd[i + 1])
+        mode_idx = next(
+            i
+            for i, v in enumerate(cmd)
+            if v == "-e" and i + 1 < len(cmd) and "permissions_mode" in cmd[i + 1]
+        )
         assert cmd[mode_idx + 1] == "permissions_mode=runtime"
 
-    def test_run_permissions_playbook_runtime_service_owned_dir_failure_wraps_error(self, monkeypatch):
+    def test_run_permissions_playbook_runtime_service_owned_dir_failure_wraps_error(
+        self, monkeypatch
+    ):
         """Test that EPERM errors from service-owned directories produce useful RuntimeError.
 
         Before the storage role fix (mode: omit in runtime), ansible would fail trying
@@ -236,7 +244,9 @@ class TestAnsibleErrorHandling:
         monkeypatch.setattr("os.getgid", lambda: 1000)
 
         with patch("subprocess.run") as mock_run:
-            mock_run.side_effect = Exception("permission denied while trying to connect to the docker API at unix:///var/run/docker.sock")
+            mock_run.side_effect = Exception(
+                "permission denied while trying to connect to the docker API at unix:///var/run/docker.sock"
+            )
 
             with pytest.raises(RuntimeError) as err:
                 run_permissions_playbook(mode="runtime")

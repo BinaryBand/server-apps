@@ -102,7 +102,10 @@ def _run_backup_streams(checkpoint: OperationCheckpoint, config: BackupConfig) -
             lambda s=stage, n=source.name: run_backup_stage(s, n),
             StagePolicy(
                 observed_on_failure="BackupFailed",
-                run_message=f"[stage:stream-{source.name}] Syncing {source.source} to {source.destination}",
+                    run_message=(
+                        f"[stage:stream-{source.name}] Syncing {source.source} "
+                        f"to {source.destination}"
+                    ),
             ),
         )
 

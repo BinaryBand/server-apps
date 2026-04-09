@@ -94,7 +94,9 @@ def restore_env(repo_root, docker_available):
         )
 
 
-def _assert_restore_source_and_target(docker_args: list[str], source_path: str, logical_name: str) -> None:
+def _assert_restore_source_and_target(
+    docker_args: list[str], source_path: str, logical_name: str
+) -> None:
     try:
         probe = subprocess.run(
             [
@@ -105,7 +107,10 @@ def _assert_restore_source_and_target(docker_args: list[str], source_path: str, 
                 "alpine:3.20",
                 "sh",
                 "-lc",
-                (f"test -d '{source_path}' && find '{source_path}' -mindepth 1 -print -quit | grep -q . && test -d /dest"),
+                (
+                    f"test -d '{source_path}' && find '{source_path}' -mindepth 1 -print -quit "
+                    f"| grep -q . && test -d /dest"
+                ),
             ],
             check=False,
             capture_output=True,
@@ -116,7 +121,9 @@ def _assert_restore_source_and_target(docker_args: list[str], source_path: str, 
         pytest.fail(f"Timed out while probing restore path for {logical_name}: {err}")
 
     assert probe.returncode == 0, (
-        f"Expected populated restore source for {logical_name} at {source_path}.\nstdout:\n{probe.stdout}\nstderr:\n{probe.stderr}"
+        f"Expected populated restore source for {logical_name} at {source_path}.\n"
+        f"stdout:\n{probe.stdout}\n"
+        f"stderr:\n{probe.stderr}"
     )
 
 
@@ -155,5 +162,6 @@ def test_restore_applies_all_staged_logical_volumes(restore_env, monkeypatch) ->
 
     restore_snapshot(target=RESTORE_TARGET)
 
-    # simple assertions that the fake restic and pull were invoked by code paths; we used lambdas so just assert seen logical names
+    # Simple assertions that the fake restic and pull were invoked by code paths.
+    # We used lambdas so just assert seen logical names.
     assert seen_logical_names == set(env["logical_names"])

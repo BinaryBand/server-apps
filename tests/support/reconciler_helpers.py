@@ -42,7 +42,11 @@ def patch_runtime_pipeline(
 ) -> dict[str, Mock]:
     mocks = {
         "ensure_volumes": Mock(),
-        "run_permissions": (Mock(side_effect=permissions_side_effect) if permissions_side_effect is not None else Mock()),
+        "run_permissions": (
+            Mock(side_effect=permissions_side_effect)
+            if permissions_side_effect is not None
+            else Mock()
+        ),
         "run_post_start": Mock(),
         "run_health_checks": Mock(),
     }
@@ -50,5 +54,7 @@ def patch_runtime_pipeline(
     monkeypatch.setattr("src.workflows.pipeline.ensure_external_volumes", mocks["ensure_volumes"])
     monkeypatch.setattr("src.workflows.pipeline.run_permissions_playbook", mocks["run_permissions"])
     monkeypatch.setattr("src.workflows.pipeline.run_runtime_post_start", mocks["run_post_start"])
-    monkeypatch.setattr("src.workflows.pipeline.run_runtime_health_checks", mocks["run_health_checks"])
+    monkeypatch.setattr(
+        "src.workflows.pipeline.run_runtime_health_checks", mocks["run_health_checks"]
+    )
     return mocks

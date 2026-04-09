@@ -116,9 +116,13 @@ def _run_or_escalate(command: list[str], *, mode: MODE) -> None:
     _run_playbook(command, cwd=runtime.repo_root())
 
 
-def _handle_playbook_error(err: Exception, mode: MODE, dry_run: bool, paths: _PlaybookPaths) -> None:
+def _handle_playbook_error(
+    err: Exception, mode: MODE, dry_run: bool, paths: _PlaybookPaths
+) -> None:
     if mode == "runtime" and not dry_run:
-        print("[permissions] Runtime playbook failed; retrying with sudo prompt for recovery tasks...")
+        print(
+            "[permissions] Runtime playbook failed; retrying with sudo prompt for recovery tasks..."
+        )
         recovery_cmd = _build_recovery_playbook_command(
             paths,
             mode=mode,

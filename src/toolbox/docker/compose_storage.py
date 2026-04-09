@@ -15,7 +15,9 @@ def _run_compose_config_cmd() -> str:
     cmd: list[str] = compose_cmd("config", "--no-interpolate")
     proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
     if proc.returncode != 0:
-        raise RuntimeError(f"[compose_storage] Failed to render: {' '.join(cmd)}\n{proc.stderr.strip()}")
+        raise RuntimeError(
+            f"[compose_storage] Failed to render: {' '.join(cmd)}\n{proc.stderr.strip()}"
+        )
     return proc.stdout
 
 
@@ -25,7 +27,9 @@ def rendered_compose_config() -> dict[str, Any]:
     try:
         data = yaml.safe_load(yaml_str)
     except yaml.YAMLError as err:
-        raise RuntimeError(f"[compose_storage] Failed to parse rendered compose YAML: {err}") from err
+        raise RuntimeError(
+            f"[compose_storage] Failed to parse rendered compose YAML: {err}"
+        ) from err
 
     if not isinstance(data, dict):
         raise RuntimeError("[compose_storage] Rendered compose config is not a mapping")
@@ -33,7 +37,9 @@ def rendered_compose_config() -> dict[str, Any]:
     try:
         model: ComposeConfigModel = ComposeConfigModel.model_validate(data)
     except ValidationError as err:
-        raise RuntimeError(f"[compose_storage] Rendered compose config failed schema validation: {err}") from err
+        raise RuntimeError(
+            f"[compose_storage] Rendered compose config failed schema validation: {err}"
+        ) from err
 
     return model.model_dump(mode="python")
 

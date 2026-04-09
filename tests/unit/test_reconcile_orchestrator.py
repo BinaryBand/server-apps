@@ -25,7 +25,9 @@ def test_main_passes_check_only_flag() -> None:
     mock_state.runStatus = "ok"
 
     with (
-        patch("src.orchestrators.reconcile.reconcile_once", return_value=mock_state) as mock_reconcile,
+        patch(
+            "src.orchestrators.reconcile.reconcile_once", return_value=mock_state
+        ) as mock_reconcile,
         patch("sys.argv", ["reconcile", "--check-only"]),
     ):
         main()

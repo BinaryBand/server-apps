@@ -41,7 +41,10 @@ _EXEC_CHECKS_BASE: tuple[tuple[str, str, list[str], float, float], ...] = (
         [
             "sh",
             "-lc",
-            'grep -q " /media " /proc/self/mountinfo && test -r /media && ! test -w /media && ls /media >/dev/null',
+            (
+                'grep -q " /media " /proc/self/mountinfo && test -r /media && ! test -w /media '
+                '&& ls /media >/dev/null'
+            ),
         ],
         30,
         3,

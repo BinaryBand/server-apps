@@ -44,6 +44,21 @@ jobs:
       - name: Vulture dead code
         run: python -m vulture src runbook --min-confidence 80
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install jscpd
+        run: npm install -g jscpd
+
+      - name: jscpd duplicate detection
+        run: jscpd --config .jscpd.json
+        continue-on-error: true
+
+      - name: Semgrep rules
+        run: semgrep --config rules/semgrep/ src --error
+
       - name: Import-linter
         env:
           PYTHONPATH: .

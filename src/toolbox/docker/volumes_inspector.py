@@ -10,7 +10,9 @@ from src.toolbox.docker.compose_storage import (
 
 def _list_docker_volumes(*args: str) -> list[str]:
     cmd: list[str] = ["docker", "volume", "ls", *args, "--format", "{{.Name}}"]
-    proc: subprocess.CompletedProcess[str] = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    proc: subprocess.CompletedProcess[str] = subprocess.run(
+        cmd, check=False, capture_output=True, text=True
+    )
     if proc.returncode != 0:
         return []
     return list(filter(None, map(str.strip, proc.stdout.splitlines())))
@@ -31,7 +33,9 @@ def _fallback_configured_volumes() -> set[str]:
 
 def list_project_volumes(project: str) -> list[str]:
     """List compose-managed volumes for this stack."""
-    volumes: list[str] = _list_docker_volumes("--filter", f"label=com.docker.compose.project={project}")
+    volumes: list[str] = _list_docker_volumes(
+        "--filter", f"label=com.docker.compose.project={project}"
+    )
     if volumes:
         return volumes
 
