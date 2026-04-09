@@ -37,7 +37,5 @@ class ReconcileStateMachine:
 
     def move_to(self, next_state: ReconcileState) -> None:
         if next_state not in self._allowed_transitions[self.current]:
-            raise IllegalTransitionError(
-                f"Illegal reconciler transition: {self.current} -> {next_state}"
-            )
+            raise IllegalTransitionError(f"Illegal reconciler transition: {self.current} -> {next_state}")
         self.current = next_state

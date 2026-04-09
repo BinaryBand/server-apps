@@ -19,9 +19,7 @@ class WaitConfig:
 
 
 def _normalize_probe(raw_result: ProbeResult | bool) -> ProbeResult:
-    return (
-        raw_result if isinstance(raw_result, ProbeResult) else ProbeResult(ready=bool(raw_result))
-    )
+    return raw_result if isinstance(raw_result, ProbeResult) else ProbeResult(ready=bool(raw_result))
 
 
 def _timeout_message(description: str, timeout_seconds: float, detail: str | None) -> str:

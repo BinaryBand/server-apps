@@ -137,9 +137,7 @@ def rclone_copy(
         raise RuntimeError(f"rclone copy failed with {err.returncode}: {' '.join(cmd)}") from err
 
 
-def rclone_lsf(
-    path: str, *, docker_args: list[str] | None = None, extra_args: list[str] | None = None
-) -> list[str]:
+def rclone_lsf(path: str, *, docker_args: list[str] | None = None, extra_args: list[str] | None = None) -> list[str]:
     """Run `rclone lsf --recursive --files-only` and return the file paths."""
     docker_args = _normalize_list(docker_args)
     extra_args = _normalize_list(extra_args)

@@ -69,9 +69,7 @@ def run_restic_command_with_output(cmd_args: list[str]) -> str:
 
     log.info("Running: %s", " ".join(cmd))
     try:
-        result: subprocess.CompletedProcess[str] = subprocess.run(
-            cmd, check=True, capture_output=True, text=True
-        )
+        result: subprocess.CompletedProcess[str] = subprocess.run(cmd, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as err:
         return_code: int = err.returncode
         command: str = " ".join(cmd)

@@ -27,9 +27,7 @@ def _logical_source(logical_name: str) -> str:
     if logical_name not in LOGICAL_VOLUME_NAMES:
         raise KeyError(f"Unknown logical volume: {logical_name}")
     if logical_name not in external_alias_name_pairs().values():
-        raise RuntimeError(
-            f"[volumes] Logical volume '{logical_name}' not found in compose external volumes"
-        )
+        raise RuntimeError(f"[volumes] Logical volume '{logical_name}' not found in compose external volumes")
     return logical_name
 
 
@@ -37,9 +35,7 @@ def _storage_source(storage_key: str) -> str:
     service_name, target = STORAGE_TARGETS[storage_key]
     source = service_volume_sources(service_name).get(target)
     if source is None:
-        raise RuntimeError(
-            f"[volumes] Missing source for storage key '{storage_key}' at {service_name}:{target}"
-        )
+        raise RuntimeError(f"[volumes] Missing source for storage key '{storage_key}' at {service_name}:{target}")
     return source
 
 
@@ -81,9 +77,7 @@ def storage_mount_source(storage_key: str) -> str:
     return _resolve_volume_source(source)
 
 
-def storage_docker_mount_flags(
-    storage_key: str, target_path: str, *, read_only: bool = False
-) -> list[str]:
+def storage_docker_mount_flags(storage_key: str, target_path: str, *, read_only: bool = False) -> list[str]:
     """Return docker `-v` flags for a named storage volume."""
     source = storage_mount_source(storage_key)
     mount = f"{source}:{target_path}"

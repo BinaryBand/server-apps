@@ -7,9 +7,7 @@ from src.toolbox.docker.wrappers.rclone import rclone_sync
 def gather_stage(include: Sequence[str], exclude: Sequence[str] = ()) -> None:
     docker_args = volatile.rclone_docker_volume_flags()
     docker_args += volatile.storage_docker_mount_flags("backups", "/backups")
-    docker_args += volatile.storage_docker_mount_flags(
-        "rclone_config", "/config/rclone", read_only=True
-    )
+    docker_args += volatile.storage_docker_mount_flags("rclone_config", "/config/rclone", read_only=True)
 
     extra_args: list[str] = []
     for pattern in exclude:

@@ -13,9 +13,7 @@ def read_json_file(path: Path) -> dict[str, object] | None:
 
 def write_json_file_atomic(path: Path, payload: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        mode="w", encoding="utf-8", dir=str(path.parent), delete=False
-    ) as handle:
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=str(path.parent), delete=False) as handle:
         json.dump(payload, handle, indent=2, sort_keys=True)
         handle.write("\n")
         tmp_name = handle.name

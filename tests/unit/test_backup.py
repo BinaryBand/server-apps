@@ -226,9 +226,7 @@ class TestHasResticRepo:
 
         for cmd in captured:
             assert "compose" not in cmd, f"unexpected compose call: {cmd}"
-            assert "restic" not in [c for c in cmd if not c.startswith("-")], (
-                f"unexpected restic invocation: {cmd}"
-            )
+            assert "restic" not in [c for c in cmd if not c.startswith("-")], f"unexpected restic invocation: {cmd}"
 
 
 # ---------------------------------------------------------------------------

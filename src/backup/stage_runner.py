@@ -1,4 +1,4 @@
-from src.ports.backup_stage import BackupStage
+from src.ports import BackupStage
 
 
 def run_backup_stage(stage: BackupStage, name: str) -> None:

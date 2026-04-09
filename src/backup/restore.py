@@ -72,9 +72,7 @@ def pull_restic_from_cloud() -> None:
     try:
         rclone_sync(restic.RESTIC_PCLOUD_REMOTE, "/repo", docker_args=docker_args)
     except RuntimeError as err:
-        raise RuntimeError(
-            f"[pull_restic_from_cloud] restic repository sync failed: {err}"
-        ) from err
+        raise RuntimeError(f"[pull_restic_from_cloud] restic repository sync failed: {err}") from err
 
 
 def _find_source_path(backups_volume_name: str, source_name: str, target_prefix: str) -> str | None:
@@ -84,11 +82,7 @@ def _find_source_path(backups_volume_name: str, source_name: str, target_prefix:
         f"{target_prefix}backups/volumes/{source_name}",
     ]
     return next(
-        (
-            candidate
-            for candidate in candidates
-            if _volume_subdir_exists(backups_volume_name, candidate)
-        ),
+        (candidate for candidate in candidates if _volume_subdir_exists(backups_volume_name, candidate)),
         None,
     )
 

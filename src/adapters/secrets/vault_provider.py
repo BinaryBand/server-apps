@@ -4,7 +4,7 @@ import yaml
 from ansible.constants import DEFAULT_VAULT_ID_MATCH
 from ansible.parsing.vault import VaultLib, VaultSecret
 
-from src.ports.secrets import SecretProviderPort
+from src.ports import SecretProviderPort
 
 
 class AnsibleVaultSecretProvider(SecretProviderPort):

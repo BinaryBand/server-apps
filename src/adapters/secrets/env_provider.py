@@ -3,7 +3,7 @@ import sys
 
 from dotenv import find_dotenv, load_dotenv
 
-from src.ports.secrets import SecretProviderPort
+from src.ports import SecretProviderPort
 
 
 class EnvironmentSecretProvider(SecretProviderPort):

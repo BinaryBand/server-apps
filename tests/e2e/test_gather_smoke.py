@@ -51,8 +51,7 @@ def gather_env(repo_root, docker_available):
     stage_roots = _stage_roots_from_include_patterns(config.batch.include)
     logical_volume_names = _logical_volume_names()
     source_volumes: dict[str, str] = {
-        logical_name: f"smoke-gather-{uuid.uuid4().hex[:8]}-{logical_name}"
-        for logical_name in logical_volume_names
+        logical_name: f"smoke-gather-{uuid.uuid4().hex[:8]}-{logical_name}" for logical_name in logical_volume_names
     }
 
     for volume_name in source_volumes.values():
@@ -74,11 +73,7 @@ def gather_env(repo_root, docker_available):
                 "alpine:3.20",
                 "sh",
                 "-lc",
-                (
-                    "set -eu && "
-                    "mkdir -p /target/data && "
-                    f"printf '%s\n' smoke > /target/data/{logical_name}.txt"
-                ),
+                (f"set -eu && mkdir -p /target/data && printf '%s\n' smoke > /target/data/{logical_name}.txt"),
             ],
             check=True,
         )
@@ -110,10 +105,7 @@ def _assert_container_path_has_content(docker_args: list[str], container_path: s
                 "alpine:3.20",
                 "sh",
                 "-lc",
-                (
-                    f"test -d '{container_path}' && "
-                    f"find '{container_path}' -mindepth 1 -print -quit | grep -q ."
-                ),
+                (f"test -d '{container_path}' && find '{container_path}' -mindepth 1 -print -quit | grep -q ."),
             ],
             check=False,
             capture_output=True,
@@ -123,11 +115,7 @@ def _assert_container_path_has_content(docker_args: list[str], container_path: s
     except subprocess.TimeoutExpired as err:
         pytest.fail(f"Timed out while probing {container_path}: {err}")
 
-    assert probe.returncode == 0, (
-        f"Expected populated gather source at {container_path}.\n"
-        f"stdout:\n{probe.stdout}\n"
-        f"stderr:\n{probe.stderr}"
-    )
+    assert probe.returncode == 0, f"Expected populated gather source at {container_path}.\nstdout:\n{probe.stdout}\nstderr:\n{probe.stderr}"
 
 
 def test_gather_mounts_populated_stage_roots(gather_env, monkeypatch) -> None:

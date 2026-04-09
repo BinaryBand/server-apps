@@ -1,169 +1,162 @@
 # Handoff: Quality Tooling Expansion
 
-## Current state
+<!-- cspell: words semgrep pyproject venv jscpd vulture lizard mutmut -->
 
-Already wired (pre-commit + VS Code tasks):
+## Status
 
-| Tool | Coverage | Config |
+| Tier | Work | Status |
 |---|---|---|
-| Ruff `E/F/W/I/N` | Lint + format | `pyproject.toml` |
-| Vulture (≥80% confidence) | Dead code | pre-commit |
-| Lizard (CCN ≤5, length ≤25, params ≤4) | Function complexity | pre-commit |
-| `scripts/quality/lizard_file_gate.py` | File-level complexity budget | VS Code task |
-| import-linter (2 contracts) | Layer boundary enforcement | `pyproject.toml` |
-| `scripts/quality/quality_watch.py` | Live background watcher | VS Code task (auto-start) |
-
-No CI pipeline exists (no `.github/`). All checks are local/pre-push only.
+| 1 | Ruff `A`/`B`/`S` expansion | ✅ Done |
+| 2 | jscpd duplicate detection | ⚠️ Config added, binary not installed |
+| 3 | Semgrep custom rules | ⚠️ Rules + hook added, binary not installed |
+| — | Unplanned: `line-length` changed 100 → 140 | ⚠️ Needs review |
+| — | Ruff now reports 35 errors | ❌ Must fix before pre-commit is clean |
 
 ---
 
-## What to add
+## What was done
 
-Three tiers, ordered by ROI. Do them in order — each is independent.
+### Tier 1 — Ruff expansion ✅
 
----
+`pyproject.toml` now has:
 
-### Tier 1 — Expand Ruff (no new tools, pure config change)
-
-**File: `pyproject.toml`**
-
-Change `select`:
 ```toml
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "A", "B", "S"]
-```
+ignore = ["S603", "S607"]
 
-Add `ignore` to suppress the noisy-but-not-real S violations:
-```toml
-ignore = [
-    "S603",   # subprocess call without shell=True — all calls in this project use
-              # hardcoded arg lists (docker, ansible-playbook, rclone). Not a real risk.
-    "S607",   # start-process-with-partial-path — same rationale; "docker" is fine here.
-]
-```
-
-Add test-file exemptions (S101 = assert, B011 = assert False):
-```toml
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101"]
+"src/configuration/state_model.py" = ["N815"]
 ```
 
-**What this adds:**
+`A`, `B`, and `S` (minus the two noisy subprocess rules) are live. `N815` suppressed for the state model's mixed-case field names.
 
-- `A` — catches builtins shadowing (`list`, `id`, `type`, etc.) — currently 0 violations, purely preventive
-- `B` (bugbear) — Python antipatterns (mutable defaults, redundant open modes, etc.) — currently 0 violations
-- `S` minus S603/S607 — remaining bandit rules: hardcoded passwords (S105/S106), bare `except: pass` (S110), temp file misuse (S108), `assert` in production code (S101), etc.
+### Tier 2 — jscpd ⚠️
 
-**Validate:** `ruff check src runbook` should exit 0 after config change.
+`.jscpd.json` created at project root with correct config (min-lines 8, min-tokens 50, Python only). Pre-commit hook added to `.pre-commit-config.yaml`. **Binary not installed** — hook will fail until resolved (see Step 1 below).
+
+### Tier 3 — Semgrep ⚠️
+
+`rules/semgrep/no-os-system.yml` and `rules/semgrep/no-subprocess-shell-true.yml` created. Pre-commit hook added with `.venv/bin/semgrep` entry. `semgrep = "1.50.0"` added to `pyproject.toml` dev dependencies. **`poetry install` not run** — `.venv/bin/semgrep` is missing (see Step 2 below).
 
 ---
 
-### Tier 2 — Duplicate detection
+## What still needs doing
 
-Lizard has no duplicate detection. jscpd (the best cross-language option) requires npm, which this project doesn't currently use.
+### Step 1 — Install jscpd
 
-**Option A — jscpd via npm (recommended if npm is available on dev machine):**
+The pre-commit hook calls `jscpd` as a system binary. Install via npm:
 
-Install globally or add to npm devDependencies:
 ```bash
 npm install -g jscpd
 ```
 
-Create `.jscpd.json` at project root:
+Verify: `jscpd --version`
+
+If npm is not available on the machine, remove the jscpd hook from `.pre-commit-config.yaml` and the `.jscpd.json` file — duplicate detection is low-priority for a single-dev Python project and shouldn't block the rest of the gate.
+
+---
+
+### Step 2 — Install semgrep into the venv
+
+`semgrep` was added to `pyproject.toml` but `poetry install` was not run:
+
+```bash
+poetry install
+```
+
+Verify: `.venv/bin/semgrep --version`
+
+Then do a dry-run to confirm the rules pass cleanly:
+
+```bash
+.venv/bin/semgrep --config rules/semgrep/ src/ --error
+```
+
+Expected: 0 findings (both rules are preventive — no current violations).
+
+---
+
+### Step 3 — Fix the 35 Ruff errors
+
+`ruff check src` currently reports 35 errors. These are **not** from the new A/B/S rules — they are existing violations surfaced by the ports consolidation done by the previous agent (`src/ports/__init__.py` now uses star imports or has unused imports causing F401/F405). Run:
+
+```bash
+.venv/bin/ruff check src --statistics
+```
+
+Current breakdown:
+
+```text
+8   F405   undefined-local-with-import-star-usage
+5   F401   unused-import
+1   E402   module-import-not-at-top-of-file
+```
+
+**Fix:** Open `src/ports/__init__.py` and replace any `from .module import *` with explicit named imports. Remove unused imports. Fix the E402 by moving the import to the top of its file.
+
+After fixing: `ruff check src` must exit 0.
+
+---
+
+### Step 4 — Review the unplanned line-length change
+
+`line-length` was changed from `100` to `140` (not in the original plan). This affects both Ruff's formatter and its line-length lint rule. Decide whether to keep it:
+
+- **140** — more permissive, fewer line-wrapping reformats, matches the agent's apparent intent
+- **100** — original project setting, matches what `CONTRIBUTING.md` documents
+
+If keeping 140, update `CONTRIBUTING.md` to reflect the new value. If reverting to 100, run `ruff format src` to reformat and check for new violations.
+
+---
+
+### Step 5 — Add VS Code tasks for jscpd and semgrep
+
+Once both binaries are installed and clean, add them to `.vscode/tasks.json` so they run interactively alongside the existing checks:
+
+**jscpd task:**
+
 ```json
 {
-  "minLines": 8,
-  "minTokens": 50,
-  "languages": ["python"],
-  "path": ["src", "runbook"],
-  "reporters": ["console"],
-  "ignore": ["**/.venv/**", "**/typings/**"]
+  "label": "Check: Duplicate Code (jscpd)",
+  "type": "shell",
+  "command": "jscpd",
+  "args": ["--config", ".jscpd.json"],
+  "group": "test",
+  "presentation": { "reveal": "always", "panel": "shared", "clear": true }
 }
 ```
 
-Add to `.pre-commit-config.yaml` as a local hook:
-```yaml
-      - id: jscpd
-        name: Duplicate code detection (jscpd)
-        entry: jscpd
-        language: system
-        args: ["--config", ".jscpd.json"]
-        pass_filenames: false
+**Semgrep task:**
+
+```json
+{
+  "label": "Check: Semgrep Rules",
+  "type": "shell",
+  "command": "${workspaceFolder}/.venv/bin/semgrep",
+  "args": ["--config", "rules/semgrep/", "src/", "--error"],
+  "group": "test",
+  "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+}
 ```
 
-**Option B — defer:** For a single-dev Python project, Ruff + Vulture + code review is sufficient coverage. Duplicate detection catches structural drift that's hard to spot in review; add it when the codebase grows or when AI-generated code volume increases.
-
-**Recommendation:** Add Option A if npm is already on the machine. Otherwise defer.
+Also add both labels to the `dependsOn` list of the `"Validate: Python Gate"` task so they run as part of the full gate sweep.
 
 ---
 
-### Tier 3 — Semgrep custom rules
-
-Import-linter enforces package-level boundary contracts. Semgrep can enforce *within-file* patterns that import-linter can't catch — specifically subprocess hygiene and direct infrastructure calls from the wrong layer.
-
-**Install:**
-```bash
-poetry add --group dev semgrep
-```
-
-**Create `rules/semgrep/no-os-system.yml`:**
-```yaml
-rules:
-  - id: no-os-system
-    pattern: os.system(...)
-    message: "Use subprocess.run() instead of os.system() — no shell injection surface."
-    languages: [python]
-    severity: ERROR
-```
-
-**Create `rules/semgrep/no-shell-true.yml`:**
-```yaml
-rules:
-  - id: no-subprocess-shell-true
-    pattern: subprocess.run(..., shell=True, ...)
-    message: "subprocess.run with shell=True is forbidden — construct arg lists instead."
-    languages: [python]
-    severity: ERROR
-```
-
-Add to `.pre-commit-config.yaml`:
-```yaml
-      - id: semgrep
-        name: Semgrep custom rules
-        entry: semgrep
-        language: system
-        args: ["--config", "rules/semgrep/", "src/", "--error"]
-        pass_filenames: false
-```
-
-**Note:** These two rules have 0 current violations — this is preventive. Expand the ruleset as patterns emerge from AI-generated code.
-
----
-
-### Skip (not worth the overhead for this project)
+## Skip (unchanged recommendation)
 
 | Tool | Why skip |
 |---|---|
-| NiCad | Java-based, complex setup, Python-only project — jscpd covers duplicate detection better |
-| CodeQL | Needs a CI pipeline first; add after `.github/workflows/` is set up |
-| Mutation testing (`mutmut`) | High run time, low ROI for infrastructure automation code with mostly integration-style tests |
-| Ruff `C90` (McCabe) | Redundant — Lizard already enforces CCN; having two tools for the same metric adds noise |
+| NiCad | Java-based, overkill for Python-only project |
+| CodeQL | Needs CI pipeline first (no `.github/` exists) |
+| Mutation testing (`mutmut`) | High run time, low ROI for infrastructure automation code |
+| Ruff `C90` (McCabe) | Redundant — Lizard already enforces CCN |
 
 ---
 
-## Execution order
-
-1. **Expand Ruff** — `pyproject.toml` only, 5-minute change, verify with `ruff check src`
-2. **jscpd** (if npm available) — `.jscpd.json` + pre-commit hook
-3. **Semgrep rules** — `rules/semgrep/` + install + pre-commit hook
-
-Steps 2 and 3 are independent and can be done in either order.
-
----
-
-## Post-expansion gate sequence
-
-Once all tiers are complete, the full pre-push gate will be:
+## Final gate sequence (target state)
 
 ```
 ruff check         → lint (E/F/W/I/N/A/B/S)
@@ -174,5 +167,3 @@ import-linter      → layer boundary contracts
 jscpd              → duplicate detection (≥8 lines / ≥50 tokens)
 semgrep            → custom structural rules (os.system, shell=True)
 ```
-
-VS Code tasks cover the first five interactively. Add jscpd and semgrep as VS Code tasks to match once the hooks are in place.
