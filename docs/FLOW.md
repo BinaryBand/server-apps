@@ -1,5 +1,7 @@
 # Flow Tree
 
+> ⚠️ **Migration in progress** — links to `src/toolbox/core/*` will move to `src/infra/*` once the migration in `NEXT_STEPS.md` is complete.
+
 - **Entry:** [runbook/start.py](../runbook/start.py) — `__main__` delegates to [src/orchestrators/start.py](../src/orchestrators/start.py) `main()`
 
 - **Main:** [src/orchestrators/start.py](../src/orchestrators/start.py) — `main()`
@@ -69,6 +71,7 @@ flowchart TD
     ansible["run_permissions_playbook()\nsrc/permissions/ansible.py"]
     bin["ansible_playbook_bin()"]
     ansible --> bin
+    - ⚠️ **Migration in progress** — links to `src/toolbox/core/*` will move to `src/infra/*` once the migration in `NEXT_STEPS.md` is complete.
   end
   orchestrator --> permissions_stage
 

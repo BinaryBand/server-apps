@@ -56,4 +56,7 @@ Path resolution defaults are implemented in `src/toolbox/core/runtime.py` and ca
 - `src/storage/`: compose and volume topology facade used by workflows/reconciler.
 - `src/observability/`: runtime health and probe facade used by workflows/reconciler.
 - `src/backup/`: backup/restore facade for snapshot orchestration and restic bridge.
-- `src/toolbox/`: implementation backend retained for compatibility during migration.
+- `src/infra/`: platform utilities (runtime paths, locking, polling, config, docker wrappers). Used by adapters and orchestrators — not imported by domain or workflow layers directly.
+- `src/adapters/`: concrete implementations of ports (rclone, restic, secrets, permissions, health). One subdirectory per domain.
+- `src/ports/`: port protocols (`BackupStage`, `SecretProviderPort`, `ResticRunnerPort`, etc.).
+- `src/toolbox/`: **being removed** — contents migrated to `src/infra/`. See `NEXT_STEPS.md`.

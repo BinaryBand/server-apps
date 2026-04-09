@@ -1,6 +1,6 @@
 # Next Steps: Refactor Handoff
 
-See [REFACTOR_PLAN.md](REFACTOR_PLAN.md) for full context and design rationale.
+Design rationale consolidated here; historical REFACTOR_PLAN.md removed.
 
 ---
 
@@ -18,6 +18,37 @@ Phases 1–3 are partially complete:
 - ❌ Import-linter contract is broken (see fix below)
 
 ---
+
+## Step 0 — Reduce `backup.py:main` complexity (Lizard CCN 3)
+
+Extract the restic cloud-push try/if block into `_run_restic_push()`:
+
+**New function** (add above `main()`):
+```python
+def _run_restic_push() -> None:
+  """Optionally push the restic repo offsite. Gated by RESTIC_PCLOUD_SYNC.
+  Failure is non-fatal — logged and swallowed so the backup result stands."""
+  try:
+    if restic_pcloud_sync_enabled():
+      print("[stage:restic-push] Pushing restic repo to cloud")
+      push_restic_to_cloud()
+      print("[stage:restic-push] Restic repo pushed to cloud")
+  except Exception as err:
+    print(f"[stage:restic-push] Warning: push to cloud failed: {err}")
+```
+
+**Updated `main()`** — replace the try/if block with:
+```python
+    _run_restic_push()
+    print("[stage:complete] Backup pipeline completed")
+```
+
+Also:
+- Add missing blank line before `_run_stream_restores` in `restore.py` (line ~84).
+- Update `docs/COMPLEXITY.md` section 8: remove the `backup.py:main` row and add a resolution log entry.
+
+Validate: `python -m lizard src/orchestrators/backup.py -C 5 -L 25 -a 4 -w` → no warnings.
+
 
 ## Step 1 — Fix the import-linter contract
 

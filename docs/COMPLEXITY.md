@@ -183,13 +183,9 @@ Apply one or more of the following, as appropriate:
 
 | File | Function | NLOC | CCN | PARAM | Length |
 | ------ | ---------- | ------ | ----- | ------- | -------- |
-| src/permissions/ansible.py | run_permissions_playbook | 30 | 6 | 3 | 33 |
-| src/orchestrators/backup.py | _run_backup_stages | 26 | 2 | 2 | 27 |
-| src/orchestrators/restore.py | _run_restore | 36 | 2 | 2 | 44 |
 | src/backup/restic.py | has_restic_repo | 19 | 1 | 0 | 30 |
 | src/toolbox/docker/wrappers/rclone.py | rclone_copy | 25 | 2 | 4 | 27 |
 | src/toolbox/docker/wrappers/rclone.py | rclone_lsf | 25 | 4 | 3 | 27 |
-| src/toolbox/core/locking.py | _is_stale | 23 | 8 | 1 | 26 |
 
 ---
 
