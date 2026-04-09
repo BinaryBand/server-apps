@@ -9,9 +9,7 @@ from collections import defaultdict
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="File-level complexity gate for Lizard output"
-    )
+    parser = argparse.ArgumentParser(description="File-level complexity gate for Lizard output")
     parser.add_argument("paths", nargs="+", help="Paths to scan, e.g. src runbook")
     parser.add_argument("--max-file-ccn-sum", type=int, default=35)
     parser.add_argument("--max-file-avg-ccn", type=float, default=4.5)
@@ -94,9 +92,7 @@ def main() -> None:
         if avg_ccn > args.max_file_avg_ccn:
             reasons.append(f"avg_ccn={avg_ccn:.2f}>{args.max_file_avg_ccn}")
         if high_risk > args.max_file_high_risk_funcs:
-            reasons.append(
-                f"high_risk_funcs={high_risk}>{args.max_file_high_risk_funcs}"
-            )
+            reasons.append(f"high_risk_funcs={high_risk}>{args.max_file_high_risk_funcs}")
 
         if reasons:
             violations.append(f"{file_path}: " + ", ".join(reasons))

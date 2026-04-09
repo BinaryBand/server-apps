@@ -1,0 +1,28 @@
+rules:
+  - id: no-subprocess-in-appservices
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run(...)
+          - pattern: subprocess.check_output(...)
+          - pattern: subprocess.check_call(...)
+          - pattern: subprocess.Popen(...)
+          - pattern: subprocess.call(...)
+    paths:
+      include:
+        - "src/orchestrators/**"
+        - "src/workflows/**"
+        - "src/configuration/**"
+        - "src/reconciler/**"
+    message: >
+      Direct subprocess call in application or domain layer.
+      These layers must not call subprocesses directly — delegate to an
+      adapter (src/adapters/) via a port (src/ports/), or to an existing
+      infrastructure module (src/toolbox/ / src/infra/).
+      Architecture Rule 4: code depends only on things closer to the core.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      source: docs/ARCHITECTURE.md Rule 4
+      known-violations:
+        - "src/orchestrators/reset.py:61 — subprocess.run(compose_down_cmd) should move
+          into storage/compose.py as stop_compose_stack_with_volumes() or similar"

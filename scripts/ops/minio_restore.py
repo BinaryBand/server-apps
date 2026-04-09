@@ -8,7 +8,10 @@ Usage:
     python scripts/ops/minio_restore.py /media/podcasts/morbid
 
     # Restore everything under /media/podcasts except morbid and necronomipod
-    python scripts/ops/minio_restore.py --include /media/podcasts --exclude /media/podcasts/morbid --exclude /media/podcasts/necronomipod
+    python scripts/ops/minio_restore.py \
+        --include /media/podcasts \
+        --exclude /media/podcasts/morbid \
+        --exclude /media/podcasts/necronomipod
 
 Template:
     python scripts/ops/minio_restore.py /media/<category>/<item>

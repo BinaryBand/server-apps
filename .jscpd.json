@@ -2,7 +2,13 @@
   "minLines": 8,
   "minTokens": 50,
   "languages": ["python"],
-  "path": ["src", "runbook"],
+  "path": [
+    "src"
+  ],
   "reporters": ["console"],
-  "ignore": ["**/.venv/**", "**/typings/**"]
+  "ignore": [
+    "**/.venv/**",
+    "**/typings/**",
+    "runbook/**"
+  ]
 }

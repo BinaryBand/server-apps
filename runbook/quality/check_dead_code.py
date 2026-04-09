@@ -3,11 +3,11 @@
 
 Provides an entrypoint for editor tasks and docs that prefer `runbook/*`.
 """
+
 from __future__ import annotations
 
 import subprocess
 import sys
-from pathlib import Path
 
 
 def main() -> None:

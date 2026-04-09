@@ -1,6 +1,6 @@
 # Handoff: Quality Tooling Expansion
 
-<!-- cspell: words semgrep pyproject venv jscpd vulture lizard mutmut -->
+<!-- cspell: words semgrep pyproject venv jscpd vulture lizard mutmut appservices popen Popen -->
 
 ## Status
 
@@ -38,7 +38,17 @@ ignore = ["S603", "S607"]
 
 ### Tier 3 — Semgrep ⚠️
 
-`rules/semgrep/no-os-system.yml` and `rules/semgrep/no-subprocess-shell-true.yml` created. Pre-commit hook added with `.venv/bin/semgrep` entry. `semgrep = "1.50.0"` added to `pyproject.toml` dev dependencies. **`poetry install` not run** — `.venv/bin/semgrep` is missing (see Step 2 below).
+Five rules in `rules/semgrep/`:
+
+| File | Covers | Violations |
+| --- | --- | --- |
+| `no-os-system.yml` | `os.system()` calls | 0 |
+| `no-subprocess-shell-true.yml` | `subprocess.run(..., shell=True)` | 0 |
+| `no-subprocess-popen-shell.yml` | `subprocess.Popen(..., shell=True)` | 0 |
+| `no-subprocess-in-appservices.yml` | subprocess in orchestrators/workflows/domain (Architecture Rule 4) | **1** — `reset.py:61` |
+| `no-mutable-module-globals.yml` | module-level `= []`/`= {}`/`= set()` with lowercase names (CONTRIBUTING.md) | 0 |
+
+Pre-commit hook added with `.venv/bin/semgrep` entry. `semgrep = "1.50.0"` added to `pyproject.toml` dev dependencies. **`poetry install` not run** — `.venv/bin/semgrep` is missing (see Step 2 below).
 
 ---
 
@@ -74,7 +84,26 @@ Then do a dry-run to confirm the rules pass cleanly:
 .venv/bin/semgrep --config rules/semgrep/ src/ --error
 ```
 
-Expected: 0 findings (both rules are preventive — no current violations).
+Expected: **1 finding** — `src/orchestrators/reset.py:61` will be flagged by the new
+`no-subprocess-in-appservices` rule (see Step 2a below). All other rules are clean.
+
+### Step 2a — Fix the Architecture Rule 4 violation in reset.py
+
+`src/orchestrators/reset.py:61` calls `subprocess.run(compose_down_cmd, check=False)` directly
+in an orchestrator — flagged by `no-subprocess-in-appservices`. Move it into `src/storage/compose.py`:
+
+```python
+# src/storage/compose.py — add this function
+def stop_compose_stack_hard(*, dry_run: bool = False) -> None:
+    """Tear down the stack including volumes and orphaned containers."""
+    cmd = compose_cmd("down", "--volumes", "--remove-orphans")
+    subprocess.run(cmd, check=False)
+```
+
+Then update `reset.py:61` to call `stop_compose_stack_hard()` instead of constructing and
+running the subprocess directly.
+
+After the fix, `semgrep --config rules/semgrep/ src/ --error` must exit 0.
 
 ---
 

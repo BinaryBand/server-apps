@@ -11,7 +11,7 @@ POLL_SECONDS = 1.0
 
 
 def tree_signature(paths: list[Path]) -> str:
-    hasher = hashlib.sha1()
+    hasher = hashlib.sha256()
     for base in paths:
         if not base.exists():
             continue

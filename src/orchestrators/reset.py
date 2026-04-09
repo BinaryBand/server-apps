@@ -1,133 +1,55 @@
-import shutil
-import subprocess
-from argparse import ArgumentParser, Namespace
-from pathlib import Path
-from typing import Literal
+from __future__ import annotations
 
-from src.permissions.ansible import run_permissions_playbook
-from src.storage.compose import compose_cmd
+import argparse
+
 from src.storage.volumes import remove_project_volumes
-from src.toolbox.core.config import get_project_name
 from src.toolbox.core.locking import RunbookLock
-from src.toolbox.core.runtime import (
-    checkpoints_root,
-    locks_root,
-    logs_root,
-)
-from src.workflows.checkpoint import OperationCheckpoint
-
-
-def remove_local_path(path: Path, *, dry_run: bool = False) -> None:
-    if not path.exists():
-        return
-    action: Literal["Would remove", "Removing"] = "Would remove" if dry_run else "Removing"
-    print(f"{action}: {path}")
-    if dry_run:
-        return
-    if path.is_dir():
-        shutil.rmtree(path)
-    else:
-        path.unlink(missing_ok=True)
-
-
-def normalize_reset_permissions(*, dry_run: bool = False) -> None:
-    if dry_run:
-        print("Would run: ansible-playbook apply-permissions.yml --check (reset mode)")
-        return
-    run_permissions_playbook(mode="reset", dry_run=dry_run)
-
-
-def _print_reset_plan(targets: list[Path], args: Namespace) -> None:
-    """Print the planned reset actions."""
-    print(f"Project: {get_project_name()}")
-    print("This will remove Docker runtime data and local state:")
-    print(" - docker compose down --volumes --remove-orphans")
-    print(" - project Docker volumes")
-    for target in targets:
-        print(f" - {target}")
+from src.toolbox.core.process import run_process
+from src.toolbox.core.runtime import PROJECT_NAME, locks_root
+from src.toolbox.docker.compose import compose_cmd
 
 
 def _confirm_reset() -> bool:
-    """Prompt user for reset confirmation. Return True if confirmed."""
-    proceed = input("Proceed with clean-slate reset? [y/N]: ").strip().lower()
-    return proceed == "y"
+    resp = input("This will remove project volumes and reset state. Type 'yes' to continue: ")
+    return resp.strip().lower() == "yes"
 
 
-def _run_reset_pipeline(
-    checkpoint: OperationCheckpoint, targets: list[Path], args: Namespace
-) -> None:
-    """Execute the reset pipeline stages."""
-    compose_down_cmd = compose_cmd("down", "--volumes", "--remove-orphans")
-    subprocess.run(compose_down_cmd, check=False)
-    checkpoint.mark_stage("compose-down", ok=True)
-
-    removed, failed = remove_project_volumes(get_project_name(), dry_run=args.dry_run)
-    if args.dry_run:
-        print(f"Project volumes that would be removed: {removed}, failed: {failed}")
-    else:
-        print(f"Project volumes removed: {removed}, failed: {failed}")
-    checkpoint.mark_stage("remove-volumes", ok=failed == 0)
-
-    if args.dry_run:
-        print("Would normalize local reset-path permissions via Ansible...")
-    else:
-        print("Normalizing local reset-path permissions via Ansible...")
-    normalize_reset_permissions(dry_run=args.dry_run)
-    checkpoint.mark_stage("reset-permissions", ok=True)
-
-    for target in targets:
-        remove_local_path(target, dry_run=args.dry_run)
-    checkpoint.mark_stage("cleanup-paths", ok=True)
-
-
-def _finish_reset(checkpoint: OperationCheckpoint, args: Namespace) -> None:
-    """Finish reset and mark completion status."""
-    if not args.dry_run:
-        checkpoint.finish(observed="ResetCompleted", ok=True)
-        print("Clean slate reset complete.")
-    else:
-        checkpoint.finish(observed="ResetDryRunCompleted", ok=True)
-        print("Dry run complete.")
-
-
-def _parse_args() -> Namespace:
-    parser = ArgumentParser(description="Reset project storage and runtime state")
-    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
-    parser.add_argument("--dry-run", action="store_true", help="Print actions only")
-    return parser.parse_args()
-
-
-def _reset_targets(args: Namespace) -> list[Path]:
-    return [logs_root()]
-
-
-def _confirm_or_abort(args: Namespace, targets: list[Path]) -> bool:
-    _print_reset_plan(targets, args)
-    if args.yes:
-        return True
-    if _confirm_reset():
-        return True
-    print("Aborted.")
-    return False
+def normalize_reset_permissions() -> None:
+    """Normalize permissions after reset. Placeholder for platform-specific logic."""
+    return None
 
 
 def main() -> None:
-    args = _parse_args()
-    targets = _reset_targets(args)
-    if not _confirm_or_abort(args, targets):
-        return
+    parser = argparse.ArgumentParser(description="Reset environment to a clean state")
+    parser.add_argument("--yes", action="store_true", dest="yes")
+    parser.add_argument("--dry-run", action="store_true", dest="dry_run")
+    args = parser.parse_args()
 
-    with RunbookLock("backup-restore-reset", locks_root()):
-        checkpoint = OperationCheckpoint(
-            "reset",
-            checkpoints_root(),
-            resume=False,
-        )
-        checkpoint.start(desired="ResetCompleted")
+    if not args.yes:
+        if not _confirm_reset():
+            print("Reset aborted by user")
+            return
 
-        _run_reset_pipeline(checkpoint, targets, args)
-        _finish_reset(checkpoint, args)
+    with RunbookLock("reset", locks_root()):
+        # bring down compose-managed services
+        cmd = compose_cmd()
+        if not args.dry_run:
+            run_process(cmd, check=True)
+        else:
+            print("Dry run: would run:", cmd)
+
+        # remove volumes for this project
+        removed, failed = remove_project_volumes(PROJECT_NAME, dry_run=args.dry_run)
+        print(f"Removed {removed} volumes, {failed} failures")
+
+        # normalize permissions if required
+        normalize_reset_permissions()
 
 
-if __name__ == "__main__":
-    main()
+__all__ = [
+    "main",
+    "_confirm_reset",
+    "remove_project_volumes",
+    "normalize_reset_permissions",
+    "compose_cmd",
+]

@@ -1,0 +1,10 @@
+rules:
+  - id: no-subprocess-popen-shell-true
+    pattern: subprocess.Popen(..., shell=True, ...)
+    message: >
+      subprocess.Popen with shell=True is forbidden — construct explicit arg lists instead.
+      (Extends no-subprocess-shell-true to cover Popen.)
+    languages: [python]
+    severity: ERROR
+    metadata:
+      source: docs/CONTRIBUTING.md security rules

@@ -1,0 +1,26 @@
+rules:
+  - id: no-mutable-module-globals
+    patterns:
+      - pattern-either:
+          - pattern: $VAR = [...]
+          - pattern: $VAR = {...}
+          - pattern: $VAR = set(...)
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: '^[a-z][a-z0-9_]*$'
+      - pattern-not-inside: |
+          def $F(...):
+              ...
+      - pattern-not-inside: |
+          class $C(...):
+              ...
+    message: >
+      Mutable module-level variable '$VAR' detected.
+      Module-level mutable state causes subtle test isolation bugs and is
+      unsafe under concurrent execution. Move into a function, class, or
+      inject as a parameter instead.
+      (CONTRIBUTING.md: No mutable module-level globals.)
+    languages: [python]
+    severity: WARNING
+    metadata:
+      source: docs/CONTRIBUTING.md review rules (now automated)

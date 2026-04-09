@@ -114,7 +114,7 @@ def test_runtime_health_checks_use_expected_sequence() -> None:
                     "-lc",
                     (
                         'grep -q " /media " /proc/self/mountinfo && test -r /media && ! '
-                        'test -w /media && ls /media >/dev/null'
+                        "test -w /media && ls /media >/dev/null"
                     ),
                 ],
                 timeout_seconds=30,

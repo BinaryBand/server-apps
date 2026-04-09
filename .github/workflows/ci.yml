@@ -53,8 +53,12 @@ jobs:
         run: npm install -g jscpd
 
       - name: jscpd duplicate detection
-        run: jscpd --config .jscpd.json
-        continue-on-error: true
+        run: |
+          jscpd --config .jscpd.json | tee jscpd.out
+          if grep -qE 'Found [1-9][0-9]* clones?\.' jscpd.out; then
+            cat jscpd.out
+            exit 1
+          fi
 
       - name: Semgrep rules
         run: semgrep --config rules/semgrep/ src --error
