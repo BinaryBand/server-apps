@@ -50,6 +50,12 @@ type = "forbidden"
 source_modules = ["src.configuration"]
 forbidden_modules = ["src.toolbox"]
 
+[[tool.importlinter.contracts]]
+name = "App Services must not import Infrastructure concrete modules"
+type = "forbidden"
+source_modules = ["src.workflows", "src.orchestrators"]
+forbidden_modules = ["src.infra"]
+
 # Aspirational — currently violated by src.managers.* and src.orchestrators.*
 # importing concrete toolbox adapters directly. Uncomment when Port interfaces
 # are introduced (Stage 3 of ARCHITECTURE.md migration).

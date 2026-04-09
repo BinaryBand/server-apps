@@ -5,3 +5,25 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: lizard
+        name: Lizard complexity check (CCN ≤ 5, length ≤ 25, params ≤ 4)
+        entry: .venv/bin/lizard
+        language: system
+        args: ["src/", "-C", "5", "-L", "25", "-a", "4"]
+        pass_filenames: false
+
+      - id: vulture
+        name: Vulture dead code check (min confidence 80)
+        entry: .venv/bin/vulture
+        language: system
+        args: ["src", "runbook", "--min-confidence", "80"]
+        pass_filenames: false
+
+      - id: import-linter
+        name: Import boundary contracts
+        entry: .venv/bin/lint-imports
+        language: system
+        pass_filenames: false

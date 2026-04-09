@@ -27,53 +27,87 @@ graph TB
 
 > 🔌 **Ports and adapters:** like USB-C — your laptop declares the port shape; it doesn't care if a charger or monitor is plugged in. Inner layers declare port shapes. Outer layers plug in. Inner layers never reach outward directly (Rule 4).
 
-## Current Reconciler Module Map
+## Module Map
 
-- `src/reconciler/core.py` — orchestration entrypoint for one reconciliation pass.
-- `src/reconciler/domain/state_machine.py` — legal transition rules for reconciler state.
-- `src/reconciler/observer/runtime_observer.py` — read-only probes for volumes, services, and MinIO media visibility.
-- `src/reconciler/adapters/state_store.py` — persisted reconcile state load/save.
-- `src/reconciler/adapters/pipeline_actions.py` — runtime action adapter that executes pipeline stages and marks conditions.
+### Ports (`src/ports/`)
 
-This split keeps reconciliation concerns in one module and separates transition logic, observation, and adapters into distinct owners.
+| Port | File | Implemented by |
+| --- | --- | --- |
+| `BackupStage` | `backup_stage.py` | `RcloneStreamSync` |
+| `SecretProviderPort` | `secrets.py` | `EnvironmentSecretProvider`, `AnsibleVaultSecretProvider` |
+| `ResticRunnerPort` | `restic_runner.py` | `DockerResticAdapter` *(stub)* |
+| `PermissionsRunnerPort` | `permissions_runner.py` | `AnsiblePermissionsAdapter` *(stub)* |
+| `HealthProberPort` | `health_prober.py` | `DockerHealthAdapter` *(stub)* |
+
+### Adapters (`src/adapters/`)
+
+| Adapter | Port satisfied |
+| --- | --- |
+| `rclone/stream_sync.py` — `RcloneStreamSync` | `BackupStage` |
+| `secrets/env_provider.py` — `EnvironmentSecretProvider` | `SecretProviderPort` |
+| `secrets/vault_provider.py` — `AnsibleVaultSecretProvider` | `SecretProviderPort` |
+| `restic/docker_restic.py` — `DockerResticAdapter` | `ResticRunnerPort` *(stub)* |
+| `permissions/ansible_adapter.py` — `AnsiblePermissionsAdapter` | `PermissionsRunnerPort` *(stub)* |
+| `health/docker_health.py` — `DockerHealthAdapter` | `HealthProberPort` *(stub)* |
+
+### Infrastructure (`src/infra/`)
+
+Platform utilities used by adapters. Not imported by orchestrators or workflows directly.
+
+- `runtime.py` — path resolution (`repo_root`, `state_root`, etc.)
+- `locking.py` — filesystem-based process locks
+- `polling.py` — generic `wait_until` with configurable probes
+- `config.py` — rclone/restic config getters (reads via `SecretProviderPort`)
+- `secrets.py` — `read_secret()` wired to `SecretProviderPort`; auto-detects Vault or env backend
+- `io/` — atomic JSON state read/write, condition helpers
+- `docker/` — compose CLI arg building, YAML parsing, volume resolution, rclone subprocess wrapper
+
+### Reconciler (`src/reconciler/`)
+
+- `core.py` — orchestration entry point for one reconciliation pass
+- `state_machine.py` — legal transition rules (IDLE → PROBED → APPLYING → VERIFIED)
+- `runtime_observer.py` — read-only probes for volumes, services, and media
+- `state_store.py` — persisted reconcile state load/save
+- `pipeline_actions.py` — executes pipeline stages and marks conditions
+
+## Layer Contracts (import-linter)
+
+```toml
+[[tool.importlinter.contracts]]
+name = "Domain must not import Infrastructure"
+source_modules = ["src.configuration"]
+forbidden_modules = ["src.toolbox"]   # → "src.infra" once migration is complete
+
+[[tool.importlinter.contracts]]
+name = "App Services must not import Infrastructure concrete modules"
+source_modules = ["src.workflows", "src.orchestrators"]
+forbidden_modules = ["src.infra"]
+```
+
+Run: `PYTHONPATH=. .venv/bin/lint-imports`
+
+> ⚠️ **Migration in progress** — `src/toolbox/` is being renamed to `src/infra/`. See `NEXT_STEPS.md`. The first contract above will update its `forbidden_modules` to `src.infra` once the move is complete.
 
 ## Step 1 — Who Owns What?
 
 | Responsibility | Layer | Owner |
 | --- | --- | --- |
-| **Domain Model** — rules, state machine, transitions. Its own named module always. | Domain | |
-| **Orchestration** — runs the reconciler; sole sequencing authority. | App Services | |
-| **State & Secrets** — desired state; secrets encrypted, never plaintext. | Infrastructure | |
-| **Service Topology** — what services run and how they connect. | Infrastructure | |
-| **Config** — flags, timeouts, URLs. | Infrastructure | |
-
-Two owners sharing a responsibility → note it. Blank owner → fix it.
+| **Domain Model** — rules, state machine, transitions | Domain | `src/reconciler/state_machine.py` |
+| **Orchestration** — sequences workflows | App Services | `src/orchestrators/` |
+| **State & Secrets** — desired state; secrets encrypted, never plaintext | Infrastructure | `src/infra/secrets.py` + vault |
+| **Service Topology** — what services run and how they connect | Infrastructure | `compose/`, `src/storage/` |
+| **Config** — flags, timeouts, URLs | Infrastructure | `src/infra/config.py`, `configs/` |
 
 ## Step 2 — How Do They Talk?
 
 | | Orchestration |
 | --- | --- |
 | **Domain Model** | `StateMachine` — `observe() → S`, `next(current: S, desired: S) → Move \| None` |
-| **State & Secrets** | `StateStore`, `SecretReader` |
+| **State & Secrets** | `StateStore`, `SecretProviderPort` |
 | **Service Topology** | `TopologyApplier` |
 | **Config** | `ConfigReader` |
 
-Each cell needs: `Port` / `Command` / `Status` / `Adapter` / `Authority: Orchestration`.
-
-### State Vectors
-
-> 💡 **Smart home lights:** your house has three lights. Current state: `⟨on, off, on⟩`. "Movie mode" is just a shortcut for a target state: `⟨off, off, on⟩`. The system diffs and flips the right switches. `ERR` is just another value — no special handling needed.
-
-| State | [A] | [B] | [N] | Command |
-| --- | :---: | :---: | :---: | --- |
-| `T0` | `·` | `·` | `·` | `reset` |
-| `T1` | `OK` | `·` | `·` | |
-| `Tn` | `OK` | `OK` | `OK` | `run` |
-| `F1` | `OK` | `ERR` | `·` | |
-
 ### Reconciler
-
-> 🌡️ Like a thermostat — set a target, check current, act, repeat. No special broken-furnace mode; it just runs out of valid moves and waits.
 
 ```mermaid
 flowchart TD
@@ -90,34 +124,17 @@ flowchart TD
     style I fill:#e8f4e8
 ```
 
-## Step 3 — Write Two Docs
-
-**`ARCHITECTURE.md`** — Steps 1–2 outputs + a **Forbidden Dependencies** list (every Rule 4 violation, named).
-
-**`CONTRIBUTING.md`** — setup + one rule per boundary (each automatically enforced) + Port Compliance (linter/type rule per port) + PR checklist as an automation to-do list, not a permanent process.
-
 ## Step 4 — Design the Pieces
-
-> 🧱 One brick, one shape. Need "and" to describe it? Split it.
 
 Three tiers per responsibility — each a separate file, linter-enforced:
 
 ```mermaid
 flowchart TD
-    A["Adapter — knows the outside world (e.g. talks to Postgres)"]
+    A["Adapter — knows the outside world (e.g. runs docker subprocess)"]
     P["Port — the contract only, no code"]
-    D["Domain — pure logic, no idea what Postgres is"]
+    D["Domain — pure logic, no idea what docker is"]
     A -->|depends on| P
     P -->|depends on| D
-```
-
-**Component card:**
-
-```text
-Name:            Tier: domain / port / adapter
-Responsibility:  one sentence
-Inputs/Outputs:  Side effects:   Idempotent?
-Port satisfied:  (adapter only)
 ```
 
 **A component must:** have one job · declare all inputs upfront · pass data forward only · same input = same output · fail loudly · never import across tiers.

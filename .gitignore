@@ -222,3 +222,6 @@ __marimo__/
 .logs
 /runtime/
 .vscode/cloud_apps.egg-info/
+
+.vault-password
+ansible/vault.yml
