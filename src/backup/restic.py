@@ -81,16 +81,8 @@ def run_restic_command_with_output(cmd_args: list[str]) -> str:
 
 
 def has_restic_repo() -> bool:
-    """Return True if the restic repository is already initialized.
-
-    Mounts the backing Docker volume in a disposable alpine container and
-    checks for the restic 'config' file.  This avoids both the RESTIC_PASSWORD
-    requirement (restic cat config) and direct access to /var/lib/docker which
-    requires root.
-
-    A restic repository always writes a file named 'config' at the repo root
-    during `restic init`.
-    """
+    """Check if the restic repository is initialized by verifying the presence of the 'config' file
+    in the Docker volume."""
     _ensure_restic_repo_volume_exists()
     source: str = storage_mount_source("restic_repo")
 

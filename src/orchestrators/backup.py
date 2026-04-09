@@ -89,18 +89,7 @@ def _run_restic_stage(checkpoint: OperationCheckpoint, restic_args: list[str]) -
     _run_restic_backup(checkpoint, restic_args)
 
 
-def _run_backup_stages(checkpoint: OperationCheckpoint, config: BackupConfig) -> None:
-    run_checkpoint_stage(
-        checkpoint,
-        "gather",
-        lambda: gather_stage(config.batch.include, config.batch.exclude),
-        StagePolicy(
-            observed_on_failure="BackupFailed",
-            run_message="[stage:gather] Starting gather phase",
-        ),
-    )
-    _run_restic_stage(checkpoint, _build_restic_args())
-
+def _run_backup_streams(checkpoint: OperationCheckpoint, config: BackupConfig) -> None:
     for source in config.stream:
         stage = RcloneStreamSync(
             source=source.source,
@@ -117,7 +106,36 @@ def _run_backup_stages(checkpoint: OperationCheckpoint, config: BackupConfig) ->
             ),
         )
 
-    # compress support removed; no compress stages to run
+
+def _run_backup_stages(checkpoint: OperationCheckpoint, config: BackupConfig) -> None:
+    _run_gather_stage(checkpoint, config)
+    _run_restic_stage(checkpoint, _build_restic_args())
+    _run_backup_streams(checkpoint, config)
+
+
+def _run_gather_stage(checkpoint: OperationCheckpoint, config: BackupConfig) -> None:
+    run_checkpoint_stage(
+        checkpoint,
+        "gather",
+        lambda: gather_stage(config.batch.include, config.batch.exclude),
+        StagePolicy(
+            observed_on_failure="BackupFailed",
+            run_message="[stage:gather] Starting gather phase",
+        ),
+    )
+
+
+def _run_restic_push() -> None:
+    """Optionally push the restic repo offsite. Gated by RESTIC_PCLOUD_SYNC.
+    Failure is non-fatal — logged and swallowed so the backup result stands."""
+    try:
+        if restic_pcloud_sync_enabled():
+            print("[stage:restic-push] Pushing restic repo to cloud")
+            push_restic_to_cloud()
+            print("[stage:restic-push] Restic repo pushed to cloud")
+    except Exception as err:
+        # Don't fail the overall backup if the push step fails — log and continue.
+        print(f"[stage:restic-push] Warning: push to cloud failed: {err}")
 
 
 def main() -> None:
@@ -133,19 +151,8 @@ def main() -> None:
             resume=resume_enabled,
         )
         _run_backup_stages(checkpoint, config)
-
         checkpoint.finish(observed="BackupCompleted", ok=True)
-        # Optionally push the restic repository offsite to the configured cloud
-        # remote. This is gated by `RESTIC_PCLOUD_SYNC` and disabled by default
-        # to avoid surprises in test environments.
-        try:
-            if restic_pcloud_sync_enabled():
-                print("[stage:restic-push] Pushing restic repo to cloud")
-                push_restic_to_cloud()
-                print("[stage:restic-push] Restic repo pushed to cloud")
-        except Exception as err:
-            # Don't fail the overall backup if the push step fails — log and continue.
-            print(f"[stage:restic-push] Warning: push to cloud failed: {err}")
+        _run_restic_push()
         print("[stage:complete] Backup pipeline completed")
 
 

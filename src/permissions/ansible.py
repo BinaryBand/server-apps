@@ -116,6 +116,28 @@ def _run_or_escalate(command: list[str], *, mode: MODE) -> None:
     _run_playbook(command, cwd=runtime.repo_root())
 
 
+def _handle_playbook_error(
+    err: Exception, mode: MODE, dry_run: bool, paths: _PlaybookPaths
+) -> None:
+    if mode == "runtime" and not dry_run:
+        print(
+            "[permissions] Runtime playbook failed; retrying with sudo prompt for recovery tasks..."
+        )
+        recovery_cmd = _build_recovery_playbook_command(
+            paths,
+            mode=mode,
+            dry_run=dry_run,
+        )
+        try:
+            _run_playbook(recovery_cmd, cwd=runtime.repo_root())
+            return
+        except Exception as retry_err:
+            hint = _format_runtime_failure_hint(retry_err, mode=mode)
+            raise RuntimeError(f"Failed to run permissions playbook: {hint}") from retry_err
+    hint = _format_runtime_failure_hint(err, mode=mode)
+    raise RuntimeError(f"Failed to run permissions playbook: {hint}") from err
+
+
 def run_permissions_playbook(
     *,
     mode: MODE,
@@ -131,24 +153,7 @@ def run_permissions_playbook(
     try:
         _run_or_escalate(command, mode=mode)
     except Exception as err:
-        if mode == "runtime" and not dry_run:
-            print(
-                "[permissions] Runtime playbook failed; retrying with sudo prompt for recovery tasks..."
-            )
-            recovery_cmd = _build_recovery_playbook_command(
-                paths,
-                mode=mode,
-                dry_run=dry_run,
-            )
-            try:
-                _run_playbook(recovery_cmd, cwd=runtime.repo_root())
-                return
-            except Exception as retry_err:
-                hint = _format_runtime_failure_hint(retry_err, mode=mode)
-                raise RuntimeError(f"Failed to run permissions playbook: {hint}") from retry_err
-
-        hint = _format_runtime_failure_hint(err, mode=mode)
-        raise RuntimeError(f"Failed to run permissions playbook: {hint}") from err
+        _handle_playbook_error(err, mode=mode, dry_run=dry_run, paths=paths)
 
 
 __all__ = ["ansible_playbook_bin", "run_permissions_playbook"]

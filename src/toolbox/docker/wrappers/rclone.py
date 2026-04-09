@@ -129,18 +129,8 @@ def rclone_copy(
     docker_args = _normalize_list(docker_args)
     extra_args = _normalize_list(extra_args)
 
-    cmd: list[str] = [
-        "docker",
-        "run",
-        "--rm",
-        *docker_args,
-        _rclone_image(),
-        "copy",
-        source,
-        destination,
-        "--progress",
-        *extra_args,
-    ]
+    cmd: list[str] = ["docker", "run", "--rm", *docker_args]
+    cmd += [_rclone_image(), "copy", source, destination, "--progress", *extra_args]
     try:
         subprocess.run(cmd, check=True)
     except CalledProcessError as err:
@@ -148,10 +138,7 @@ def rclone_copy(
 
 
 def rclone_lsf(
-    path: str,
-    *,
-    docker_args: list[str] | None = None,
-    extra_args: list[str] | None = None,
+    path: str, *, docker_args: list[str] | None = None, extra_args: list[str] | None = None
 ) -> list[str]:
     """Run `rclone lsf --recursive --files-only` and return the file paths."""
     docker_args = _normalize_list(docker_args)

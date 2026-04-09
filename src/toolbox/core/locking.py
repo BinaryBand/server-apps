@@ -23,23 +23,28 @@ class RunbookLock:
 
     def _is_stale(self) -> bool:
         marker: Path = self._lock_dir / "owner.txt"
-        try:
-            text = marker.read_text(encoding="utf-8")
-        except FileNotFoundError:
+        text = self._read_marker(marker)
+        pid = self._extract_pid(text)
+        if pid is None:
             return True
+        return self._check_pid_stale(pid)
 
-        pid = None
+    def _read_marker(self, marker: Path) -> str:
+        try:
+            return marker.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return ""
+
+    def _extract_pid(self, text: str) -> int | None:
         for line in text.splitlines():
             if line.startswith("pid="):
                 try:
-                    pid = int(line.removeprefix("pid=").strip())
+                    return int(line.removeprefix("pid=").strip())
                 except ValueError:
-                    pid = None
-                break
+                    return None
+        return None
 
-        if pid is None:
-            return True
-
+    def _check_pid_stale(self, pid: int) -> bool:
         try:
             os.kill(pid, 0)
             return False
