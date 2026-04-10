@@ -1,13 +1,11 @@
 # Flow Tree
 
-> ⚠️ **Migration in progress** — links to `src/toolbox/core/*` will move to `src/infra/*` once the migration in `NEXT_STEPS.md` is complete.
-
 - **Entry:** [runbook/start.py](../runbook/start.py) — `__main__` delegates to [src/orchestrators/start.py](../src/orchestrators/start.py) `main()`
 
 - **Main:** [src/orchestrators/start.py](../src/orchestrators/start.py) — `main()`
   - **Preflight:** `ensure_docker_daemon_access()` from [src/observability/health.py](../src/observability/health.py)
-  - **Config:** `runbook_resume_enabled()` from [src/toolbox/core/config.py](../src/toolbox/core/config.py)
-  - **Lock:** `RunbookLock` context manager from [src/toolbox/core/locking.py](../src/toolbox/core/locking.py)
+  - **Config:** `runbook_resume_enabled()` from [src/infra/config.py](../src/infra/config.py)
+  - **Lock:** `RunbookLock` context manager from [src/infra/locking.py](../src/infra/locking.py)
   - **Checkpoint:** `OperationCheckpoint` from [src/workflows/checkpoint.py](../src/workflows/checkpoint.py) — uses `start()`, `should_skip_stage()`, `mark_stage()`, `finish()`
   - **Runner:** `start_checkpoint()` / `run_checkpoint_stages()` from [src/workflows/workflow_runner.py](../src/workflows/workflow_runner.py)
 
@@ -15,7 +13,7 @@
     - `ensure_external_volumes()` from [src/storage/compose.py](../src/storage/compose.py)
       - `missing_external_volumes()` → `required_external_volume_names()` from [src/storage/volumes.py](../src/storage/volumes.py)
       - `probe_external_volume()` — `docker volume inspect` via subprocess
-      - `rendered_compose_config()` from [src/toolbox/docker/compose_storage.py](../src/toolbox/docker/compose_storage.py) — discovers configured external volumes
+      - `rendered_compose_config()` from [src/infra/docker/compose_storage.py](../src/infra/docker/compose_storage.py) — discovers configured external volumes
 
   - **Stage: permissions**
     - `run_permissions_playbook()` from [src/permissions/ansible.py](../src/permissions/ansible.py)
@@ -29,13 +27,13 @@
   - **Stage: health**
     - `run_runtime_health_checks()` from [src/observability/health.py](../src/observability/health.py)
       - series of `probe_container_health()` checks using `docker exec` probes
-      - `wait_until()` from [src/toolbox/core/polling.py](../src/toolbox/core/polling.py) — polling loop with configurable timeout
+      - `wait_until()` from [src/infra/polling.py](../src/infra/polling.py) — polling loop with configurable timeout
 
 - **Finalization:** `checkpoint.finish()` marks observed status and completes the workflow
 
 **Notes:**
 
-- This tree focuses on the call graph executed by `main()` in the start runbook. Many leaf functions execute subprocess commands (`docker`, `ansible-playbook`) or read configuration/secrets from `src/toolbox/core/config.py` and `src/toolbox/core/secrets.py`.
+- This tree focuses on the call graph executed by `main()` in the start runbook. Many leaf functions execute subprocess commands (`docker`, `ansible-playbook`) or read configuration/secrets from `src/infra/config.py` and `src/infra/secrets.py`.
 - The pipeline stage list is defined in [src/workflows/pipeline.py](../src/workflows/pipeline.py) as `PIPELINE_STEPS`.
 
 ## Diagram
@@ -60,7 +58,7 @@ flowchart TD
     missing["missing_external_volumes()"]
     required["required_external_volume_names()\nsrc/storage/volumes.py"]
     probe["probe_external_volume()\n(docker volume inspect)"]
-    compose_storage["rendered_compose_config()\nsrc/toolbox/docker/compose_storage.py"]
+    compose_storage["rendered_compose_config()\nsrc/infra/docker/compose_storage.py"]
     ensure --> missing --> required
     ensure --> probe
     ensure --> compose_storage
@@ -71,7 +69,6 @@ flowchart TD
     ansible["run_permissions_playbook()\nsrc/permissions/ansible.py"]
     bin["ansible_playbook_bin()"]
     ansible --> bin
-    - ⚠️ **Migration in progress** — links to `src/toolbox/core/*` will move to `src/infra/*` once the migration in `NEXT_STEPS.md` is complete.
   end
   orchestrator --> permissions_stage
 
@@ -85,7 +82,7 @@ flowchart TD
   subgraph health_stage["Stage: health"]
     health["run_runtime_health_checks()\nsrc/observability/health.py"]
     probe_c["probe_container_health()\n(docker exec probes)"]
-    polling["wait_until()\nsrc/toolbox/core/polling.py"]
+    polling["wait_until()\nsrc/infra/polling.py"]
     health --> probe_c --> polling
   end
   orchestrator --> health_stage

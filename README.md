@@ -40,11 +40,13 @@ Startup does not include a media copy/sync stage.
 
 ## 1.2 Runtime Prerequisite
 
-`runbook/start.py` and `runbook/reconcile.py` runtime flow require Docker daemon
-access from the current shell user. Ensure `docker info` succeeds before running
-the runbooks.
+`runbook/start.py` runtime flow requires Docker daemon access from the current
+shell user. Ensure `docker info` succeeds before running the runbooks.
 
 ## 2. Startup process
+
+The startup pipeline runs four stages in order. Each stage is checkpointed — if
+the process is interrupted, it resumes from the last incomplete stage.
 
 ```mermaid
 stateDiagram-v2
@@ -74,8 +76,6 @@ stateDiagram-v2
   FailedCompose --> [*]
   FailedPostStart --> [*]
 ```
-
-Rows are traversal states (`T0` to `T5`) plus failure exits (`F1` to `F3`).
 
 | State | Ensure volumes | Apply permissions | Compose up | Post-start | Health checks | Transition |
 | --- | :---: | :---: | :---: | :---: | :---: | --- |

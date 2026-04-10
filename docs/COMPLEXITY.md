@@ -84,7 +84,7 @@ Apply one or more of the following, as appropriate:
 
 ### Resolution Log
 
-#### src/toolbox/docker/wrappers/rclone.py:rclone_copy (overload)
+#### src/infra/docker/rclone.py:rclone_copy (overload)
 
 - **Before:** NLOC: 22, CCN: 1
 - **After:** NLOC: 22, CCN: 1
@@ -92,7 +92,7 @@ Apply one or more of the following, as appropriate:
   - This overload is required for type compatibility and API clarity.
   - Its complexity is minimal and justified by interface requirements.
 
-#### src/toolbox/docker/wrappers/rclone.py:rclone_copy
+#### src/infra/docker/rclone.py:rclone_copy
 
 - **Before:** NLOC: 25, CCN: 2
 - **After:** NLOC: 38, CCN: 4 (with helpers extracted)
@@ -142,7 +142,7 @@ Apply one or more of the following, as appropriate:
   - No functional changes; logic is now easier to test and maintain.
   - Validated with Lizard: violation resolved.
 
-#### src/toolbox/core/locking.py:_is_stale
+#### src/infra/locking.py:_is_stale
 
 - **Before:** NLOC: 23, CCN: 8
 - **After:** NLOC: 13, CCN: 3
@@ -179,13 +179,13 @@ Apply one or more of the following, as appropriate:
 
 ---
 
-## 8. Current Violations (as of 2026-04-09)
+## 8. Current Violations (as of 2026-04-10)
 
 | File | Function | NLOC | CCN | PARAM | Length |
 | ------ | ---------- | ------ | ----- | ------- | -------- |
 | src/backup/restic.py | has_restic_repo | 19 | 1 | 0 | 30 |
-| src/toolbox/docker/wrappers/rclone.py | rclone_copy | 25 | 2 | 4 | 27 |
-| src/toolbox/docker/wrappers/rclone.py | rclone_lsf | 25 | 4 | 3 | 27 |
+| src/infra/docker/rclone.py | rclone_copy | 25 | 2 | 4 | 27 |
+| src/infra/docker/rclone.py | rclone_lsf | 25 | 4 | 3 | 27 |
 
 ---
 

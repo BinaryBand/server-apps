@@ -33,7 +33,7 @@ target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N"]
+select = ["E", "F", "W", "I", "N", "A", "B", "S"]
 
 [tool.importlinter]
 root_packages = ["src"]
@@ -67,10 +67,23 @@ Every rule is paired with its enforcement tier.
 | Nesting depth ≤ 3 | Review | — |
 | No mutable module-level globals | Review | — |
 | No silent exception swallowing | Review | — |
-| No vars, secrets, or paths outside Ansible | Review | — |
+| No vars, secrets, or paths outside `src/infra/` or Ansible | Review | — |
 | No CQS violations — functions either mutate or return, not both | Review | — |
 
 Prefer early returns over nested conditionals. If a function needs more than 25 lines, it has more than one responsibility — split it.
+
+---
+
+## Layer Boundaries
+
+The import-linter enforces these contracts on every push:
+
+| Contract | Source modules | Forbidden imports |
+| --- | --- | --- |
+| Domain must not import Infrastructure | `src.configuration` | `src.infra` |
+| App Services must not import Infrastructure concrete modules | `src.workflows`, `src.orchestrators` | `src.infra` |
+
+Run manually: `PYTHONPATH=. .venv/bin/lint-imports`
 
 ---
 
