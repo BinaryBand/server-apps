@@ -1,12 +1,8 @@
 from __future__ import annotations
 
+from src.configuration.rclone_config import RcloneConfig
 from src.infra.runtime import repo_root
 from src.infra.secrets import read_secret
-
-try:
-    from src.configuration.rclone_config import RcloneConfig
-except ImportError:
-    RcloneConfig = None  # type: ignore
 
 
 def get_project_name() -> str:

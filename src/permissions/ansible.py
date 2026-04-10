@@ -60,7 +60,7 @@ def _build_playbook_command(paths: _PlaybookPaths, *, mode: MODE, dry_run: bool)
         "-e",
         f"manifest_path={paths.manifest}",
         "-e",
-        f"repo_root={paths.playbook.parent.parent}",
+        f"repo_root={paths.root}",
         "-e",
         f"permissions_mode={mode}",
         "-e",
@@ -119,9 +119,11 @@ def _run_or_escalate(command: list[str], *, mode: MODE) -> None:
 def _handle_playbook_error(
     err: Exception, mode: MODE, dry_run: bool, paths: _PlaybookPaths
 ) -> None:
+    print(f"[permissions] Playbook error ({mode}): {err}", file=sys.stderr)
     if mode == "runtime" and not dry_run:
         print(
-            "[permissions] Runtime playbook failed; retrying with sudo prompt for recovery tasks..."
+            "[permissions] Retrying with sudo prompt for recovery tasks...",
+            file=sys.stderr,
         )
         recovery_cmd = _build_recovery_playbook_command(
             paths,

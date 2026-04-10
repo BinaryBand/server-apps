@@ -17,6 +17,7 @@ def test_main_runs_health_checks_after_permissions_reconcile() -> None:
         return _inner
 
     with (
+        patch("src.workflows.pipeline.ensure_secrets", side_effect=record("setup")),
         patch(
             "src.workflows.pipeline.ensure_external_volumes",
             side_effect=record("volumes"),
@@ -44,7 +45,7 @@ def test_main_runs_health_checks_after_permissions_reconcile() -> None:
     ):
         main()
 
-    assert events == ["volumes", "permissions", "runtime", "health"]
+    assert events == ["setup", "volumes", "permissions", "runtime", "health"]
 
 
 def test_main_fails_fast_when_docker_preflight_fails() -> None:
@@ -76,6 +77,7 @@ def test_main_handles_permission_errors_during_workflow() -> None:
             "src.orchestrators.start.ensure_docker_daemon_access",
             return_value=None,
         ),
+        patch("src.workflows.pipeline.ensure_secrets", return_value=None),
         patch(
             "src.workflows.pipeline.ensure_external_volumes",
             return_value=None,

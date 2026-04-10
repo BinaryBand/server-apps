@@ -1,3 +1,5 @@
+# cspell:words fusermount mountinfo
+
 import subprocess
 from subprocess import CalledProcessError, CompletedProcess
 from typing import Iterable
