@@ -12,3 +12,5 @@
   gather_facts: false
   roles:
     - systemd_enforcer
+  vars:
+    repo_root_path: "{{ repo_root | default(playbook_dir ~ '/../..' if playbook_dir.endswith('/playbooks') else playbook_dir ~ '/..') }}"
