@@ -2,20 +2,18 @@
 # Ensures the MinIO media bucket exists and has an anonymous download policy.
 # Expects: rclone_env (MINIO_ROOT_USER, MINIO_ROOT_PASSWORD)
 
-- name: Wait for MinIO API readiness
+- name: Wait for MinIO container to be healthy
   ansible.builtin.command:
     argv:
       - docker
-      - exec
+      - inspect
+      - "--format={{ '{{.State.Health.Status}}' }}"
       - minio
-      - sh
-      - -lc
-      - "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null"
-  register: minio_bucket_ready
-  changed_when: false
-  retries: 24
+  register: minio_health_status
+  until: "minio_health_status.stdout | trim == 'healthy'"
+  retries: 40
   delay: 5
-  until: minio_bucket_ready.rc == 0
+  changed_when: false
 
 - name: Configure mc alias for MinIO
   ansible.builtin.command:

@@ -5,7 +5,7 @@ import subprocess
 
 from src.storage.compose import compose_cmd
 from src.storage.volumes import storage_mount_source
-from src.toolbox.core.config import restic_pcloud_remote, restic_version
+from src.toolbox.core.config import restic_pcloud_remote
 from src.toolbox.docker.volumes_config import storage_docker_mount_flags
 from src.toolbox.docker.wrappers.rclone import rclone_sync
 
@@ -14,11 +14,6 @@ log = logging.getLogger(__name__)
 
 PROFILE = "on-demand"
 RESTIC_PCLOUD_REMOTE: str = restic_pcloud_remote()
-
-
-def _restic_image() -> str:
-    version: str = restic_version("latest")
-    return f"restic/restic:{version}"
 
 
 class ResticRunnerError(RuntimeError):

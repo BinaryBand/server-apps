@@ -69,24 +69,6 @@
   ansible.builtin.include_role:
     name: rclone_config
 
-- name: Remove legacy Podman app containers if present
-  ansible.builtin.shell: |
-    set -eu
-    if ! command -v podman >/dev/null 2>&1; then
-      exit 0
-    fi
-    for name in baikal jellyfin minio rclone; do
-      if podman container exists "$name" 2>/dev/null; then
-        podman rm -f "$name" >/dev/null 2>&1 || true
-        printf '%s\n' "$name"
-      fi
-    done
-  args:
-    executable: /bin/bash
-  register: legacy_podman_cleanup
-  failed_when: false
-  changed_when: legacy_podman_cleanup.stdout | length > 0
-  when: permissions_mode_selected == 'runtime'
 
 - name: Tear down existing Docker compose stack
   ansible.builtin.command:
@@ -141,27 +123,38 @@
 - name: Heal stale media mountpoint before compose startup
   become: "{{ runtime_recover_with_become_enabled | bool }}"
   ansible.builtin.shell: |
-    set -u
+    set -euo pipefail
     media_path="{{ lookup('ansible.builtin.env', 'MEDIA_MOUNT_DIR', default=repo_root_path ~ '/runtime/media') }}"
-    if LC_ALL=C ls -ld "$media_path" >/dev/null 2>&1; then
+
+    # Fast path: path is accessible, nothing to do
+    if stat "$media_path" >/dev/null 2>&1; then
       exit 0
     fi
-    if command -v fusermount >/dev/null 2>&1; then
-      fusermount -uz "$media_path" >/dev/null 2>&1 || true
+
+    # Unmount stale FUSE mount.
+    # Plain umount (no -l) is critical: lazy unmount detaches from VFS but
+    # leaves a zombie in the rshared peer group, causing ENOTCONN when Docker
+    # sets up rshared bind mounts for the rclone container.
+    if command -v fusermount3 >/dev/null 2>&1; then
+      fusermount3 -u "$media_path" 2>/dev/null || true
+    elif command -v fusermount >/dev/null 2>&1; then
+      fusermount -u "$media_path" 2>/dev/null || true
     fi
-    umount -l "$media_path" >/dev/null 2>&1 || true
-    if ! LC_ALL=C ls -ld "$media_path" >/dev/null 2>&1; then
-      rm -rf "$media_path" >/dev/null 2>&1 || true
-      mkdir -p "$media_path" || true
+    umount "$media_path" 2>/dev/null || umount -f "$media_path" 2>/dev/null || true
+
+    # Recreate directory with a clean inode
+    rm -rf "$media_path" 2>/dev/null || true
+    mkdir -p "$media_path"
+
+    if ! stat "$media_path" >/dev/null 2>&1; then
+      echo "[ERROR] heal failed — mountpoint still inaccessible" >&2
+      exit 1
     fi
-    if LC_ALL=C ls -ld "$media_path" >/dev/null 2>&1; then
-      echo healed
-    fi
+    echo healed
   args:
     executable: /bin/bash
   register: media_mount_heal
   changed_when: "'healed' in media_mount_heal.stdout"
-  failed_when: false
   when: permissions_mode_selected == 'runtime'
 
 - name: Start docker compose stack
