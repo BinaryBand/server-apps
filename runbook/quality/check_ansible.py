@@ -14,9 +14,7 @@ from pathlib import Path
 
 
 def main() -> None:
-    ansible_lint = shutil.which("ansible-lint") or str(
-        Path(sys.executable).parent / "ansible-lint"
-    )
+    ansible_lint = shutil.which("ansible-lint") or str(Path(sys.executable).parent / "ansible-lint")
     repo_root = Path(__file__).resolve().parents[2]
     cmd = [ansible_lint, str(repo_root / "ansible")]
     rc = subprocess.run(cmd).returncode

@@ -39,7 +39,7 @@ jobs:
         run: python -m lizard src runbook -C 5 -L 25 -a 4 -w
 
       - name: Lizard file gate
-        run: python scripts/quality/lizard_file_gate.py src runbook --max-file-ccn-sum 35 --max-file-avg-ccn 4.5 --max-file-high-risk-funcs 2 --high-risk-ccn 6
+        run: python runbook/quality/lizard_file_gate.py src runbook --max-file-ccn-sum 35 --max-file-avg-ccn 4.5 --max-file-high-risk-funcs 2 --high-risk-ccn 6
 
       - name: Vulture dead code
         run: python -m vulture src runbook --min-confidence 80

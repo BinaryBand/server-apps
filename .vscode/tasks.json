@@ -4,7 +4,7 @@
     {
       "label": "Watch: Quality Auto",
       "type": "shell",
-      "command": "${workspaceFolder}/.venv/bin/python ${workspaceFolder}/scripts/quality/quality_watch.py",
+      "command": "${workspaceFolder}/.venv/bin/python ${workspaceFolder}/runbook/quality/quality_watch.py",
       "isBackground": true,
       "runOptions": {
         "runOn": "folderOpen"
@@ -82,7 +82,7 @@
     {
       "label": "Check: Lizard File Complexity",
       "type": "shell",
-      "command": "${workspaceFolder}/.venv/bin/python ${workspaceFolder}/scripts/quality/lizard_file_gate.py src runbook --max-file-ccn-sum 35 --max-file-avg-ccn 4.5 --max-file-high-risk-funcs 2 --high-risk-ccn 6",
+      "command": "${workspaceFolder}/.venv/bin/python ${workspaceFolder}/runbook/quality/lizard_file_gate.py src runbook --max-file-ccn-sum 35 --max-file-avg-ccn 4.5 --max-file-high-risk-funcs 2 --high-risk-ccn 6",
       "group": "test",
       "presentation": {
         "reveal": "always",

@@ -59,7 +59,7 @@ def restore_env(repo_root, docker_available):
         script_lines.extend(
             [
                 f"mkdir -p /backups/restore/volumes/{logical_name}",
-                f"printf '%s\n' smoke > /backups/restore/volumes/{logical_name}/.smoke",
+                f"printf '%s\\n' smoke > /backups/restore/volumes/{logical_name}/.smoke",
             ]
         )
 
@@ -151,11 +151,11 @@ def test_restore_applies_all_staged_logical_volumes(restore_env, monkeypatch) ->
     monkeypatch.setattr("src.backup.restore.pull_restic_from_cloud", lambda: None)
     monkeypatch.setattr("src.backup.restic.run_restic_command", lambda args: None)
     monkeypatch.setattr(
-        "src.storage.volumes.storage_mount_source",
+        "src.backup.restore.storage_mount_source",
         lambda *a, **k: env["backups_volume"],
     )
     monkeypatch.setattr(
-        "src.storage.volumes.logical_volume_mount_source",
+        "src.backup.restore.logical_volume_mount_source",
         lambda logical: f"{env['test_project']}_{logical}",
     )
     monkeypatch.setattr("src.backup.restore.rclone_sync", fake_rclone_sync)

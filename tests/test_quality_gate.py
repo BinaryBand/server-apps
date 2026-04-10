@@ -54,7 +54,7 @@ def test_lizard_file_gate():
     _run(
         [
             sys.executable,
-            "scripts/quality/lizard_file_gate.py",
+            "runbook/quality/lizard_file_gate.py",
             "src",
             "runbook",
             "--max-file-ccn-sum",
