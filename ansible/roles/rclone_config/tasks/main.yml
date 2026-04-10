@@ -27,7 +27,7 @@
 
 - name: Render rclone config from template
   ansible.builtin.template:
-    src: "{{ repo_root_path }}/ansible/templates/rclone.conf.j2"
+    src: "rclone.conf.j2"
     dest: "{{ rclone_config_staging.path }}/rclone.conf"
     mode: "0600"
 
