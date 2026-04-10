@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from src.toolbox.core.locking import RunbookLock
+from src.infra.locking import RunbookLock
 
 
 def test_second_lock_acquire_fails_while_first_is_held() -> None:

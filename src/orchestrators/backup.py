@@ -12,9 +12,9 @@ from src.backup.restic import (
 )
 from src.backup.stage_runner import run_backup_stage
 from src.configuration.backup_config import BackupConfig
-from src.toolbox.core.config import restic_pcloud_sync_enabled, runbook_resume_enabled
-from src.toolbox.core.locking import RunbookLock
-from src.toolbox.core.runtime import (
+from src.infra.config import restic_pcloud_sync_enabled, runbook_resume_enabled
+from src.infra.locking import RunbookLock
+from src.infra.runtime import (
     checkpoints_root,
     locks_root,
     repo_root,

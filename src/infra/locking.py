@@ -1,1 +1,106 @@
-# ...existing code from src/toolbox/core/locking.py...
+from __future__ import annotations
+
+import os
+import shutil
+import time
+from pathlib import Path
+from typing import Literal
+
+
+class RunbookLock:
+    def __init__(self, name: str, root: Path, *, timeout_seconds: float | None = None):
+        if timeout_seconds is None:
+            try:
+                timeout_seconds = float(os.environ.get("RUNBOOK_LOCK_TIMEOUT", "0"))
+            except ValueError:
+                timeout_seconds = 0.0
+
+        self._name: str = name
+        self._root: Path = root
+        self._timeout_seconds: float = timeout_seconds
+        self._lock_dir: Path = self._root / f"{self._name}.lock"
+
+    def _is_stale(self) -> bool:
+        marker: Path = self._lock_dir / "owner.txt"
+        text = self._read_marker(marker)
+        pid = self._extract_pid(text)
+        if pid is None:
+            return True
+        return self._check_pid_stale(pid)
+
+    def _read_marker(self, marker: Path) -> str:
+        try:
+            return marker.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return ""
+
+    def _extract_pid(self, text: str) -> int | None:
+        for line in text.splitlines():
+            if line.startswith("pid="):
+                try:
+                    return int(line.removeprefix("pid=").strip())
+                except ValueError:
+                    return None
+        return None
+
+    def _check_pid_stale(self, pid: int) -> bool:
+        try:
+            os.kill(pid, 0)
+            return False
+        except ProcessLookupError:
+            return True
+        except PermissionError:
+            return False
+
+    def _ensure_root(self) -> None:
+        try:
+            self._root.mkdir(parents=True, exist_ok=True)
+        except PermissionError as err:
+            raise RuntimeError(f"unable to create lock root: {self._root}") from err
+
+    def _attempt_mkdir(self) -> Literal["acquired", "retry", "held"]:
+        try:
+            self._lock_dir.mkdir()
+            marker: Path = self._lock_dir / "owner.txt"
+            marker.write_text(
+                f"pid={os.getpid()}\nstarted={time.time()}\n",
+                encoding="utf-8",
+            )
+            return "acquired"
+        except PermissionError as err:
+            raise RuntimeError(f"unable to acquire lock: {self._lock_dir}") from err
+        except FileExistsError:
+            if self._is_stale():
+                shutil.rmtree(self._lock_dir, ignore_errors=True)
+                return "retry"
+            return "held"
+
+    def _deadline_passed(self, deadline: float) -> bool:
+        return self._timeout_seconds <= 0 or time.monotonic() >= deadline
+
+    def acquire(self) -> None:
+        self._ensure_root()
+        deadline: float = time.monotonic() + self._timeout_seconds
+
+        while True:
+            status = self._attempt_mkdir()
+            if status == "acquired":
+                return
+            if status == "held":
+                if self._deadline_passed(deadline):
+                    raise RuntimeError(f"lock is held for group '{self._name}' ({self._lock_dir})")
+                time.sleep(0.1)
+
+    def release(self) -> None:
+        if self._lock_dir.exists():
+            shutil.rmtree(self._lock_dir, ignore_errors=True)
+
+    def __enter__(self) -> "RunbookLock":
+        self.acquire()
+        return self
+
+    def __exit__(self, _exc_type, _exc, _tb) -> None:
+        self.release()
+
+
+__all__ = ["RunbookLock"]

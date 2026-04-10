@@ -9,14 +9,14 @@ if __package__ in {None, ""}:
         sys.path.insert(0, repo_root_str)
 
 import src.backup.restic as restic
+from src.infra.config import restic_pcloud_sync_enabled
+from src.infra.docker.rclone import rclone_sync
 from src.storage.volumes import (
     logical_volume_mount_source,
     logical_volume_names,
     storage_docker_mount_flags,
     storage_mount_source,
 )
-from src.toolbox.core.config import restic_pcloud_sync_enabled
-from src.toolbox.docker.wrappers.rclone import rclone_sync
 
 
 def recent_snapshots(limit: int = 10) -> str:

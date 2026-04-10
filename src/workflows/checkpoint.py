@@ -5,7 +5,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from src.configuration.state_model import WorkflowState, utc_now
-from src.toolbox.io.state_io import read_json_file, write_json_file_atomic
+from src.infra.io.state_io import read_json_file, write_json_file_atomic
 
 # Module-level sentinel for completed stage status
 _STAGE_COMPLETE: str = "true"
@@ -52,7 +52,7 @@ class OperationCheckpoint:
         return any(c.name == stage_name and c.status == _STAGE_COMPLETE for c in state.conditions)
 
     def mark_stage(self, stage_name: str, *, ok: bool, message: str | None = None) -> None:
-        from src.toolbox.io.state_helpers import upsert_condition
+        from src.infra.io.state_helpers import upsert_condition
 
         state: WorkflowState = self.state
         status: Literal["true", "false"] = "true" if ok else "false"

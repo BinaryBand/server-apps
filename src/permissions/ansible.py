@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-import src.toolbox.core.runtime as runtime
+import src.infra.runtime as runtime
 
 MODE = Literal["bootstrap", "runtime", "reset"]
 
@@ -39,7 +39,7 @@ def _resolve_playbook_paths(manifest_path: str) -> _PlaybookPaths:
         root=root,
         manifest=root / manifest_path,
         inventory=root / "ansible" / "inventory.ini",
-        playbook=root / "ansible" / "apply-permissions.yml",
+        playbook=root / "ansible" / "playbooks" / "runtime.yml",
     )
 
 

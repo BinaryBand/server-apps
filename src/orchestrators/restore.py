@@ -5,9 +5,9 @@ from src.adapters.rclone.stream_sync import RcloneStreamSync
 from src.backup.restore import recent_snapshots, restore_snapshot
 from src.backup.stage_runner import run_restore_stage
 from src.configuration.backup_config import BackupConfig, StreamSource
-from src.toolbox.core.config import runbook_resume_enabled
-from src.toolbox.core.locking import RunbookLock
-from src.toolbox.core.runtime import checkpoints_root, locks_root, repo_root
+from src.infra.config import runbook_resume_enabled
+from src.infra.locking import RunbookLock
+from src.infra.runtime import checkpoints_root, locks_root, repo_root
 from src.workflows.checkpoint import OperationCheckpoint
 from src.workflows.workflow_runner import StagePolicy, run_checkpoint_stage, start_checkpoint
 

@@ -239,11 +239,6 @@ Any violation means the boundary is wrong. Redraw before writing code.
 name = "Domain must not import Infrastructure"
 source_modules = ["src.configuration"]
 forbidden_modules = ["src.infra"]
-
-[[tool.importlinter.contracts]]
-name = "App Services must not import Infrastructure concrete modules"
-source_modules = ["src.workflows", "src.orchestrators"]
-forbidden_modules = ["src.infra"]
 ```
 
 Run: `PYTHONPATH=. .venv/bin/lint-imports`

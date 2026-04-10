@@ -3,7 +3,7 @@ from __future__ import annotations
 from subprocess import CompletedProcess
 from unittest.mock import patch
 
-from src.toolbox.docker.wrappers.rclone import cleanup_media_mount
+from src.infra.docker.rclone import cleanup_media_mount
 
 
 def _cp(cmd: list[str], returncode: int = 0, stdout: str = "") -> CompletedProcess[str]:
@@ -12,7 +12,7 @@ def _cp(cmd: list[str], returncode: int = 0, stdout: str = "") -> CompletedProce
 
 def test_cleanup_skips_when_container_not_running() -> None:
     with patch(
-        "src.toolbox.docker.wrappers.rclone.subprocess.run",
+        "src.infra.docker.rclone.subprocess.run",
         return_value=_cp(["docker", "inspect"], returncode=1),
     ) as mock_run:
         cleanup_media_mount()
@@ -50,7 +50,7 @@ def test_cleanup_uses_umount_when_fusermount_missing() -> None:
             return _cp(cmd)
         raise AssertionError(f"Unexpected command: {cmd}")
 
-    with patch("src.toolbox.docker.wrappers.rclone.subprocess.run", side_effect=fake_run):
+    with patch("src.infra.docker.rclone.subprocess.run", side_effect=fake_run):
         cleanup_media_mount()
 
 
@@ -64,5 +64,5 @@ def test_cleanup_skips_when_mount_not_active() -> None:
             return _cp(cmd, stdout="")
         raise AssertionError(f"Unexpected command: {cmd}")
 
-    with patch("src.toolbox.docker.wrappers.rclone.subprocess.run", side_effect=fake_run):
+    with patch("src.infra.docker.rclone.subprocess.run", side_effect=fake_run):
         cleanup_media_mount()

@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
+from src.infra.docker.rclone import rclone_sync
 from src.storage import volumes as volatile
-from src.toolbox.docker.wrappers.rclone import rclone_sync
 
 
 def gather_stage(include: Sequence[str], exclude: Sequence[str] = ()) -> None:

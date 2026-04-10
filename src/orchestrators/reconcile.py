@@ -7,33 +7,20 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from argparse import ArgumentParser
-from uuid import uuid4
 
+from src.infra.config import runbook_resume_enabled
+from src.infra.locking import RunbookLock
+from src.infra.runtime import checkpoints_root, locks_root
+from src.observability.health import run_runtime_health_checks
 from src.workflows.pipeline import PIPELINE_STEPS
-from src.workflows.workflow_runner import start_checkpoint, run_checkpoint_stages
-from src.toolbox.core.runtime import checkpoints_root, locks_root
-from src.toolbox.core.locking import RunbookLock
-from src.toolbox.core.config import runbook_resume_enabled
-from src.reconciler.runtime_observer import RuntimeObserver
-from src.configuration.state_model import WorkflowState
+from src.workflows.workflow_runner import run_checkpoint_stages, start_checkpoint
 
 
 def _run_check_only() -> None:
-    state = WorkflowState(
-        workflow="reconcile",
-        desired="Healthy",
-        runId=str(uuid4()),
-        idempotencyToken=str(uuid4()),
-    )
-    observer = RuntimeObserver()
     try:
-        degraded = observer.probe_runtime(state)
-        observed = "Degraded" if degraded else "Healthy"
-        run_status = "failed" if degraded else "completed"
-        print(f"[reconcile] observed={observed} status={run_status}")
-        if run_status == "failed":
-            sys.exit(1)
-    except RuntimeError as err:
+        run_runtime_health_checks()
+        print("[reconcile] observed=Healthy status=completed")
+    except (RuntimeError, SystemExit) as err:
         print(f"[reconcile] observed=Degraded status=failed error={err}")
         sys.exit(1)
 

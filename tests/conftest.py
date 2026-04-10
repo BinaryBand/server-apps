@@ -32,13 +32,3 @@ def assert_helpers():
     from tests.support import asserts
 
     return asserts
-
-
-@pytest.fixture
-def state_root_tmp(monkeypatch, tmp_path: Path) -> Path:
-    """Provide a temporary state root and patch the reconciler to use it.
-
-    Tests can depend on this fixture to ensure isolated state for idempotency checks.
-    """
-    monkeypatch.setattr("src.reconciler.state_store.state_root", lambda: tmp_path)
-    return tmp_path

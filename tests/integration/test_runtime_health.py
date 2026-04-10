@@ -6,6 +6,7 @@ from unittest.mock import call, patch
 
 import pytest
 
+from src.infra.polling import ProbeResult, WaitConfig, wait_until
 from src.observability.health import (
     CommandWaitSpec,
     ContainerExecWaitSpec,
@@ -13,7 +14,6 @@ from src.observability.health import (
     run_runtime_health_checks,
     wait_for_command,
 )
-from src.toolbox.core.polling import ProbeResult, WaitConfig, wait_until
 
 
 def test_wait_until_returns_on_ready_probe() -> None:
@@ -62,7 +62,7 @@ def test_wait_for_command_reports_command_context() -> None:
 
 def test_runtime_health_checks_use_expected_sequence() -> None:
     with (
-        patch("src.toolbox.core.config.rclone_remote", return_value="pcloud"),
+        patch("src.infra.config.rclone_remote", return_value="pcloud"),
         patch("src.observability.health.wait_for_container_exec") as wait_exec,
         patch("src.observability.health.wait_for_container_health") as wait_health,
     ):

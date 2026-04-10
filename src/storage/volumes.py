@@ -1,4 +1,4 @@
-from src.toolbox.docker.volumes_config import (
+from src.infra.docker.volumes_config import (
     host_bind_path,
     logical_volume_mount_source,
     logical_volume_names,
@@ -7,7 +7,7 @@ from src.toolbox.docker.volumes_config import (
     storage_docker_mount_flags,
     storage_mount_source,
 )
-from src.toolbox.docker.volumes_inspector import list_project_volumes, remove_project_volumes
+from src.infra.docker.volumes_inspector import list_project_volumes, remove_project_volumes
 
 __all__ = [
     "logical_volume_names",

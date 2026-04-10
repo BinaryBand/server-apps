@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import subprocess
 
+from src.infra.docker.compose_cli import compose_cmd
+from src.infra.docker.compose_storage import external_alias_name_pairs, rendered_compose_config
 from src.storage.volumes import required_external_volume_names
-from src.toolbox.docker.compose_cli import compose_cmd
-from src.toolbox.docker.compose_storage import external_alias_name_pairs, rendered_compose_config
 
 
 def ensure_external_volumes() -> None:

@@ -6,56 +6,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from src.infra.locking import RunbookLock
+from src.infra.secrets import minio_credentials
 from src.observability.health import run_runtime_health_checks
 from src.observability.post_start import run_runtime_post_start
-from src.reconciler.core import reconcile_once
-from src.toolbox.core.ansible import run_permissions_playbook
-from src.toolbox.core.locking import RunbookLock
-from src.toolbox.core.secrets import minio_credentials
-from src.toolbox.docker.compose import ensure_external_volumes
-from tests.support.reconciler_helpers import patch_reconciler_observer, patch_runtime_pipeline
-
-
-class TestReconcilerErrorHandling:
-    """Test error handling scenarios in reconciler.py"""
-
-    @pytest.mark.parametrize(
-        ("failing_stage", "expected_message"),
-        [
-            ("run_runtime_health_checks", "Health check failed"),
-            ("run_permissions_playbook", "Permissions failed"),
-            ("run_runtime_post_start", "Post-start failed"),
-        ],
-    )
-    def test_reconcile_once_handles_runtime_errors(
-        self,
-        state_root_tmp,
-        monkeypatch,
-        failing_stage: str,
-        expected_message: str,
-    ):
-        """Test that runtime stage failures are mapped to RuntimeHealth=false."""
-        patch_reconciler_observer(monkeypatch, volumes=[], services=[], media_public=True)
-        patch_runtime_pipeline(monkeypatch)
-
-        if failing_stage == "run_permissions_playbook":
-            monkeypatch.setattr(
-                "src.workflows.pipeline.run_permissions_playbook",
-                lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError(expected_message)),
-            )
-        else:
-            monkeypatch.setattr(
-                f"src.workflows.pipeline.{failing_stage}",
-                lambda: (_ for _ in ()).throw(RuntimeError(expected_message)),
-            )
-
-        state = reconcile_once(check_only=False)
-
-        assert state.observed == "Degraded"
-        assert state.runStatus == "failed"
-        condition = next(c for c in state.conditions if c.name == "RuntimeHealth")
-        assert condition.status == "false"
-        assert expected_message in condition.message
+from src.permissions.ansible import run_permissions_playbook
+from src.storage.compose import ensure_external_volumes
 
 
 class TestHealthChecksErrorHandling:
@@ -115,7 +71,7 @@ class TestHealthChecksErrorHandling:
 
     def test_run_runtime_health_checks_handles_multiple_failures(self):
         """Test that run_runtime_health_checks handles multiple service failures"""
-        with patch("src.toolbox.core.config.rclone_remote", return_value="pcloud"):
+        with patch("src.infra.config.rclone_remote", return_value="pcloud"):
             with patch("src.observability.health.wait_for_container_exec") as mock_exec:
                 mock_exec.side_effect = RuntimeError("Service unavailable")
 
@@ -153,7 +109,7 @@ class TestAnsibleErrorHandling:
         from pathlib import Path
 
         # Mock repo_root to return a non-existent path
-        monkeypatch.setattr("src.toolbox.core.runtime.repo_root", lambda: Path("/nonexistent"))
+        monkeypatch.setattr("src.infra.runtime.repo_root", lambda: Path("/nonexistent"))
 
         with pytest.raises(SystemExit):
             run_permissions_playbook(mode="runtime")
@@ -363,7 +319,7 @@ class TestConfigurationErrorHandling:
 
     def test_minio_credentials_handles_missing_credentials(self):
         """Test that missing MinIO credentials are handled"""
-        with patch("src.toolbox.core.secrets.read_secret") as mock_read:
+        with patch("src.infra.secrets.read_secret") as mock_read:
             mock_read.side_effect = lambda name, default=None: None
 
             with pytest.raises(RuntimeError) as err:
@@ -373,7 +329,7 @@ class TestConfigurationErrorHandling:
 
     def test_bind_mount_value_handles_invalid_paths(self):
         """Test that invalid bind mount paths are handled"""
-        from src.toolbox.core.config import bind_mount_value
+        from src.infra.config import bind_mount_value
 
         # Test with invalid path
         result = bind_mount_value("INVALID_PATH", "/nonexistent")

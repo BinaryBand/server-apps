@@ -35,3 +35,11 @@ def read_secret(name: str, default: str | None = None) -> str | None:
 
 
 secret = read_secret  # backwards-compatible alias
+
+
+def minio_credentials() -> tuple[str, str]:
+    user = read_secret("MINIO_ROOT_USER") or read_secret("S3_ACCESS_KEY")
+    password = read_secret("MINIO_ROOT_PASSWORD") or read_secret("S3_SECRET_KEY")
+    if not user or not password:
+        raise RuntimeError("Missing MinIO credentials")
+    return user, password
