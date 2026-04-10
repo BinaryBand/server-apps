@@ -9,8 +9,8 @@
       - inspect
       - "--format={{ '{{.State.Health.Status}}' }}"
       - minio
-  register: minio_health_status
-  until: "minio_health_status.stdout | trim == 'healthy'"
+  register: minio_bucket_health_status
+  until: "minio_bucket_health_status.stdout | trim == 'healthy'"
   retries: 40
   delay: 5
   changed_when: false

@@ -1,0 +1,4 @@
+---
+systemd_enforcer_project_dir: "{{ playbook_dir }}/../.."
+systemd_enforcer_service_user: "{{ lookup('ansible.builtin.pipe', 'id -un') }}"
+systemd_enforcer_units_manifest: "{{ playbook_dir }}/../../ansible/systemd_units.yml"

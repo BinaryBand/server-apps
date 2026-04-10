@@ -1,0 +1,9 @@
+---
+# Desired SSH authorized keys per system user.
+# Keys present on the host but NOT listed here will be removed.
+# Add one entry per user. Public keys only — never commit private keys.
+users:
+  - name: owen
+    authorized_keys:
+      - comment: "workstation"
+        key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICu2iKShB6DZDywOKUdTCslxseIc9Ly3zNXUANhE0AM8 owen@owen-OptiPlex-3040"

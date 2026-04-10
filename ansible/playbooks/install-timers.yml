@@ -1,14 +1,14 @@
 ---
+# Enforces the systemd unit desired state declared in ansible/systemd_units.yml.
+# Units matching the namespace prefix that are NOT listed there will be purged.
+#
 # Usage:
+#   ansible-playbook -i ansible/inventory.ini ansible/playbooks/install-timers.yml
 #   ansible-playbook -i ansible/inventory.ini ansible/playbooks/install-timers.yml \
-#     -e "server_apps_project_dir=/opt/server-apps" \
-#     -e "backup_service_user=owen"
-- name: Install automated task timers
+#     -e "systemd_enforcer_project_dir=/opt/server-apps" \
+#     -e "systemd_enforcer_service_user=owen"
+- name: Enforce systemd unit desired state
   hosts: all
   gather_facts: false
-  vars:
-    server_apps_project_dir: "{{ project_dir | default(playbook_dir ~ '/../..') }}"
-    backup_service_user: "{{ service_user | default(lookup('ansible.builtin.pipe', 'id -un')) }}"
-    backup_lock_timeout: 300
   roles:
-    - backup_timer
+    - systemd_enforcer

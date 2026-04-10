@@ -16,6 +16,8 @@
     "semgrep",
     "setuptools"
   ],
+  "python.useEnvironmentsExtension": false,
   "python.testing.pytestArgs": ["tests"],
-  "python.testing.unittestEnabled": true
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true
 }

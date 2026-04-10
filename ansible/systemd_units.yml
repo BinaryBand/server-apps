@@ -1,0 +1,17 @@
+---
+# Desired state for all project-owned systemd units.
+# Units whose name starts with `namespace_prefix` but are NOT listed here
+# will be stopped, disabled, and removed by the systemd_enforcer role.
+namespace_prefix: "server-apps-"
+units:
+  - name: server-apps-backup
+    description: "Run the server-apps backup pipeline"
+    exec_start: ".venv/bin/python runbook/backup.py"
+    group: docker
+    schedule: "*-*-* 02:00:00"
+    randomized_delay: 300
+    persistent: true
+    syslog_identifier: server-apps-backup
+    environment:
+      PYTHONUNBUFFERED: "1"
+      RUNBOOK_LOCK_TIMEOUT: "300"

@@ -1,0 +1,12 @@
+---
+- name: Load SSH access manifest
+  ansible.builtin.include_vars:
+    file: "{{ ssh_enforcer_manifest }}"
+
+- name: Enforce authorized keys
+  ansible.posix.authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ item.authorized_keys | map(attribute='key') | join('\n') }}"
+    exclusive: true
+    state: present
+  loop: "{{ users }}"

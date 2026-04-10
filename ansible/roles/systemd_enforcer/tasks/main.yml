@@ -1,0 +1,10 @@
+---
+- name: Load systemd units manifest
+  ansible.builtin.include_vars:
+    file: "{{ systemd_enforcer_units_manifest }}"
+
+- name: Install declared units
+  ansible.builtin.include_tasks: install.yml
+
+- name: Purge orphaned units
+  ansible.builtin.include_tasks: purge_orphans.yml

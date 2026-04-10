@@ -1,0 +1,11 @@
+---
+# Enforces the SSH authorized key desired state declared in ansible/ssh_access.yml.
+# Keys present on the host but NOT listed there will be removed.
+#
+# Usage:
+#   ansible-playbook -i ansible/inventory.ini ansible/playbooks/enforce-ssh.yml
+- name: Enforce SSH authorized keys
+  hosts: all
+  gather_facts: false
+  roles:
+    - ssh_enforcer

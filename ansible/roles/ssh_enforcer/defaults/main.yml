@@ -1,0 +1,2 @@
+---
+ssh_enforcer_manifest: "{{ playbook_dir }}/../../ansible/ssh_access.yml"

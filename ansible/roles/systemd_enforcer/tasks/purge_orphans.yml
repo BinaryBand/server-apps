@@ -1,0 +1,53 @@
+---
+- name: Find installed project unit files
+  ansible.builtin.find:
+    paths: /etc/systemd/system
+    patterns:
+      - "{{ namespace_prefix }}*.service"
+      - "{{ namespace_prefix }}*.timer"
+  register: systemd_enforcer_installed_unit_files
+
+- name: Compute orphan base names
+  ansible.builtin.set_fact:
+    systemd_enforcer_orphan_unit_names: >-
+      {{
+        systemd_enforcer_installed_unit_files.files
+        | map(attribute='path')
+        | map('basename')
+        | map('regex_replace', '\.(service|timer)$', '')
+        | unique
+        | difference(units | map(attribute='name') | list)
+        | list
+      }}
+
+- name: Stop and disable orphan timers
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ item }}.timer"
+    state: stopped
+    enabled: false
+  loop: "{{ systemd_enforcer_orphan_unit_names }}"
+  failed_when: false
+
+- name: Stop and disable orphan services
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ item }}.service"
+    state: stopped
+    enabled: false
+  loop: "{{ systemd_enforcer_orphan_unit_names }}"
+  failed_when: false
+
+- name: Remove orphan unit files
+  become: true
+  ansible.builtin.file:
+    path: "{{ item[0] }}"
+    state: absent
+  loop: >-
+    {{
+      systemd_enforcer_orphan_unit_names | product(['.service', '.timer'])
+      | map('join')
+      | map('regex_replace', '^', '/etc/systemd/system/')
+      | list
+    }}
+  notify: Reload systemd

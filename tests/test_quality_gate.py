@@ -88,6 +88,13 @@ def test_semgrep_rules():
     _run([semgrep, "--config", "rules/semgrep/", "src", "--error"])
 
 
+def test_ansible_lint():
+    ansible_lint = _find_exec("ansible-lint")
+    if not ansible_lint:
+        pytest.skip("ansible-lint not available in PATH or venv")
+    _run([ansible_lint, "ansible/"])
+
+
 def test_jscpd_duplicates_fail_gate():
     """Run jscpd and fail the quality gate if any clones are detected."""
     jscpd = _find_exec("jscpd")

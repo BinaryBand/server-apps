@@ -1,0 +1,22 @@
+[Unit]
+Description={{ unit.description }}
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ systemd_enforcer_project_dir }}
+ExecStart={{ systemd_enforcer_project_dir }}/{{ unit.exec_start }}
+User={{ systemd_enforcer_service_user }}
+{% if unit.group is defined %}
+Group={{ unit.group }}
+{% endif %}
+{% for key, value in unit.environment.items() %}
+Environment={{ key }}={{ value }}
+{% endfor %}
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{ unit.syslog_identifier | default(unit.name) }}
+
+[Install]
+WantedBy=multi-user.target
